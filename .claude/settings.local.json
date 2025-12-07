@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(clear:*)",
+      "Bash(chmod:*)",
+      "Bash(tree:*)",
+      "Bash(dotnet build:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)",
+      "Bash(dotnet clean:*)",
+      "Bash(docker build:*)",
+      "Bash(dotnet publish:*)",
+      "Bash(tee:*)",
+      "Bash(docker inspect:*)",
+      "Bash(docker run:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker stop:*)",
+      "Bash(kubectl:*)",
+      "Bash(echo:*)",
+      "Bash(for file in *.yaml)",
+      "Bash(do echo \"=== Validating $file ===\")",
+      "Bash(python3 -c \"import yaml, sys; yaml.safe_load_all(open(''$file''))\")",
+      "Bash(done)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
