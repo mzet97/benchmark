@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deno-oak-config
+  labels:
+    app: deno-oak
+data:
+  # Application settings
+  app.name: "Benchmark API - Deno Oak"
+  app.version: "1.0.0"
+  app.debug: "false"
+  app.log_level: "info"
+
+  # Server settings
+  server.port: "3000"
+  server.host: "0.0.0.0"
+
+  # Database settings
+  database.pool_min: "5"
+  database.pool_max: "25"
+  database.timeout: "30000"
+
+  # Cache settings
+  cache.ttl: "300"
+
+  # Runtime settings
+  runtime.deno: "2.0+"
+  framework.oak: "latest"

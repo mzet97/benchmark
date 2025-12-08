@@ -1,0 +1,32 @@
+# Gradle build artifacts
+/build/
+.gradle/
+
+# IDE artifacts
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Test artifacts
+/build/reports/
+
+# JAR artifacts
+*.jar
+
+# Test results
+/test-results/

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-fiber
+  namespace: benchmark
+  labels:
+    app: go-fiber
+    tier: api
+spec:
+  type: ClusterIP
+  selector:
+    app: go-fiber
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  sessionAffinity: None

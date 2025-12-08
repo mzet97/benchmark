@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: deno-oak
+  labels:
+    app: deno-oak
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: deno-oak
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: deno-oak-headless
+  labels:
+    app: deno-oak
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: deno-oak

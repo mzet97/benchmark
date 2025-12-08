@@ -1,0 +1,34 @@
+# Maven build artifacts
+/target/
+/mvnw
+/mvnw.cmd
+/.mvn/
+
+# IDE artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# Test artifacts
+/coverage/
+/surefire-reports/
+/failsafe-reports/
+
+# Native build artifacts
+*-runner
+*-runner.jar

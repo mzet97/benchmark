@@ -1,0 +1,16 @@
+package com.benchmark.plugins
+
+import io.ktor.server.application.*
+import io.ktor.server.plugins.cors.routing.*
+
+fun Application.configureCORS() {
+    install(CORS) {
+        allowHost("*")
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Authorization)
+    }
+}

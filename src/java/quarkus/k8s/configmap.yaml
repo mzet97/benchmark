@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: java-quarkus-config
+  namespace: benchmark
+  labels:
+    app: java-quarkus
+data:
+  quarkus.http.port: "8080"
+  quarkus.datasource.reactive.max-size: "25"
+  quarkus.datasource.reactive.min-size: "5"

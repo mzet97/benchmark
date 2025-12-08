@@ -1,0 +1,30 @@
+{
+  "name": "benchmark-bun-elysia",
+  "version": "1.0.0",
+  "description": "High-performance REST API benchmark using Bun runtime with Elysia framework",
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "build": "bun build ./src/server.ts --outfile ./dist/server.js --target bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "elysia": "latest",
+    "@elysiajs/cors": "latest",
+    "@elysiajs/swagger": "latest",
+    "@sinclair/typebox": "latest",
+    "pg": "latest",
+    "redis": "latest",
+    "pino": "latest",
+    "pino-pretty": "latest"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "typescript": "latest"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

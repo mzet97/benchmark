@@ -1,0 +1,43 @@
+[package]
+name = "benchmark-actix"
+version = "1.0.0"
+edition = "2021"
+authors = ["Benchmark Team"]
+description = "High-performance REST API benchmark - Rust Actix Web"
+license = "MIT"
+
+[dependencies]
+# Web framework
+actix-web = "4"
+actix-cors = "0.7"
+
+# Database
+tokio = { version = "1.0", features = ["full"] }
+tokio-postgres = "0.7"
+bb8 = "0.8"
+bb8-tokio-postgres = "0.5"
+
+# Cache
+redis = { version = "0.24", features = ["tokio-comp"] }
+
+# JSON
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Config
+config = "0.14"
+
+# Logging
+env_logger = "0.11"
+log = "0.4"
+
+# Utils
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

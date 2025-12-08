@@ -1,0 +1,243 @@
+use actix_cors::Cors;
+use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use bb8::Pool;
+use bb8_tokio_postgres::TokioPostgresConnectionManager;
+use config::{Config, ConfigError, Environment, File};
+use log::{info, warn};
+use redis::Client as RedisClient;
+use serde_json::json;
+use std::sync::Arc;
+
+mod models;
+mod services;
+
+use models::*;
+use services::{database::DatabaseService, cache::CacheService};
+
+#[derive(Clone)]
+struct AppState {
+    db_service: Arc<DatabaseService>,
+    cache_service: Arc<CacheService>,
+}
+
+#[get("/health")]
+async fn health(state: web::Data<AppState>) -> impl Responder {
+    // Check both database and Redis health
+    let db_healthy = state.db_service.health_check().await.is_ok();
+    let cache_healthy = state.cache_service.health_check().await.is_ok();
+
+    if db_healthy && cache_healthy {
+        HttpResponse::Ok().json(json!({
+            "status": "healthy",
+            "database": "connected",
+            "cache": "connected",
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        }))
+    } else {
+        let mut errors = Vec::new();
+        if !db_healthy {
+            errors.push("database");
+        }
+        if !cache_healthy {
+            errors.push("cache");
+        }
+
+        HttpResponse::ServiceUnavailable().json(json!({
+            "status": "unhealthy",
+            "errors": errors,
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        }))
+    }
+}
+
+#[get("/json")]
+async fn json_endpoint() -> impl Responder {
+    let mut items = Vec::with_capacity(1000);
+    for i in 0..1000 {
+        items.push(json!({
+            "id": i,
+            "name": format!("Item {}", i),
+            "description": format!("This is item number {}", i),
+            "timestamp": chrono::Utc::now().to_rfc3339(),
+            "random": format!("data-{}", uuid::Uuid::new_v4())
+        }));
+    }
+
+    HttpResponse::Ok().json(json!({
+        "items": items,
+        "count": items.len(),
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
+}
+
+#[get("/db/simple")]
+async fn db_simple(
+    state: web::Data<AppState>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> impl Responder {
+    let id: i32 = query
+        .get("id")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+
+    match state.db_service.get_user_by_id(id).await {
+        Ok(Some(user)) => HttpResponse::Ok().json(user),
+        Ok(None) => HttpResponse::NotFound().json(json!({
+            "error": "User not found",
+            "id": id
+        })),
+        Err(e) => {
+            warn!("Database error: {}", e);
+            HttpResponse::InternalServerError().json(json!({
+                "error": "Database error"
+            }))
+        }
+    }
+}
+
+#[get("/db/complex")]
+async fn db_complex(
+    state: web::Data<AppState>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> impl Responder {
+    let days: i32 = query
+        .get("days")
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(30);
+
+    match state.db_service.get_complex_orders(days).await {
+        Ok(results) => HttpResponse::Ok().json(json!({
+            "orders": results,
+            "count": results.len(),
+            "days": days,
+            "timestamp": chrono::Utc::now().to_rfc3339()
+        })),
+        Err(e) => {
+            warn!("Database error: {}", e);
+            HttpResponse::InternalServerError().json(json!({
+                "error": "Database error"
+            }))
+        }
+    }
+}
+
+#[get("/cache")]
+async fn cache_handler(
+    state: web::Data<AppState>,
+    query: web::Query<std::collections::HashMap<String, String>>,
+) -> impl Responder {
+    let key = query.get("key").cloned().unwrap_or_else(|| "test".to_string());
+
+    match state.cache_service.get(&key).await {
+        Ok(Some(value)) => {
+            HttpResponse::Ok().json(json!({
+                "key": key,
+                "value": value,
+                "source": "cache",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }))
+        }
+        Ok(None) => {
+            // Generate a new value and cache it
+            let new_value = format!("cached-value-{}", uuid::Uuid::new_v4());
+            if let Err(e) = state.cache_service.set(&key, &new_value, 300).await {
+                warn!("Cache set error: {}", e);
+            }
+
+            HttpResponse::Ok().json(json!({
+                "key": key,
+                "value": new_value,
+                "source": "generated",
+                "timestamp": chrono::Utc::now().to_rfc3339()
+            }))
+        }
+        Err(e) => {
+            warn!("Cache error: {}", e);
+            HttpResponse::InternalServerError().json(json!({
+                "error": "Cache error"
+            }))
+        }
+    }
+}
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    env_logger::init();
+
+    // Load configuration
+    let config = load_config().expect("Failed to load configuration");
+
+    // Parse database URL
+    let database_url = config.get_string("database.url")
+        .expect("DATABASE_URL not set");
+
+    // Parse Redis URL
+    let redis_url = config.get_string("redis.url")
+        .expect("REDIS_URL not set");
+
+    // Setup PostgreSQL connection pool
+    info!("Connecting to PostgreSQL...");
+    let (client, connection) = tokio_postgres::connect(&database_url, tokio_postgres::NoTls).await
+        .expect("Failed to connect to PostgreSQL");
+
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("PostgreSQL connection error: {}", e);
+        }
+    });
+
+    let manager = bb8_tokio_postgres::TokioPostgresConnectionManager::new(
+        tokio_postgres::Config::from_str(&database_url).unwrap(),
+        tokio_postgres::NoTls,
+    );
+
+    let pool = Pool::builder()
+        .build(manager)
+        .await
+        .expect("Failed to create connection pool");
+
+    // Setup Redis client
+    info!("Connecting to Redis...");
+    let redis_client = RedisClient::open(redis_url)
+        .expect("Failed to create Redis client");
+
+    // Create services
+    let db_service = Arc::new(DatabaseService::new(pool));
+    let cache_service = Arc::new(CacheService::new(redis_client));
+
+    let app_state = AppState {
+        db_service,
+        cache_service,
+    };
+
+    let bind = config.get_string("server.bind").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+    let workers = config.get_usize("server.workers").unwrap_or_else(|_| num_cpus::get());
+
+    info!("Starting server on {} with {} workers", bind, workers);
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(app_state.clone()))
+            .wrap(Cors::permissive())
+            .service(health)
+            .service(json_endpoint)
+            .service(db_simple)
+            .service(db_complex)
+            .service(cache_handler)
+    })
+    .workers(workers)
+    .bind(bind)?
+    .run()
+    .await?;
+
+    Ok(())
+}
+
+fn load_config() -> Result<Config, ConfigError> {
+    Config::builder()
+        .add_source(Environment::with_prefix("APP").try_parsing(true))
+        .add_source(Environment::with_prefix("DATABASE").try_parsing(true))
+        .add_source(Environment::with_prefix("REDIS").try_parsing(true))
+        .add_source(File::with_name("config/default").required(false))
+        .build()
+}
