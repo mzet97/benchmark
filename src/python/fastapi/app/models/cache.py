@@ -12,19 +12,19 @@ class CacheResponse(BaseModel):
     """Cache response model"""
     key: str
     value: str
-    source: str = Field(..., description="Source of the value: cache or generated")
+    cached: bool = Field(..., description="Whether the value was retrieved from cache")
     timestamp: str
 
     class Config:
         from_attributes = True
 
     @staticmethod
-    def create(key: str, value: str, source: str) -> "CacheResponse":
+    def create(key: str, value: str, cached: bool) -> "CacheResponse":
         """Create cache response"""
         from datetime import datetime
         return CacheResponse(
             key=key,
             value=value,
-            source=source,
+            cached=cached,
             timestamp=datetime.now().isoformat()
         )

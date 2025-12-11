@@ -8,6 +8,7 @@ class User {
   final String email;
   final String firstName;
   final String lastName;
+  final int age;
   final DateTime createdAt;
 
   const User({
@@ -15,6 +16,7 @@ class User {
     required this.email,
     required this.firstName,
     required this.lastName,
+    required this.age,
     required this.createdAt,
   });
 
@@ -24,6 +26,6 @@ class User {
 
   @override
   String toString() {
-    return 'User{id: $id, email: $email, firstName: $firstName, lastName: $lastName, createdAt: $createdAt}';
+    return 'User{id: $id, email: $email, firstName: $firstName, lastName: $lastName, age: $age, createdAt: $createdAt}';
   }
 }

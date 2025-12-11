@@ -1,0 +1,35 @@
+[package]
+name = "benchmark-axum"
+version = "1.0.0"
+edition = "2021"
+authors = ["Benchmark Team"]
+description = "High-performance REST API benchmark using Rust with Axum framework"
+license = "MIT"
+
+[dependencies]
+axum = { version = "0.7", features = ["macros"] }
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"] }
+redis = { version = "0.25", features = ["tokio-rustls-comp"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tower = { version = "0.4", features = ["util", "timeout", "load-shed", "limit"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["fmt", "json"] }
+anyhow = "1.0"
+thiserror = "1.0"
+dotenvy = "0.15"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.release-musl]
+inherits = "release"
+rustflags = ["-C", "target-feature=+crt-static"]

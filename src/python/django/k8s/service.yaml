@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-django
+  labels:
+    app: python-django
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: python-django
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-django-headless
+  labels:
+    app: python-django
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: python-django

@@ -1,0 +1,26 @@
+{
+  "name": "benchmark-bun-hono",
+  "version": "1.0.0",
+  "description": "High-performance REST API benchmark using Bun runtime with Hono framework",
+  "type": "module",
+  "main": "src/server.ts",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun src/server.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "@hono/node-server": "^1.5.0",
+    "ioredis": "^5.3.2",
+    "pg": "^8.11.3",
+    "pino": "^8.17.0",
+    "pino-pretty": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9",
+    "@types/bun": "^1.0.0",
+    "typescript": "^5.3.3"
+  }
+}

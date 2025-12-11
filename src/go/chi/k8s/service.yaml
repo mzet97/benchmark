@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-chi
+  labels:
+    app: go-chi
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: go-chi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-chi-headless
+  labels:
+    app: go-chi
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: go-chi

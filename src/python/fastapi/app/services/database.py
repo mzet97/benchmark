@@ -1,7 +1,6 @@
 import asyncpg
 from typing import Optional, List
-from app.models.user import User
-from app.models.complex_order import ComplexOrderResult
+from app.models.user import User, UserStats
 import structlog
 import os
 
@@ -58,30 +57,29 @@ class DatabaseService:
             logger.error("Error fetching user", user_id=user_id, error=str(e))
             raise
 
-    async def find_complex_orders(self, days: int) -> List[ComplexOrderResult]:
-        """Find complex order statistics"""
+    async def get_user_stats(self, days: int) -> List[UserStats]:
+        """Get user statistics with aggregation"""
         query = """
-            SELECT
-                u.id as user_id,
-                u.email,
-                COUNT(o.id) as order_count,
-                SUM(o.total_amount) as total_amount,
-                AVG(o.total_amount) as avg_amount,
-                EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
+            SELECT u.id as user_id,
+                   CONCAT(u.first_name, ' ', u.last_name) as user_name,
+                   COUNT(DISTINCT o.id) as total_orders,
+                   COALESCE(SUM(o.total_amount), 0) as total_value,
+                   COALESCE(AVG(o.total_amount), 0) as average_value
             FROM users u
-            INNER JOIN orders o ON u.id = o.user_id
-            WHERE o.created_at >= NOW() - ($1 || ' days')::INTERVAL
-            GROUP BY u.id, u.email
-            ORDER BY order_count DESC
+            LEFT JOIN orders o ON u.id = o.user_id
+              AND o.created_at >= NOW() - ($1 || ' days')::INTERVAL
+            GROUP BY u.id, u.first_name, u.last_name
+            HAVING COUNT(DISTINCT o.id) > 0
+            ORDER BY total_value DESC
             LIMIT 100
         """
 
         try:
             async with self._pool.acquire() as conn:
                 rows = await conn.fetch(query, days)
-                return [ComplexOrderResult(**dict(row)) for row in rows]
+                return [UserStats(**dict(row)) for row in rows]
         except Exception as e:
-            logger.error("Error fetching complex orders", days=days, error=str(e))
+            logger.error("Error fetching user stats", days=days, error=str(e))
             raise
 
     async def health_check(self) -> bool:

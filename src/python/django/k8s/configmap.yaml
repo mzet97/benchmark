@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: python-django-config
+  labels:
+    app: python-django
+data:
+  # Application settings
+  app.name: "Benchmark API - python django"
+  app.version: "1.0.0"
+  app.debug: "false"
+  app.log_level: "info"
+
+  # Server settings
+  server.port: "8000"
+  server.host: "0.0.0.0"
+
+  # Database settings
+  database.pool_min: "5"
+  database.pool_max: "25"
+
+  # Cache settings
+  cache.ttl: "300"

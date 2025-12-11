@@ -1,5 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
-
 export default async function cacheRoutes(fastify, options) {
   // Cache operations
   fastify.get('/cache', {
@@ -19,7 +17,7 @@ export default async function cacheRoutes(fastify, options) {
           properties: {
             key: { type: 'string' },
             value: { type: 'string' },
-            source: { type: 'string' },
+            cached: { type: 'boolean' },
             timestamp: { type: 'string' }
           }
         }
@@ -27,14 +25,30 @@ export default async function cacheRoutes(fastify, options) {
     }
   }, async (request, reply) => {
     const key = request.query.key || 'test';
-    const newValue = `cached-value-${uuidv4()}`;
 
-    const result = await fastify.cacheService.getOrSet(key, newValue, 300);
+    // Try to get from cache first
+    const cachedValue = await fastify.cacheService.get(key);
+
+    if (cachedValue) {
+      return {
+        key,
+        value: cachedValue,
+        cached: true,
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    // Simulate work
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const newValue = `Cached value for ${key} at ${new Date().toISOString()}`;
+
+    // Store in cache
+    await fastify.cacheService.set(key, newValue, 300);
 
     return {
       key,
-      value: result.value,
-      source: result.source,
+      value: newValue,
+      cached: false,
       timestamp: new Date().toISOString()
     };
   });

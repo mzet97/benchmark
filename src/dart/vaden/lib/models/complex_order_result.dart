@@ -3,47 +3,41 @@ import 'package:json_annotation/json_annotation.dart';
 part 'complex_order_result.g.dart';
 
 @JsonSerializable()
-class ComplexOrderResult {
+class ComplexQueryResult {
   final int periodDays;
-  final int totalOrders;
-  final double totalRevenue;
-  final double averageOrderValue;
-  final List<OrderSummary> orders;
+  final int totalUsers;
+  final List<UserStats> data;
 
-  const ComplexOrderResult({
+  const ComplexQueryResult({
     required this.periodDays,
-    required this.totalOrders,
-    required this.totalRevenue,
-    required this.averageOrderValue,
-    required this.orders,
+    required this.totalUsers,
+    required this.data,
   });
 
-  factory ComplexOrderResult.fromJson(Map<String, dynamic> json) =>
-      _$ComplexOrderResultFromJson(json);
+  factory ComplexQueryResult.fromJson(Map<String, dynamic> json) =>
+      _$ComplexQueryResultFromJson(json);
 
-  Map<String, dynamic> toJson() => _$ComplexOrderResultToJson(this);
+  Map<String, dynamic> toJson() => _$ComplexQueryResultToJson(this);
 }
 
 @JsonSerializable()
-class OrderSummary {
-  final int orderId;
+class UserStats {
   final int userId;
-  final String userEmail;
-  final double totalAmount;
-  final int itemsCount;
-  final DateTime createdAt;
+  final String userName;
+  final int totalOrders;
+  final double totalValue;
+  final double averageValue;
 
-  const OrderSummary({
-    required this.orderId,
+  const UserStats({
     required this.userId,
-    required this.userEmail,
-    required this.totalAmount,
-    required this.itemsCount,
-    required this.createdAt,
+    required this.userName,
+    required this.totalOrders,
+    required this.totalValue,
+    required this.averageValue,
   });
 
-  factory OrderSummary.fromJson(Map<String, dynamic> json) =>
-      _$OrderSummaryFromJson(json);
+  factory UserStats.fromJson(Map<String, dynamic> json) =>
+      _$UserStatsFromJson(json);
 
-  Map<String, dynamic> toJson() => _$OrderSummaryToJson(this);
+  Map<String, dynamic> toJson() => _$UserStatsToJson(this);
 }

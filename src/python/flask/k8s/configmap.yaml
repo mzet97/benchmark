@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: python-flask-config
+  labels:
+    app: python-flask
+data:
+  # Application settings
+  app.name: "Benchmark API - Python Flask"
+  app.version: "1.0.0"
+  app.debug: "false"
+  app.log_level: "info"
+
+  # Server settings
+  server.port: "8000"
+  server.host: "0.0.0.0"
+
+  # Database settings
+  database.pool_min: "5"
+  database.pool_max: "25"
+
+  # Cache settings
+  cache.ttl: "300"

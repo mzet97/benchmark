@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kotlin-http4k
+  labels:
+    app: kotlin-http4k
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: kotlin-http4k
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kotlin-http4k-headless
+  labels:
+    app: kotlin-http4k
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: kotlin-http4k

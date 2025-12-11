@@ -1,0 +1,22 @@
+micronaut:
+  application:
+    name: graalvm-micronaut
+  server:
+    port: 3000
+    host: 0.0.0.0
+
+datasources:
+  default:
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://spsql.home.arpa:5432/benchmark_api
+    username: app
+    password: Admin@123
+
+redis:
+  host: redis.home.arpa
+  port: 30379
+  password: Admin@123
+
+jackson:
+  serialization:
+    writeDatesAsTimestamps: false

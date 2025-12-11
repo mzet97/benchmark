@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: graalvm-helidon
+  labels:
+    app: graalvm-helidon
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: graalvm-helidon
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: graalvm-helidon-headless
+  labels:
+    app: graalvm-helidon
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: graalvm-helidon

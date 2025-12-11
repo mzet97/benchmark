@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: bun-bun_serve
+  labels:
+    app: bun-bun_serve
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: bun-bun_serve
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bun-bun_serve-headless
+  labels:
+    app: bun-bun_serve
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: bun-bun_serve

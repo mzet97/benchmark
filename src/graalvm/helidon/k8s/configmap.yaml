@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graalvm-helidon-config
+  labels:
+    app: graalvm-helidon
+data:
+  # Application settings
+  app.name: "Benchmark API - graalvm helidon"
+  app.version: "1.0.0"
+  app.debug: "false"
+  app.log_level: "info"
+
+  # Server settings
+  server.port: "3000"
+  server.host: "0.0.0.0"
+
+  # Database settings
+  database.pool_min: "5"
+  database.pool_max: "25"
+
+  # Cache settings
+  cache.ttl: "300"

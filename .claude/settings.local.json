@@ -2,7 +2,24 @@
   "permissions": {
     "allow": [
       "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(kubectl get namespace:*)",
+      "Bash(kubectl:*)",
+      "Bash(chmod:*)",
+      "Bash(make:*)",
+      "Bash(cat:*)",
+      "Bash(docker build:*)",
+      "Bash(done)",
+      "Bash(python3:*)",
+      "Bash(for:*)",
+      "Bash(do if [ ! -f \"$impl/k8s/deployment.yaml\" ])",
+      "Bash(fi:*)",
+      "Bash(test -f \"$impl/Dockerfile\":*)",
+      "Bash(test:*)",
+      "Bash(do)",
+      "Bash(echo \"=== Checking graalvm-$impl ===\")",
+      "Bash([:*)",
+      "Bash([ -d:*)"
     ],
     "deny": [],
     "ask": []

@@ -50,7 +50,7 @@ public class DatabaseService {
     public Future<Row> getUser(int userId) {
         Promise<Row> promise = Promise.promise();
 
-        String query = "SELECT id, email, first_name, last_name, created_at FROM users WHERE id = $1";
+        String query = "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1";
 
         pool.preparedQuery(query)
             .execute(io.vertx.sqlclient.Tuple.of(userId))

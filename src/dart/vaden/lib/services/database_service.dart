@@ -45,7 +45,7 @@ class DatabaseService {
     }
 
     final query = '''
-      SELECT id, email, first_name, last_name, created_at
+      SELECT id, email, first_name, last_name, age, created_at
       FROM users
       WHERE id = @id
     ''';
@@ -65,29 +65,32 @@ class DatabaseService {
       email: row[1] as String,
       firstName: row[2] as String,
       lastName: row[3] as String,
-      createdAt: row[4] as DateTime,
+      age: row[4] as int,
+      createdAt: row[5] as DateTime,
     );
   }
 
-  Future<List<Map<String, dynamic>>> getComplexOrders(int days) async {
+  Future<List<Map<String, dynamic>>> getComplexUsers(int days) async {
     if (!_initialized) {
       throw Exception('Database not initialized');
     }
 
     final query = '''
       SELECT
-        o.id as order_id,
-        o.user_id,
-        u.email as user_email,
-        o.total_amount,
-        o.created_at,
-        COUNT(oi.id) as items_count
-      FROM orders o
-      JOIN users u ON o.user_id = u.id
+        u.id as user_id,
+        u.first_name || ' ' || u.last_name as user_name,
+        COUNT(DISTINCT o.id) as total_orders,
+        COALESCE(SUM(oi.quantity * oi.price), 0) as total_value,
+        COALESCE(AVG(oi.quantity * oi.price), 0) as average_value
+      FROM users u
+      LEFT JOIN orders o ON u.id = o.user_id
+        AND o.created_at >= NOW() - INTERVAL '@days days'
+        AND o.status = 'completed'
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.created_at >= NOW() - INTERVAL '@days days'
-      GROUP BY o.id, u.email
-      ORDER BY o.created_at DESC
+      WHERE o.id IS NULL OR (o.created_at >= NOW() - INTERVAL '@days days' AND o.status = 'completed')
+      GROUP BY u.id, u.first_name, u.last_name
+      HAVING COUNT(DISTINCT o.id) > 0
+      ORDER BY total_value DESC
       LIMIT 100
     ''';
 
@@ -97,12 +100,11 @@ class DatabaseService {
     );
 
     return result.map((row) => {
-      'order_id': row[0] as int,
-      'user_id': row[1] as int,
-      'user_email': row[2] as String,
-      'total_amount': row[3] as double,
-      'created_at': row[4] as DateTime,
-      'items_count': row[5] as int,
+      'user_id': row[0] as int,
+      'user_name': row[1] as String,
+      'total_orders': row[2] as int,
+      'total_value': row[3] as double,
+      'average_value': row[4] as double,
     }).toList();
   }
 

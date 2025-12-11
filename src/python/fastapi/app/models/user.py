@@ -25,10 +25,31 @@ class UserCreate(UserBase):
     pass
 
 
-class UserResponse(BaseModel):
-    """User response with timestamp"""
-    user: User
-    timestamp: datetime
+class UserResponse(User):
+    """User response (direct user data)"""
+
+    class Config:
+        from_attributes = True
+
+
+class UserStats(BaseModel):
+    """User statistics model"""
+    user_id: int
+    user_name: str
+    total_orders: int
+    total_value: float
+    average_value: float
+
+    class Config:
+        from_attributes = True
+
+
+class UserStatsResponse(BaseModel):
+    """User stats response"""
+    period_days: int
+    total_users: int
+    data: list[UserStats]
+    timestamp: str
 
     class Config:
         from_attributes = True

@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.services.database import DatabaseService
-from app.models.user import UserResponse
-from app.models.complex_order import ComplexOrderResponse
+from app.models.user import UserResponse, UserStatsResponse
 from datetime import datetime
 import structlog
 
@@ -44,15 +43,12 @@ async def get_user_simple(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={
-                    "error": "User not found",
-                    "id": id
+                    "error": "Not Found",
+                    "message": f"User with id {id} not found"
                 }
             )
 
-        return UserResponse(
-            user=user,
-            timestamp=datetime.now().isoformat()
-        )
+        return user
     except HTTPException:
         raise
     except Exception as e:
@@ -65,42 +61,42 @@ async def get_user_simple(
 
 @router.get(
     "/complex",
-    response_model=ComplexOrderResponse,
+    response_model=UserStatsResponse,
     status_code=status.HTTP_200_OK,
     summary="Complex database query",
-    description="Get aggregated order statistics",
+    description="Get user statistics aggregation",
     responses={
         500: {"description": "Database error"}
     }
 )
-async def get_complex_orders(
+async def get_user_stats(
     days: int = Query(default=30, ge=1, le=365, description="Number of days"),
     db_service: DatabaseService = Depends()
 ):
     """
-    Retrieve aggregated order statistics for users within a specified time period.
+    Retrieve aggregated user statistics within a specified time period.
 
     Args:
         days: Number of days to look back (default: 30, max: 365)
         db_service: Database service dependency
 
     Returns:
-        List of order statistics with count, total, and average amounts
+        User statistics with total orders, values, and averages
 
     Raises:
         HTTPException: 500 if database error occurs
     """
     try:
-        orders = await db_service.find_complex_orders(days)
+        data = await db_service.get_user_stats(days)
 
-        return ComplexOrderResponse(
-            orders=orders,
-            count=len(orders),
-            days=days,
+        return UserStatsResponse(
+            period_days=days,
+            total_users=len(data),
+            data=data,
             timestamp=datetime.now().isoformat()
         )
     except Exception as e:
-        logger.error("Error fetching complex orders", days=days, error=str(e))
+        logger.error("Error fetching user stats", days=days, error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={

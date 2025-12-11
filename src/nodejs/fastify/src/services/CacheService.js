@@ -53,14 +53,14 @@ class CacheService {
       const existing = await this.get(key);
 
       if (existing !== null) {
-        return { value: existing, source: 'cache' };
+        return { value: existing, cached: true };
       }
 
       await this.set(key, newValue, ttlSeconds);
-      return { value: newValue, source: 'generated' };
+      return { value: newValue, cached: false };
     } catch (error) {
       console.error(`Error in getOrSet for key ${key}:`, error);
-      return { value: newValue, source: 'generated' };
+      return { value: newValue, cached: false };
     }
   }
 

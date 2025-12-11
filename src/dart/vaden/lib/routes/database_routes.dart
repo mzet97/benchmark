@@ -1,7 +1,6 @@
 import 'package:vaden/vaden.dart';
 import '../models/complex_order_result.dart';
 import '../services/database_service.dart';
-import '../utils/logger.dart';
 
 List<Route> databaseRoutes() {
   return [
@@ -57,38 +56,28 @@ Future<Response> _complexDbHandler(Request request) async {
   final daysParam = request.url.queryParameters['days'];
   final days = daysParam != null ? int.tryParse(daysParam) ?? 30 : 30;
 
-  if (days < 0) {
+  if (days <= 0 || days > 365) {
     return Response.json(
       statusCode: 400,
       body: {
         'error': 'Bad Request',
-        'message': 'days must be a positive number',
+        'message': 'days must be between 1 and 365',
       },
     );
   }
 
-  final orders = await databaseService.getComplexOrders(days);
+  final users = await databaseService.getComplexUsers(days);
 
-  final totalOrders = orders.length;
-  final totalRevenue = orders.fold<double>(
-    0,
-    (sum, order) => sum + (order['total_amount'] as double),
-  );
-  final averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0.0;
-
-  final result = ComplexOrderResult(
+  final result = ComplexQueryResult(
     periodDays: days,
-    totalOrders: totalOrders,
-    totalRevenue: double.parse(totalRevenue.toStringAsFixed(2)),
-    averageOrderValue: double.parse(averageOrderValue.toStringAsFixed(2)),
-    orders: orders.map((order) {
-      return OrderSummary(
-        orderId: order['order_id'] as int,
-        userId: order['user_id'] as int,
-        userEmail: order['user_email'] as String,
-        totalAmount: order['total_amount'] as double,
-        itemsCount: order['items_count'] as int,
-        createdAt: order['created_at'] as DateTime,
+    totalUsers: users.length,
+    data: users.map((userData) {
+      return UserStats(
+        userId: userData['user_id'] as int,
+        userName: userData['user_name'] as String,
+        totalOrders: userData['total_orders'] as int,
+        totalValue: userData['total_value'] as double,
+        averageValue: userData['average_value'] as double,
       );
     }).toList(),
   );

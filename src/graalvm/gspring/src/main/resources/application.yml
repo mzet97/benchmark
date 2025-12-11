@@ -1,0 +1,25 @@
+server:
+  port: 3000
+  host: 0.0.0.0
+
+spring:
+  datasource:
+    url: jdbc:postgresql://spsql.home.arpa:5432/benchmark_api
+    username: app
+    password: Admin@123
+    driver-class-name: org.postgresql.Driver
+  redis:
+    host: redis.home.arpa
+    port: 30379
+    password: Admin@123
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+logging:
+  level:
+    root: INFO
