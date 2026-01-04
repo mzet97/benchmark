@@ -17,7 +17,7 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <vertx.version>4.5.7</vertx.version>
+        <vertx.version>4.5.22</vertx.version>
         <graalvm.version>21.0.2</graalvm.version>
         <main.class>com.benchmark.vertx.Main</main.class>
     </properties>
