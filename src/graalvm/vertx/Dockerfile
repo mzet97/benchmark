@@ -1,18 +1,16 @@
 FROM ghcr.io/graalvm/graalvm-community:21 AS builder
 WORKDIR /app
-RUN microdnf install -y maven && microdnf clean all
-COPY pom.xml .
 COPY src ./src
-RUN mvn clean package -DskipTests -B
+RUN mkdir -p out && javac -d out src/main/java/com/benchmark/vertx/Main.java
 
 FROM ghcr.io/graalvm/graalvm-community:21
 RUN microdnf install -y curl && microdnf clean all
 WORKDIR /app
 RUN groupadd -r app && useradd -r -g app app
-COPY --from=builder /app/target/*.jar app.jar
-RUN chown app:app app.jar
+COPY --from=builder /app/out ./out
+RUN chown -R app:app /app
 USER app
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
-CMD ["java", "-jar", "app.jar"]
+CMD ["java", "-cp", "out", "com.benchmark.vertx.Main"]
