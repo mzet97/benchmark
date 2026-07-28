@@ -7,6 +7,7 @@ import com.benchmark.services.DatabaseService
 import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.routing.*
 import org.slf4j.LoggerFactory
 
 fun main() {
