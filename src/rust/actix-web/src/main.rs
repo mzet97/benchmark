@@ -172,51 +172,23 @@ async fn main() -> std::io::Result<()> {
 
     // Setup PostgreSQL connection pool
     info!("Connecting to PostgreSQL...");
-    // Parse URL manually to handle special chars in password
-    // Format: postgresql://user:password@host:port/database
-    let db_url = database_url.clone();
-    let parts: Vec<&str> = db_url.splitn(2, "://").collect();
-    let after_scheme = parts.get(1).unwrap_or(&"");
-    let user_pass_host: Vec<&str> = after_scheme.splitn(2, "@").collect();
-    let (user_pass, host_port_db) = if user_pass_host.len() == 2 {
-        (user_pass_host[0], user_pass_host[1])
-    } else {
-        ("", after_scheme)
-    };
-    let up_parts: Vec<&str> = user_pass.splitn(2, ":").collect();
-    let user = up_parts.get(0).unwrap_or(&"app");
-    let password = up_parts.get(1).unwrap_or(&"");
-    let hp_parts: Vec<&str> = host_port_db.splitn(2, ":").collect();
-    let host = hp_parts.get(0).unwrap_or(&"localhost");
-    let port_db = hp_parts.get(1).unwrap_or(&"5432/benchmark_api");
-    let pd_parts: Vec<&str> = port_db.splitn(2, "/").collect();
-    let port: u16 = pd_parts.get(0).unwrap_or(&"5432").parse().unwrap_or(5432);
-    let database = pd_parts.get(1).unwrap_or(&"benchmark_api");
+    // Parse URL: postgresql://user:password@host:port/database
+    // Password may contain @, so split from the LAST @
+    let after_scheme = database_url.split("://").nth(1).unwrap_or("");
+    let last_at = after_scheme.rfind('@').unwrap_or(0);
+    let user_pass = &after_scheme[..last_at];
+    let host_port_db = &after_scheme[last_at + 1..];
+    let user = user_pass.split(':').next().unwrap_or("app");
+    let password = user_pass.split(':').nth(1).unwrap_or("");
+    let host = host_port_db.split(':').next().unwrap_or("localhost");
+    let port_db = host_port_db.split(':').nth(1).unwrap_or("5432/benchmark_api");
+    let port: u16 = port_db.split('/').next().unwrap_or("5432").parse().unwrap_or(5432);
+    let database = port_db.split('/').nth(1).unwrap_or("benchmark_api");
+
+    info!("DB: user={}, host={}, port={}, db={}, pwd_len={}", user, host, port, database, password.len());
 
     let mut pg_config = tokio_postgres::Config::new();
     pg_config.user(user).password(password).host(host).port(port).dbname(database);
-
-    info!("DB config: user={}, host={}, port={}, db={}", user, host, port, database);
-    info!("Password length: {}", password.len());
-
-    // Test direct connection first
-    let test_url = format!("host={} port={} user={} password={} dbname={}", host, port, user, password, database);
-    info!("Testing direct connection...");
-    match tokio_postgres::connect(&test_url, tokio_postgres::NoTls).await {
-        Ok((client, connection)) => {
-            info!("Direct connection successful!");
-            tokio::spawn(connection);
-            // Test a simple query
-            match client.query_opt("SELECT 1", &[]).await {
-                Ok(Some(_)) => info!("Direct query successful!"),
-                Ok(None) => info!("Direct query returned no rows"),
-                Err(e) => warn!("Direct query failed: {}", e),
-            }
-        }
-        Err(e) => {
-            warn!("Direct connection failed: {}", e);
-        }
-    }
 
     let manager = PostgresConnectionManager::new(pg_config, tokio_postgres::NoTls);
 
