@@ -1,5 +1,5 @@
 # Multi-stage build for Dart Shelf application
-FROM dart:3.2 AS builder
+FROM dart:latest AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 RUN dart compile exe bin/server.dart -o server
 
 # Production stage
-FROM dart:3.2-slim
+FROM dart:latest-slim
 
 # Install curl for health checks
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
