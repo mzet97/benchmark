@@ -22,16 +22,12 @@ class DatabaseService:
         """Initialize connection pool"""
         if self._pool is None:
             logger.info("Initializing database connection pool")
-            # Add sslmode=disable if not specified
-            conn_str = self.connection_string
-            if "sslmode" not in conn_str:
-                sep = "&" if "?" in conn_str else "?"
-                conn_str = f"{conn_str}{sep}sslmode=disable"
             self._pool = await asyncpg.create_pool(
-                conn_str,
+                self.connection_string,
                 min_size=5,
                 max_size=25,
                 command_timeout=60,
+                ssl=False,
                 server_settings={
                     'application_name': 'benchmark-api'
                 }
