@@ -15,7 +15,7 @@ RUN deno cache deps.ts
 COPY . .
 
 # Production stage
-FROM denoland/deno:2-slim AS production
+FROM denoland/deno:latest AS production
 
 # Install curl for health checks
 RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*

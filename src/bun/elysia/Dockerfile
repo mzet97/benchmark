@@ -1,50 +1,15 @@
-# Multi-stage build for Bun application
-FROM oven/bun:1.0 AS builder
-
-# Set working directory
+FROM oven/bun:1 AS builder
 WORKDIR /app
-
-# Copy package files
 COPY package.json ./
-
-# Install dependencies
 RUN bun install
-
-# Copy source code
 COPY . .
 
-# Production stage
-FROM oven/bun:1.0-slim AS production
-
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
+FROM oven/bun:1
+RUN addgroup -g 1001 -S bun && adduser -S bun -u 1001
 WORKDIR /app
-
-# Create app user
-RUN addgroup --system --gid 1001 bunapp && \
-    adduser --system --uid 1001 --gid 1001 bunapp
-
-# Copy package files
-COPY package.json ./
-
-# Install only production dependencies
-RUN bun install --production && \
-    bun cache clean
-
-# Copy application code
-COPY --from=builder --chown=bunapp:bunapp /app/src ./src
-
-# Switch to non-root user
-USER bunapp
-
-# Expose port
+COPY --from=builder --chown=bun:bun /app .
+USER bun
 EXPOSE 3000
-
-# Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
-
-# Run the application
-CMD ["bun", "src/server.ts"]
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+CMD ["bun", "run", "src/server.ts"]
