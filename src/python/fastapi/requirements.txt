@@ -23,7 +23,7 @@ pydantic-settings==2.6.1
 orjson==3.10.11
 
 # Logging
-structlog==24.5.0
+structlog==24.1.0
 
 # Utilities
 python-multipart==0.0.9
