@@ -17,7 +17,7 @@ COPY src ./src
 RUN gradle build --no-daemon
 
 # Stage 2: Runtime
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk-jammy
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \

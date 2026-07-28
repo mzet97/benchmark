@@ -5,10 +5,10 @@ FROM oven/bun:1.0 AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package.json bun.lockb ./
+COPY package.json ./
 
 # Install dependencies
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy source code
 COPY . .
@@ -27,10 +27,10 @@ RUN addgroup --system --gid 1001 bunapp && \
     adduser --system --uid 1001 --gid 1001 bunapp
 
 # Copy package files
-COPY package.json bun.lockb ./
+COPY package.json ./
 
 # Install only production dependencies
-RUN bun install --frozen-lockfile --production && \
+RUN bun install --production && \
     bun cache clean
 
 # Copy application code
