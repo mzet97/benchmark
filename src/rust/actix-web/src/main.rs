@@ -1,7 +1,5 @@
 use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
-use bb8::Pool;
-use bb8_postgres::PostgresConnectionManager;
 use log::{info, warn};
 use redis::Client as RedisClient;
 use serde_json::json;
@@ -170,32 +168,19 @@ async fn main() -> std::io::Result<()> {
     let redis_url = std::env::var("REDIS_URL")
         .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
 
-    // Setup PostgreSQL connection pool
+    // Setup PostgreSQL connection
     info!("Connecting to PostgreSQL...");
-    // Parse URL: postgresql://user:password@host:port/database
-    // Password may contain @, so split from the LAST @
-    let after_scheme = database_url.split("://").nth(1).unwrap_or("");
-    let last_at = after_scheme.rfind('@').unwrap_or(0);
-    let user_pass = &after_scheme[..last_at];
-    let host_port_db = &after_scheme[last_at + 1..];
-    let user = user_pass.split(':').next().unwrap_or("app");
-    let password = user_pass.split(':').nth(1).unwrap_or("");
-    let host = host_port_db.split(':').next().unwrap_or("localhost");
-    let port_db = host_port_db.split(':').nth(1).unwrap_or("5432/benchmark_api");
-    let port: u16 = port_db.split('/').next().unwrap_or("5432").parse().unwrap_or(5432);
-    let database = port_db.split('/').nth(1).unwrap_or("benchmark_api");
-
-    info!("DB: user={}, host={}, port={}, db={}, pwd_len={}", user, host, port, database, password.len());
-
-    let mut pg_config = tokio_postgres::Config::new();
-    pg_config.user(user).password(password).host(host).port(port).dbname(database);
-
-    let manager = PostgresConnectionManager::new(pg_config, tokio_postgres::NoTls);
-
-    let pool = Pool::builder()
-        .build(manager)
+    let (pg_client, pg_connection) = tokio_postgres::connect(&database_url, tokio_postgres::NoTls)
         .await
-        .expect("Failed to create connection pool");
+        .expect("Failed to connect to PostgreSQL");
+
+    tokio::spawn(async move {
+        if let Err(e) = pg_connection.await {
+            eprintln!("PostgreSQL connection error: {}", e);
+        }
+    });
+
+    info!("PostgreSQL connected");
 
     // Setup Redis client
     info!("Connecting to Redis...");
@@ -203,7 +188,7 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to create Redis client");
 
     // Create services
-    let db_service = Arc::new(DatabaseService::new(pool));
+    let db_service = Arc::new(DatabaseService::new(pg_client));
     let cache_service = Arc::new(CacheService::new(redis_client));
 
     let app_state = AppState {

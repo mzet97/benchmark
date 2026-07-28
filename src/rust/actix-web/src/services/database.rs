@@ -1,23 +1,21 @@
-use bb8::Pool;
-use bb8_postgres::PostgresConnectionManager;
 use chrono::Utc;
 use log::info;
-use tokio_postgres::{Client, Row};
+use tokio_postgres::Client;
 use uuid::Uuid;
 
 use crate::models::{User, Order, OrderItem, ComplexOrderResult};
 
 pub struct DatabaseService {
-    pool: Pool<PostgresConnectionManager<tokio_postgres::NoTls>>,
+    client: Client,
 }
 
 impl DatabaseService {
-    pub fn new(pool: Pool<PostgresConnectionManager<tokio_postgres::NoTls>>) -> Self {
-        Self { pool }
+    pub fn new(client: Client) -> Self {
+        Self { client }
     }
 
     pub async fn get_user_by_id(&self, id: i32) -> Result<Option<User>, Box<dyn std::error::Error>> {
-        let conn = self.pool.get().await?;
+        let conn = &self.client;
 
         let query = "
             SELECT id, email, first_name, last_name, created_at
@@ -46,7 +44,7 @@ impl DatabaseService {
         &self,
         days: i32,
     ) -> Result<Vec<ComplexOrderResult>, Box<dyn std::error::Error>> {
-        let conn = self.pool.get().await?;
+        let conn = &self.client;
 
         let query = "
             SELECT
@@ -83,7 +81,7 @@ impl DatabaseService {
     }
 
     pub async fn health_check(&self) -> Result<bool, Box<dyn std::error::Error>> {
-        let conn = self.pool.get().await?;
+        let conn = &self.client;
         let result = conn.query_opt("SELECT 1", &[]).await?;
         Ok(result.is_some())
     }
