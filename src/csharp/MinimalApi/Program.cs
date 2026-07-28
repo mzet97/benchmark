@@ -59,10 +59,8 @@ builder.Services.AddSingleton<IDatabaseService, DatabaseService>();
 // Add cache services
 builder.Services.AddSingleton<ICacheService, CacheService>();
 
-// Add health checks
-builder.Services.AddHealthChecks()
-    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!)
-    .AddRedis(builder.Configuration["Redis:ConnectionString"]!);
+// Add health checks (simplified - custom /health endpoint handles DB/Redis checks)
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
