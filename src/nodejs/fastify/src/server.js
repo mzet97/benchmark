@@ -1,8 +1,6 @@
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import cors from '@fastify/cors';
-import swagger from '@fastify/swagger';
-import swaggerUI from '@fastify/swagger-ui';
 import underPressure from '@fastify/under-pressure';
 
 // Import routes
@@ -52,36 +50,6 @@ async function buildServer() {
       return dbHealthy && cacheHealthy;
     },
     healthCheckInterval: 5000,
-  });
-
-  await fastify.register(swagger, {
-    swagger: {
-      info: {
-        title: 'Benchmark API',
-        description: 'High-performance REST API benchmark',
-        version: '1.0.0',
-        contact: {
-          name: 'Benchmark Team'
-        }
-      },
-      host: 'localhost:8080',
-      schemes: ['http', 'https'],
-      consumes: ['application/json'],
-      produces: ['application/json']
-    }
-  });
-
-  await fastify.register(swaggerUI, {
-    routePrefix: '/docs',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: false
-    },
-    staticCSP: true,
-    transformSpecification: (swaggerObject, request, reply) => {
-      return swaggerObject;
-    },
-    transformSpecificationClone: true
   });
 
   // Initialize services
@@ -148,7 +116,7 @@ async function start() {
   try {
     const fastify = await buildServer();
 
-    const port = process.env.PORT || 8080;
+    const port = process.env.PORT || 3000;
     const host = process.env.HOST || '0.0.0.0';
 
     await fastify.listen({ port, host });
