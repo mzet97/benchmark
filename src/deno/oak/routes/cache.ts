@@ -1,4 +1,4 @@
-import { Router, Context } from "../../deps.ts";
+import { Router, Context } from "../deps.ts";
 import { cacheService } from "../services/cache.ts";
 import { CacheResponse } from "../types.ts";
 

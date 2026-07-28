@@ -1,4 +1,4 @@
-import { Router, Context } from "../../deps.ts";
+import { Router, Context } from "../deps.ts";
 import { JsonItem } from "../types.ts";
 
 const router = new Router({
