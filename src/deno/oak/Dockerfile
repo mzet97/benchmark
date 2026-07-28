@@ -1,5 +1,5 @@
 # Multi-stage build for Deno application
-FROM denoland/deno:2 AS builder
+FROM denoland/deno:latest AS builder
 
 # Set working directory
 WORKDIR /app
