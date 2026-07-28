@@ -25,5 +25,5 @@ export { config as dotenvConfig } from "dotenv";
 // Logging
 export { Console } from "console";
 
-// HTTP status
-export { Status as HttpStatus } from "oak/http_error_status.ts";
+// HTTP status - re-exported from oak
+export { Status as HttpStatus } from "oak";
