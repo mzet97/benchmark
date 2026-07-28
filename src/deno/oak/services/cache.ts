@@ -1,4 +1,4 @@
-import { Redis } from "../../deps.ts";
+import { Redis } from "../deps.ts";
 import { CacheConfig } from "../types.ts";
 
 export class CacheService {

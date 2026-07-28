@@ -1,4 +1,4 @@
-import { Client } from "../../deps.ts";
+import { Client } from "../deps.ts";
 import { DatabaseConfig } from "../types.ts";
 
 export class DatabaseService {
