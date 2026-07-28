@@ -25,7 +25,7 @@ dependencies {
     implementation("com.zaxxer:HikariCP:5.1.0")
 
     // Redis
-    implementation("io.lettuce:lettuce-core:6.3.2")
+    implementation("io.lettuce:lettuce-core:6.2.6.RELEASE")
 
     // Logging
     implementation("org.slf4j:slf4j-simple:2.0.13")
