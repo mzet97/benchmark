@@ -19,7 +19,6 @@ dependencies {
     implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
     implementation("io.ktor:ktor-server-cors:2.3.12")
     implementation("io.ktor:ktor-server-status-pages:2.3.12")
-    implementation("io.ktor:ktor-server-routing:2.3.12")
 
     // Database
     implementation("org.postgresql:postgresql:42.7.4")
