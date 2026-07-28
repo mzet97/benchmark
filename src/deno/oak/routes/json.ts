@@ -1,29 +1,19 @@
 import { Router, Context } from "../deps.ts";
-import { JsonItem } from "../types.ts";
 
-const router = new Router({
-  base: "/json",
-});
+const router = new Router();
 
-function generateJsonItems(): JsonItem[] {
-  const items: JsonItem[] = [];
-  const now = new Date().toISOString();
-
-  for (let i = 0; i < 1000; i++) {
-    items.push({
-      id: i + 1,
-      name: `Item ${i + 1}`,
-      value: `Value ${i + 1}`,
-      timestamp: now,
-    });
-  }
-
-  return items;
-}
-
-router.get("/", (ctx: Context) => {
+router.get("/json", (ctx: Context) => {
+  const timestamp = new Date().toISOString();
+  const items = Array.from({ length: 1000 }, (_, i) => ({
+    id: i + 1,
+    uuid: crypto.randomUUID(),
+    name: `Item ${i + 1}`,
+    description: `This is item number ${i + 1}`,
+    timestamp,
+    random: `data-${crypto.randomUUID()}`,
+  }));
   ctx.response.headers.set("Content-Type", "application/json");
-  ctx.response.body = JSON.stringify(generateJsonItems());
+  ctx.response.body = JSON.stringify({ items, count: 1000, timestamp });
 });
 
 export { router as jsonRouter };

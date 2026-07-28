@@ -1,96 +1,55 @@
 import { Router, Context } from "../deps.ts";
 import { databaseService } from "../services/database.ts";
-import { ComplexOrderResult } from "../types.ts";
 
-const router = new Router({
-  base: "/db",
-});
+const router = new Router();
 
-router.get("/simple", async (ctx: Context) => {
+router.get("/db/simple", async (ctx: Context) => {
   const url = ctx.request.url;
   const idParam = url.searchParams.get("id");
-
   if (!idParam) {
     ctx.response.status = 400;
     ctx.response.headers.set("Content-Type", "application/json");
-    ctx.response.body = JSON.stringify({
-      error: "Bad Request",
-      message: "id parameter is required",
-    });
+    ctx.response.body = JSON.stringify({ error: "Invalid id parameter" });
     return;
   }
-
   const userId = parseInt(idParam);
   if (isNaN(userId)) {
     ctx.response.status = 400;
     ctx.response.headers.set("Content-Type", "application/json");
-    ctx.response.body = JSON.stringify({
-      error: "Bad Request",
-      message: "id must be a number",
-    });
+    ctx.response.body = JSON.stringify({ error: "Invalid id parameter" });
     return;
   }
-
   const user = await databaseService.getUser(userId);
-
   if (!user) {
     ctx.response.status = 404;
     ctx.response.headers.set("Content-Type", "application/json");
-    ctx.response.body = JSON.stringify({
-      error: "Not Found",
-      message: "User not found",
-    });
+    ctx.response.body = JSON.stringify({ error: `User with id ${userId} not found` });
     return;
   }
-
   ctx.response.status = 200;
   ctx.response.headers.set("Content-Type", "application/json");
   ctx.response.body = JSON.stringify(user);
 });
 
-router.get("/complex", async (ctx: Context) => {
+router.get("/db/complex", async (ctx: Context) => {
   const url = ctx.request.url;
   const daysParam = url.searchParams.get("days");
   const days = daysParam ? parseInt(daysParam) : 30;
-
-  if (isNaN(days) || days < 0) {
+  if (isNaN(days) || days <= 0 || days > 365) {
     ctx.response.status = 400;
     ctx.response.headers.set("Content-Type", "application/json");
-    ctx.response.body = JSON.stringify({
-      error: "Bad Request",
-      message: "days must be a positive number",
-    });
+    ctx.response.body = JSON.stringify({ error: "Days must be between 1 and 365" });
     return;
   }
-
-  const orders = await databaseService.getComplexOrders(days);
-
-  // Calculate aggregates
-  const totalOrders = orders.length;
-  const totalRevenue = orders.reduce(
-    (sum, order) => sum + parseFloat(order.total_amount),
-    0
-  );
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-  const result: ComplexOrderResult = {
-    period_days: days,
-    total_orders: totalOrders,
-    total_revenue: parseFloat(totalRevenue.toFixed(2)),
-    average_order_value: parseFloat(averageOrderValue.toFixed(2)),
-    orders: orders.map((order) => ({
-      order_id: parseInt(order.order_id),
-      user_id: parseInt(order.user_id),
-      user_email: order.user_email,
-      total_amount: parseFloat(order.total_amount),
-      items_count: parseInt(order.items_count),
-      created_at: order.created_at,
-    })),
-  };
-
+  const results = await databaseService.getComplexQuery(days);
   ctx.response.status = 200;
   ctx.response.headers.set("Content-Type", "application/json");
-  ctx.response.body = JSON.stringify(result);
+  ctx.response.body = JSON.stringify({
+    period_days: days,
+    total_users: results.length,
+    data: results,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export { router as databaseRouter };
