@@ -1,36 +1,39 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{web, App, HttpServer, HttpResponse, middleware};
 use serde_json::json;
 
-#[get("/health")]
-async fn health() -> impl Responder {
+async fn health() -> HttpResponse {
     HttpResponse::Ok().json(json!({"status": "ok"}))
 }
 
-#[get("/json")]
-async fn json_endpoint() -> impl Responder {
+async fn json_endpoint() -> HttpResponse {
     let items: Vec<_> = (0..1000).map(|i| json!({"id": i, "name": format!("Item {}", i)})).collect();
     HttpResponse::Ok().json(json!({"items": items, "count": 1000}))
 }
 
-#[get("/db/simple")]
-async fn db_simple(query: web::Query<std::collections::HashMap<String, String>>) -> impl Responder {
+async fn db_simple(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let id: i32 = query.get("id").and_then(|s| s.parse().ok()).unwrap_or(1);
     HttpResponse::Ok().json(json!({"id": id, "email": "test@example.com"}))
 }
 
-#[get("/cache")]
-async fn cache_handler(query: web::Query<std::collections::HashMap<String, String>>) -> impl Responder {
+async fn cache_handler(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let key = query.get("key").cloned().unwrap_or_else(|| "test".to_string());
     HttpResponse::Ok().json(json!({"key": key, "value": "test-value", "cached": false}))
 }
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
     println!("Starting on port {}", port);
-    HttpServer::new(|| App::new().service(health).service(json_endpoint).service(db_simple).service(cache_handler))
-        .bind(format!("0.0.0.0:{}", port))?
-        .run()
-        .await
+
+    HttpServer::new(|| {
+        App::new()
+            .route("/health", web::get().to(health))
+            .route("/json", web::get().to(json_endpoint))
+            .route("/db/simple", web::get().to(db_simple))
+            .route("/cache", web::get().to(cache_handler))
+    })
+    .bind(("0.0.0.0", port))?
+    .run()
+    .await
 }
