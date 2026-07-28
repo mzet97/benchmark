@@ -6,7 +6,6 @@ export {
   Application,
   Router,
   Context,
-  Middleware,
   Status,
 } from "oak";
 

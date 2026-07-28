@@ -1,20 +1,7 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "lib": ["ES2022"],
-    "moduleResolution": "node",
     "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "noEmit": true,
-    "jsx": "preserve",
-    "types": [
-      "https://deno.land/std@0.224.0/fs/mod.ts"
-    ]
+    "lib": ["ES2022"]
   },
   "imports": {
     "oak": "https://deno.land/x/oak@v17.1.4/mod.ts",
