@@ -8,11 +8,11 @@ use uuid::Uuid;
 use crate::models::{User, Order, OrderItem, ComplexOrderResult};
 
 pub struct DatabaseService {
-    pool: Pool<PostgresConnectionManager>,
+    pool: Pool<PostgresConnectionManager<tokio_postgres::NoTls>>,
 }
 
 impl DatabaseService {
-    pub fn new(pool: Pool<PostgresConnectionManager>) -> Self {
+    pub fn new(pool: Pool<PostgresConnectionManager<tokio_postgres::NoTls>>) -> Self {
         Self { pool }
     }
 
