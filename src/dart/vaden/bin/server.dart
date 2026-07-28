@@ -7,7 +7,7 @@ Future<void> main() async {
   final server = await HttpServer.bind(InternetAddress.anyIPv4, port);
   print('Dart Shelf server listening on port $port');
 
-  await for (final request in request in server) {
+  await for (final request in server) {
     final path = request.uri.path;
     final query = request.uri.queryParameters;
 
