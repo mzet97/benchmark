@@ -18,8 +18,7 @@ export { connect as redisConnect } from "redis";
 // Validation
 export { z } from "zod";
 
-// Environment variables
-export { config as dotenvConfig } from "dotenv";
+// Environment variables - using Deno.env directly
 
 // Logging
 export { Console } from "console";
