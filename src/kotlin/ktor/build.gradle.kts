@@ -60,13 +60,17 @@ kotlin {
 }
 
 // Fat JAR task
-tasks.register<jar>("fatJar") {
+tasks.register<Jar>("fatJar") {
     manifest {
         attributes["Main-Class"] = "com.benchmark.ApplicationKt"
     }
-    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
-    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     archiveFileName.set("benchmark-ktor.jar")
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(sourceSets.main.get().output)
+    dependsOn(configurations.runtimeClasspath)
+    from({
+        configurations.runtimeClasspath.get().filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) }
+    })
 }
 
 tasks.build {

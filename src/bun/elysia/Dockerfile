@@ -5,7 +5,7 @@ RUN bun install
 COPY . .
 
 FROM oven/bun:latest
-RUN groupadd -g 1001 bun && useradd -r -g bun -u 1001 bun
+RUN groupadd -g 1001 bun 2>/dev/null || true && useradd -r -g bun -u 1001 bun 2>/dev/null || true
 WORKDIR /app
 COPY --from=builder --chown=bun:bun /app .
 USER bun
