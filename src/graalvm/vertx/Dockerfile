@@ -2,9 +2,8 @@ FROM ghcr.io/graalvm/graalvm-community:21 AS builder
 WORKDIR /app
 RUN microdnf install -y maven && microdnf clean all
 COPY pom.xml .
-RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn clean package -DskipTests -B
 
 FROM ghcr.io/graalvm/graalvm-community:21
 RUN microdnf install -y curl && microdnf clean all
