@@ -1,11 +1,11 @@
 package com.benchmark.services
 
 import io.lettuce.core.RedisClient
+import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.sync.RedisCommands
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.Duration
 
 class CacheService {
     private val redisClient: RedisClient
@@ -13,7 +13,20 @@ class CacheService {
 
     init {
         val redisUrl = System.getenv("REDIS_URL") ?: "redis://:Admin@123@redis.home.arpa:30379"
-        redisClient = RedisClient.create(redisUrl)
+
+        // Parse redis://:password@host:port (handle @ in password)
+        val afterScheme = redisUrl.substringAfter("://")
+        val lastAt = afterScheme.lastIndexOf('@')
+        val password = afterScheme.substring(1, lastAt) // skip leading ':'
+        val hostPort = afterScheme.substring(lastAt + 1)
+        val host = hostPort.substringBefore(':')
+        val port = hostPort.substringAfter(':').toIntOrNull() ?: 6379
+
+        val redisUri = RedisURI.Builder.redis(host, port)
+            .withPassword(password.toCharArray())
+            .build()
+
+        redisClient = RedisClient.create(redisUri)
         connection = redisClient.connect()
     }
 
@@ -21,38 +34,26 @@ class CacheService {
         try {
             val syncCommands: RedisCommands<String, String> = connection.sync()
             syncCommands.get(key)
-        } catch (e: Exception) {
-            null
-        }
+        } catch (e: Exception) { null }
     }
 
     suspend fun set(key: String, value: String, ttlSeconds: Long) = withContext(Dispatchers.IO) {
         try {
             val syncCommands: RedisCommands<String, String> = connection.sync()
             syncCommands.setex(key, ttlSeconds, value)
-        } catch (e: Exception) {
-            // Log error in real application
-        }
+        } catch (e: Exception) { }
     }
 
     suspend fun getOrSet(key: String, newValue: String, ttlSeconds: Long = 300): String = withContext(Dispatchers.IO) {
         val existing = get(key)
-        if (existing != null) {
-            existing
-        } else {
-            set(key, newValue, ttlSeconds)
-            newValue
-        }
+        if (existing != null) existing else { set(key, newValue, ttlSeconds); newValue }
     }
 
     suspend fun healthCheck(): Boolean = withContext(Dispatchers.IO) {
         try {
             val syncCommands: RedisCommands<String, String> = connection.sync()
-            val result = syncCommands.ping()
-            result == "PONG"
-        } catch (e: Exception) {
-            false
-        }
+            syncCommands.ping() == "PONG"
+        } catch (e: Exception) { false }
     }
 
     fun close() {
