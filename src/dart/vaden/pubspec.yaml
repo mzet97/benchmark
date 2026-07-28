@@ -1,17 +1,10 @@
 name: benchmark_dart
-description: High-performance REST API benchmark using Dart with Shelf framework
+description: High-performance REST API benchmark using Dart
 version: 1.0.0
 publish_to: 'none'
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-
-dependencies:
-  shelf: ^1.4.0
-  shelf_router: ^1.1.0
-  postgres: ^2.2.0
-  redis: ^4.1.0
-  logging: ^1.2.0
 
 dev_dependencies:
   lints: ^3.0.0
