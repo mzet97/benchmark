@@ -13,6 +13,10 @@ from app.services.cache import CacheService
 
 logger = structlog.get_logger()
 
+# Global service instances
+db_service = DatabaseService()
+cache_service = CacheService()
+
 # Create FastAPI application
 app = FastAPI(
     title="Benchmark API",
@@ -63,15 +67,8 @@ async def logging_middleware(request: Request, call_next):
 async def startup_event():
     """Initialize services on startup"""
     logger.info("Starting Benchmark API...")
-
-    # Initialize database service
-    db_service = DatabaseService()
     await db_service.init_pool()
-
-    # Initialize cache service
-    cache_service = CacheService()
     await cache_service.init_redis()
-
     logger.info("Services initialized successfully")
 
 
@@ -79,15 +76,8 @@ async def startup_event():
 async def shutdown_event():
     """Cleanup services on shutdown"""
     logger.info("Shutting down Benchmark API...")
-
-    # Close database pool
-    db_service = DatabaseService()
     await db_service.close_pool()
-
-    # Close Redis connection
-    cache_service = CacheService()
     await cache_service.close_redis()
-
     logger.info("Shutdown complete")
 
 

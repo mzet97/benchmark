@@ -1,6 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from app.services.database import DatabaseService
-from app.services.cache import CacheService
+from fastapi import APIRouter, HTTPException, status
 from app.models.health import HealthResponse
 from datetime import datetime
 import structlog
@@ -10,24 +8,23 @@ logger = structlog.get_logger()
 router = APIRouter(prefix="/health", tags=["health"])
 
 
-@router.get(
-    "",
-    response_model=HealthResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Health check",
-    description="Check database and cache connectivity"
-)
-async def health_check(
-    db_service: DatabaseService = Depends(),
-    cache_service: CacheService = Depends()
-):
-    """
-    Health check endpoint that verifies:
-    - PostgreSQL database connectivity
-    - Redis cache connectivity
-    """
-    db_healthy = await db_service.health_check()
-    cache_healthy = await cache_service.health_check()
+def get_db_service():
+    from app.main import db_service
+    return db_service
+
+
+def get_cache_service():
+    from app.main import cache_service
+    return cache_service
+
+
+@router.get("", response_model=HealthResponse, status_code=status.HTTP_200_OK)
+async def health_check():
+    """Health check endpoint"""
+    db = get_db_service()
+    cache = get_cache_service()
+    db_healthy = await db.health_check()
+    cache_healthy = await cache.health_check()
 
     response = HealthResponse.create(db_healthy, cache_healthy)
 
@@ -36,35 +33,20 @@ async def health_check(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=response.model_dump()
         )
-
     return response
 
 
-@router.get(
-    "/live",
-    summary="Liveness check",
-    description="Kubernetes liveness probe endpoint"
-)
+@router.get("/live")
 async def liveness_check():
-    """Simple liveness check for Kubernetes"""
+    """Kubernetes liveness probe"""
     return {"status": "alive", "timestamp": datetime.now().isoformat()}
 
 
-@router.get(
-    "/ready",
-    summary="Readiness check",
-    description="Kubernetes readiness probe endpoint"
-)
-async def readiness_check(
-    db_service: DatabaseService = Depends()
-):
-    """Readiness check that verifies database connectivity"""
-    healthy = await db_service.health_check()
-
+@router.get("/ready")
+async def readiness_check():
+    """Kubernetes readiness probe"""
+    db = get_db_service()
+    healthy = await db.health_check()
     if not healthy:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail={"status": "not ready"}
-        )
-
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"status": "not ready"})
     return {"status": "ready"}
