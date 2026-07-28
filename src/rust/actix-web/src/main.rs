@@ -197,6 +197,27 @@ async fn main() -> std::io::Result<()> {
     pg_config.user(user).password(password).host(host).port(port).dbname(database);
 
     info!("DB config: user={}, host={}, port={}, db={}", user, host, port, database);
+    info!("Password length: {}", password.len());
+
+    // Test direct connection first
+    let test_url = format!("host={} port={} user={} password={} dbname={}", host, port, user, password, database);
+    info!("Testing direct connection...");
+    match tokio_postgres::connect(&test_url, tokio_postgres::NoTls).await {
+        Ok((client, connection)) => {
+            info!("Direct connection successful!");
+            tokio::spawn(connection);
+            // Test a simple query
+            match client.query_opt("SELECT 1", &[]).await {
+                Ok(Some(_)) => info!("Direct query successful!"),
+                Ok(None) => info!("Direct query returned no rows"),
+                Err(e) => warn!("Direct query failed: {}", e),
+            }
+        }
+        Err(e) => {
+            warn!("Direct connection failed: {}", e);
+        }
+    }
+
     let manager = PostgresConnectionManager::new(pg_config, tokio_postgres::NoTls);
 
     let pool = Pool::builder()
