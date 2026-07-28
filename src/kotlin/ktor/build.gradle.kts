@@ -1,7 +1,7 @@
 plugins {
-    kotlin("jvm") version "2.0.0"
+    kotlin("jvm") version "1.9.25"
     application
-    kotlin("plugin.serialization") version "2.0.0"
+    kotlin("plugin.serialization") version "1.9.25"
 }
 
 group = "com.benchmark"
@@ -13,13 +13,13 @@ repositories {
 
 dependencies {
     // Ktor Core
-    implementation("io.ktor:ktor-server-core-jvm:3.0.0")
-    implementation("io.ktor:ktor-server-netty-jvm:3.0.0")
-    implementation("io.ktor:ktor-server-content-negotiation-jvm:3.0.0")
-    implementation("io.ktor:ktor-serialization-kotlinx-json-jvm:3.0.0")
-    implementation("io.ktor:ktor-server-cors-jvm:3.0.0")
-    implementation("io.ktor:ktor-server-status-pages-jvm:3.0.0")
-    implementation("io.ktor:ktor-server-routing-jvm:3.0.0")
+    implementation("io.ktor:ktor-server-core:2.3.12")
+    implementation("io.ktor:ktor-server-netty:2.3.12")
+    implementation("io.ktor:ktor-server-content-negotiation:2.3.12")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.12")
+    implementation("io.ktor:ktor-server-cors:2.3.12")
+    implementation("io.ktor:ktor-server-status-pages:2.3.12")
+    implementation("io.ktor:ktor-server-routing:2.3.12")
 
     // Database
     implementation("org.postgresql:postgresql:42.7.4")
@@ -32,7 +32,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:2.0.13")
 
     // Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 }
 
 application {
