@@ -15,15 +15,15 @@ impl DatabaseService {
     }
 
     pub async fn get_user_by_id(&self, id: i32) -> Result<Option<User>, Box<dyn std::error::Error>> {
-        let conn = &self.client;
-
+        log::info!("get_user_by_id: starting query for id={}", id);
         let query = "
             SELECT id, email, first_name, last_name, created_at
             FROM users
             WHERE id = $1
         ";
 
-        let row = conn.query_opt(query, &[&id]).await?;
+        let row = self.client.query_opt(query, &[&id]).await?;
+        log::info!("get_user_by_id: query completed for id={}", id);
 
         match row {
             Some(row) => {
