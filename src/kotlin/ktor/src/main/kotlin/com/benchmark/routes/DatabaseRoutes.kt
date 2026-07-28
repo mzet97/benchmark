@@ -8,42 +8,29 @@ import io.ktor.server.routing.*
 import java.time.Instant
 
 fun Route.databaseRoutes(dbService: DatabaseService) {
-    route("/db") {
-        get("/simple") {
-            val idParam = call.request.queryParameters["id"]
-            val id = idParam?.toIntOrNull() ?: 1
-
-            val user = dbService.findUserById(id)
-
-            if (user != null) {
-                val response = mapOf(
-                    "user" to user,
-                    "timestamp" to Instant.now().toString()
-                )
-                call.respond(HttpStatusCode.OK, response)
-            } else {
-                val error = mapOf(
-                    "error" to "User not found",
-                    "id" to id
-                )
-                call.respond(HttpStatusCode.NotFound, error)
-            }
-        }
-
-        get("/complex") {
-            val daysParam = call.request.queryParameters["days"]
-            val days = daysParam?.toIntOrNull() ?: 30
-
-            val orders = dbService.findComplexOrders(days)
-
-            val response = mapOf(
-                "orders" to orders,
-                "count" to orders.size,
-                "days" to days,
-                "timestamp" to Instant.now().toString()
+    get("/db/simple") {
+        val id = call.request.queryParameters["id"]?.toIntOrNull() ?: 1
+        val user = dbService.findUserById(id)
+        if (user != null) {
+            call.respondText(
+                """{"id":${user.id},"email":"${user.email}","first_name":"${user.firstName}","last_name":"${user.lastName}","age":${user.age},"created_at":"${user.createdAt}"}""",
+                ContentType.Application.Json
             )
-
-            call.respond(HttpStatusCode.OK, response)
+        } else {
+            call.respondText("""{"error":"User with id $id not found"}""", ContentType.Application.Json, HttpStatusCode.NotFound)
         }
+    }
+
+    get("/db/complex") {
+        val days = call.request.queryParameters["days"]?.toIntOrNull() ?: 30
+        val orders = dbService.findComplexOrders(days)
+        val sb = StringBuilder()
+        sb.append("{\"period_days\":$days,\"total_users\":${orders.size},\"data\":[")
+        orders.forEachIndexed { i, o ->
+            if (i > 0) sb.append(",")
+            sb.append("{\"user_id\":${o.userId},\"email\":\"${o.email}\",\"order_count\":${o.orderCount},\"total_amount\":${o.totalAmount},\"average_amount\":${o.averageAmount}}")
+        }
+        sb.append("],\"timestamp\":\"${Instant.now()}\"}")
+        call.respondText(sb.toString(), ContentType.Application.Json)
     }
 }
