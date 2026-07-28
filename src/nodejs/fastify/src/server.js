@@ -42,14 +42,16 @@ async function buildServer() {
   });
 
   await fastify.register(underPressure, {
-    maxEventLoopDelay: 200, // 200ms
-    maxHeapUsedBytes: 1000 * 1024 * 1024, // 1GB
-    maxRssBytes: 1000 * 1024 * 1024, // 1GB
+    maxEventLoopDelay: 200,
+    maxHeapUsedBytes: 1000 * 1024 * 1024,
+    maxRssBytes: 1000 * 1024 * 1024,
+    exposeStatusRoute: '/status',
     healthCheck: async () => {
       const dbHealthy = await fastify.dbService.healthCheck();
       const cacheHealthy = await fastify.cacheService.healthCheck();
       return dbHealthy && cacheHealthy;
-    }
+    },
+    healthCheckInterval: 5000,
   });
 
   await fastify.register(swagger, {
