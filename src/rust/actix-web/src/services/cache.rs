@@ -26,13 +26,13 @@ impl CacheService {
         ttl_seconds: i32,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        redis::cmd("SETEX").arg(key).arg(ttl_seconds).arg(value).query_async(&mut conn).await?;
+        let _: () = redis::cmd("SETEX").arg(key).arg(ttl_seconds).arg(value).query_async(&mut conn).await?;
         Ok(())
     }
 
     pub async fn health_check(&self) -> Result<bool, Box<dyn std::error::Error>> {
         let mut conn = self.client.get_multiplexed_async_connection().await?;
-        let _: String = redis::cmd("PING").query_async(&mut conn).await?;
+        let _: () = redis::cmd("PING").query_async(&mut conn).await?;
         Ok(true)
     }
 }
