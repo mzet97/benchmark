@@ -22,20 +22,17 @@ class DatabaseService:
         """Initialize connection pool"""
         if self._pool is None:
             logger.info("Initializing database connection pool")
-            # Parse connection string to extract components
-            import re
-            match = re.match(r'postgresql://([^:]+):([^@]+)@([^:]+):(\d+)/(.+)', self.connection_string)
-            if match:
-                user, password, host, port, database = match.groups()
-            else:
-                raise ValueError(f"Invalid database URL: {self.connection_string}")
+            # Parse connection string manually to handle special chars in password
+            # Format: postgresql://user:password@host:port/database
+            from urllib.parse import urlparse
+            parsed = urlparse(self.connection_string)
             
             self._pool = await asyncpg.create_pool(
-                user=user,
-                password=password,
-                host=host,
-                port=int(port),
-                database=database,
+                user=parsed.username,
+                password=parsed.password,
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                database=parsed.path.lstrip('/'),
                 min_size=5,
                 max_size=25,
                 command_timeout=60,
