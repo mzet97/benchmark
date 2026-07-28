@@ -33,8 +33,24 @@ public class DatabaseService : IDatabaseService
 
     public DatabaseService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("DefaultConnection")
+        var url = configuration.GetConnectionString("DefaultConnection")
+            ?? Environment.GetEnvironmentVariable("DATABASE_URL")
             ?? throw new InvalidOperationException("Database connection string not found");
+
+        // Parse postgresql://user:password@host:port/database
+        // Handle @ in password by splitting from last @
+        var lastAt = url.LastIndexOf('@');
+        var schemeEnd = url.IndexOf("://");
+        var userPass = url.Substring(schemeEnd + 3, lastAt - schemeEnd - 3);
+        var hostPortDb = url.Substring(lastAt + 1);
+        var user = userPass.Split(':')[0];
+        var password = userPass.Contains(':') ? userPass.Substring(userPass.IndexOf(':') + 1) : "";
+        var host = hostPortDb.Split(':')[0];
+        var portDb = hostPortDb.Substring(hostPortDb.IndexOf(':') + 1);
+        var port = portDb.Split('/')[0];
+        var database = portDb.Contains('/') ? portDb.Substring(portDb.IndexOf('/') + 1) : "";
+
+        _connectionString = $"Host={host};Port={port};Database={database};Username={user};Password={password};Maximum Pool Size=25;Connection Timeout=30";
     }
 
     public async Task<User?> GetUserByIdAsync(int id)
