@@ -8,10 +8,14 @@ export class CacheService {
 
   constructor() {
     const redisUrl = Deno.env.get("REDIS_URL") || "redis://:Admin@123@redis.home.arpa:30379";
-    const url = new URL(redisUrl);
-    this.host = url.hostname;
-    this.port = parseInt(url.port || "6379");
-    this.password = url.password || undefined;
+    // Parse redis://:password@host:port manually (handle @ in password)
+    const afterScheme = redisUrl.split("://")[1] || "";
+    const lastAt = afterScheme.lastIndexOf("@");
+    const password = afterScheme.substring(1, lastAt); // skip leading ':'
+    const hostPort = afterScheme.substring(lastAt + 1);
+    this.host = hostPort.split(":")[0];
+    this.port = parseInt(hostPort.split(":")[1] || "6379");
+    this.password = password || undefined;
   }
 
   async init() {
@@ -26,7 +30,6 @@ export class CacheService {
   async close() {
     if (this.redis) {
       await this.redis.close();
-      console.log("Redis disconnected");
     }
   }
 
