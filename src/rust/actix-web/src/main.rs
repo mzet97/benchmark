@@ -170,7 +170,24 @@ async fn main() -> std::io::Result<()> {
 
     // Setup PostgreSQL connection
     info!("Connecting to PostgreSQL...");
-    let (pg_client, pg_connection) = tokio_postgres::connect(&database_url, tokio_postgres::NoTls)
+    // Parse URL manually
+    let after_scheme = database_url.split("://").nth(1).unwrap_or("");
+    let last_at = after_scheme.rfind('@').unwrap_or(0);
+    let user_pass = &after_scheme[..last_at];
+    let host_port_db = &after_scheme[last_at + 1..];
+    let user = user_pass.split(':').next().unwrap_or("app");
+    let password = user_pass.split(':').nth(1).unwrap_or("");
+    let host = host_port_db.split(':').next().unwrap_or("localhost");
+    let port_db = host_port_db.split(':').nth(1).unwrap_or("5432/benchmark_api");
+    let port: u16 = port_db.split('/').next().unwrap_or("5432").parse().unwrap_or(5432);
+    let database = port_db.split('/').nth(1).unwrap_or("benchmark_api");
+
+    info!("DB: user={}, host={}, port={}, db={}", user, host, port, database);
+
+    let mut config = tokio_postgres::Config::new();
+    config.user(user).password(password).host(host).port(port).dbname(database);
+
+    let (pg_client, pg_connection) = config.connect(tokio_postgres::NoTls)
         .await
         .expect("Failed to connect to PostgreSQL");
 
