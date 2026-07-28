@@ -68,7 +68,7 @@ func (ds *DatabaseService) FindComplexOrders(days int) ([]*models.ComplexOrderRe
 			EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
 		FROM users u
 		INNER JOIN orders o ON u.id = o.user_id
-		WHERE o.created_at >= NOW() - ($1 || ' days')::INTERVAL
+			WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
 		GROUP BY u.id, u.email
 		ORDER BY order_count DESC
 		LIMIT 100
