@@ -12,7 +12,6 @@ sqlalchemy[asyncio]==2.0.35
 alembic==1.13.3
 
 # Redis
-aioredis==2.0.1
 redis[hiredis]==5.2.0
 
 # Data validation and serialization

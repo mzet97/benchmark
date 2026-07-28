@@ -1,8 +1,7 @@
-import aioredis
+import redis.asyncio as aioredis
 from typing import Optional, Tuple
 import structlog
 import os
-import json
 
 
 logger = structlog.get_logger()
@@ -27,10 +26,7 @@ class CacheService:
                 encoding="utf-8",
                 decode_responses=True,
                 retry_on_timeout=True,
-                socket_keepalive=True,
-                socket_keepalive_options={}
             )
-            # Test connection
             await self._redis.ping()
             logger.info("Redis connection initialized")
 
@@ -65,10 +61,8 @@ class CacheService:
     async def get_or_set(self, key: str, new_value: str, ttl_seconds: int = 300) -> Tuple[str, str]:
         """Get value from cache or set new value"""
         existing = await self.get(key)
-
         if existing is not None:
             return existing, "cache"
-
         await self.set(key, new_value, ttl_seconds)
         return new_value, "generated"
 
