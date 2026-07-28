@@ -6,8 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
 
-    <!-- Native AOT Configuration -->
-    <PublishAot>true</PublishAot>
+    <!-- Native AOT disabled - uses reflection for JSON -->
+    <PublishAot>false</PublishAot>
 
     <!-- Docker/Container Settings -->
     <ContainerFamily>alpine</ContainerFamily>
