@@ -172,7 +172,31 @@ async fn main() -> std::io::Result<()> {
 
     // Setup PostgreSQL connection pool
     info!("Connecting to PostgreSQL...");
-    let pg_config = database_url.parse::<tokio_postgres::Config>().expect("Invalid database URL");
+    // Parse URL manually to handle special chars in password
+    // Format: postgresql://user:password@host:port/database
+    let db_url = database_url.clone();
+    let parts: Vec<&str> = db_url.splitn(2, "://").collect();
+    let after_scheme = parts.get(1).unwrap_or(&"");
+    let user_pass_host: Vec<&str> = after_scheme.splitn(2, "@").collect();
+    let (user_pass, host_port_db) = if user_pass_host.len() == 2 {
+        (user_pass_host[0], user_pass_host[1])
+    } else {
+        ("", after_scheme)
+    };
+    let up_parts: Vec<&str> = user_pass.splitn(2, ":").collect();
+    let user = up_parts.get(0).unwrap_or(&"app");
+    let password = up_parts.get(1).unwrap_or(&"");
+    let hp_parts: Vec<&str> = host_port_db.splitn(2, ":").collect();
+    let host = hp_parts.get(0).unwrap_or(&"localhost");
+    let port_db = hp_parts.get(1).unwrap_or(&"5432/benchmark_api");
+    let pd_parts: Vec<&str> = port_db.splitn(2, "/").collect();
+    let port: u16 = pd_parts.get(0).unwrap_or(&"5432").parse().unwrap_or(5432);
+    let database = pd_parts.get(1).unwrap_or(&"benchmark_api");
+
+    let mut pg_config = tokio_postgres::Config::new();
+    pg_config.user(user).password(password).host(host).port(port).dbname(database);
+
+    info!("DB config: user={}, host={}, port={}, db={}", user, host, port, database);
     let manager = PostgresConnectionManager::new(pg_config, tokio_postgres::NoTls);
 
     let pool = Pool::builder()
