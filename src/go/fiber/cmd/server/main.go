@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/benchmark/go-fiber/internal/handlers"
 	"github.com/benchmark/go-fiber/internal/services"
@@ -21,10 +21,12 @@ import (
 	"github.com/rs/zerolog"
 )
 
+var log zerolog.Logger
+
 func main() {
 	// Initialize logger
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-	log.Logger = zerolog.New(os.Stdout).With().Timestamp().Logger()
+	log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
 	// Load environment variables
 	if err := loadEnv(); err != nil {
@@ -103,7 +105,7 @@ func main() {
 	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit()
+	<-quit
 
 	log.Info().Msg("Shutting down server...")
 
@@ -189,5 +191,5 @@ func initRedis() (*redis.Client, error) {
 }
 
 func loadEnv() error {
-	return nil // Using os.Getenv directly, but can be extended to load .env file if needed
+	return nil // Using os.Getenv directly
 }
