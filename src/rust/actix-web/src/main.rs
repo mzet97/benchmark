@@ -1,8 +1,7 @@
 use actix_cors::Cors;
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use bb8::Pool;
-use bb8_tokio_postgres::TokioPostgresConnectionManager;
-use config::{Config, ConfigError, Environment, File};
+use bb8_postgres::PostgresConnectionManager;
 use log::{info, warn};
 use redis::Client as RedisClient;
 use serde_json::json;
@@ -164,32 +163,17 @@ async fn cache_handler(
 async fn main() -> std::io::Result<()> {
     env_logger::init();
 
-    // Load configuration
-    let config = load_config().expect("Failed to load configuration");
+    // Load configuration from environment
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api".to_string());
 
-    // Parse database URL
-    let database_url = config.get_string("database.url")
-        .expect("DATABASE_URL not set");
-
-    // Parse Redis URL
-    let redis_url = config.get_string("redis.url")
-        .expect("REDIS_URL not set");
+    let redis_url = std::env::var("REDIS_URL")
+        .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
 
     // Setup PostgreSQL connection pool
     info!("Connecting to PostgreSQL...");
-    let (client, connection) = tokio_postgres::connect(&database_url, tokio_postgres::NoTls).await
-        .expect("Failed to connect to PostgreSQL");
-
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("PostgreSQL connection error: {}", e);
-        }
-    });
-
-    let manager = bb8_tokio_postgres::TokioPostgresConnectionManager::new(
-        tokio_postgres::Config::from_str(&database_url).unwrap(),
-        tokio_postgres::NoTls,
-    );
+    let pg_config = database_url.parse::<tokio_postgres::Config>().expect("Invalid database URL");
+    let manager = PostgresConnectionManager::new(pg_config, tokio_postgres::NoTls);
 
     let pool = Pool::builder()
         .build(manager)
@@ -210,8 +194,8 @@ async fn main() -> std::io::Result<()> {
         cache_service,
     };
 
-    let bind = config.get_string("server.bind").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
-    let workers = config.get_usize("server.workers").unwrap_or_else(|_| num_cpus::get());
+    let bind = std::env::var("BIND").unwrap_or_else(|_| "0.0.0.0:8080".to_string());
+    let workers: usize = std::env::var("WORKERS").ok().and_then(|w| w.parse().ok()).unwrap_or(4);
 
     info!("Starting server on {} with {} workers", bind, workers);
 
@@ -231,13 +215,4 @@ async fn main() -> std::io::Result<()> {
     .await?;
 
     Ok(())
-}
-
-fn load_config() -> Result<Config, ConfigError> {
-    Config::builder()
-        .add_source(Environment::with_prefix("APP").try_parsing(true))
-        .add_source(Environment::with_prefix("DATABASE").try_parsing(true))
-        .add_source(Environment::with_prefix("REDIS").try_parsing(true))
-        .add_source(File::with_name("config/default").required(false))
-        .build()
 }

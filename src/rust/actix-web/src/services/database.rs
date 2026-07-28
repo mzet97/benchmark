@@ -1,5 +1,5 @@
 use bb8::Pool;
-use bb8_tokio_postgres::TokioPostgresConnectionManager;
+use bb8_postgres::PostgresConnectionManager;
 use chrono::Utc;
 use log::info;
 use tokio_postgres::{Client, Row};
@@ -8,11 +8,11 @@ use uuid::Uuid;
 use crate::models::{User, Order, OrderItem, ComplexOrderResult};
 
 pub struct DatabaseService {
-    pool: Pool<TokioPostgresConnectionManager>,
+    pool: Pool<PostgresConnectionManager>,
 }
 
 impl DatabaseService {
-    pub fn new(pool: Pool<TokioPostgresConnectionManager>) -> Self {
+    pub fn new(pool: Pool<PostgresConnectionManager>) -> Self {
         Self { pool }
     }
 
@@ -58,15 +58,13 @@ impl DatabaseService {
                 EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
             FROM users u
             INNER JOIN orders o ON u.id = o.user_id
-            WHERE o.created_at >= NOW() - INTERVAL '%s days'
+            WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
             GROUP BY u.id, u.email
             ORDER BY order_count DESC
             LIMIT 100
         ";
 
-        let formatted_query = format!(query, days);
-
-        let rows = conn.query(&formatted_query, &[]).await?;
+        let rows = conn.query(query, &[&days]).await?;
 
         let mut results = Vec::new();
         for row in rows {
