@@ -1,21 +1,38 @@
-FROM denoland/deno:2.0
-
-# Create non-root user
-RUN addgroup -g 1001 -S app && adduser -S app -u 1001
+# Multi-stage build for Deno.serve
+FROM denoland/deno:2.0 AS builder
 
 WORKDIR /app
 
-# Copy application code
-COPY server.ts .
+# Copy source code
+COPY . .
 
-# Change ownership to non-root user
-RUN chown -R app:app /app
-USER app
+# Cache dependencies
+RUN deno cache server.ts
+
+# Production stage
+FROM denoland/deno:2.0-slim
+
+# Install curl for health checks
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Create non-root user
+RUN addgroup --system --gid 1001 denoapp && \
+    adduser --system --uid 1001 --gid 1001 denoapp
+
+# Copy cached dependencies from builder
+COPY --from=builder /deno-dir /deno-dir
+
+# Copy application code
+COPY --chown=denoapp:denoapp . .
+
+USER denoapp
 
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/health || exit 1
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "server.ts"]
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "server.ts"]

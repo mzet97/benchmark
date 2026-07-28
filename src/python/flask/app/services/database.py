@@ -1,54 +1,42 @@
 """
-Database service using asyncpg
+Database service using psycopg2 (sync driver for Flask)
 """
 
-import asyncio
-import asyncpg
+import psycopg2
+import psycopg2.extras
 import structlog
 from typing import Optional, List, Dict, Any
 import os
 
 logger = structlog.get_logger(__name__)
 
+DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api')
+
+
 class DatabaseService:
     """Database service with connection pooling"""
 
-    def __init__(self, database_url: str):
-        self.database_url = database_url
-        self._pool: Optional[asyncpg.Pool] = None
+    def __init__(self):
+        self._conn = None
 
-    async def initialize(self):
-        """Initialize database connection pool"""
-        try:
-            self._pool = await asyncpg.create_pool(
-                self.database_url,
-                min_size=5,
-                max_size=25,
-                command_timeout=60,
-                server_settings={
-                    'application_name': 'benchmark_flask'
-                }
-            )
-            logger.info("Database connection pool initialized")
-        except Exception as e:
-            logger.error("Failed to initialize database pool", error=str(e))
-            raise
+    def _get_conn(self):
+        """Get or create database connection"""
+        if self._conn is None or self._conn.closed:
+            self._conn = psycopg2.connect(DATABASE_URL)
+            self._conn.autocommit = True
+        return self._conn
 
-    async def close(self):
-        """Close database connection pool"""
-        if self._pool:
-            await self._pool.close()
-            logger.info("Database connection pool closed")
-
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """Check database health"""
         try:
-            async with self._pool.acquire() as conn:
-                result = await conn.fetchrow("SELECT 1 as status")
+            conn = self._get_conn()
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1 as status")
+                result = cur.fetchone()
                 return {
                     'status': 'healthy',
                     'database': 'connected',
-                    'result': dict(result)
+                    'result': {'status': result[0]}
                 }
         except Exception as e:
             logger.error("Database health check failed", error=str(e))
@@ -58,16 +46,17 @@ class DatabaseService:
                 'error': str(e)
             }
 
-    async def find_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+    def find_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Find user by ID"""
         try:
-            async with self._pool.acquire() as conn:
-                row = await conn.fetchrow("""
+            conn = self._get_conn()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
                     SELECT id, email, first_name, last_name, age, created_at
                     FROM users
-                    WHERE id = $1
-                """, user_id)
-
+                    WHERE id = %s
+                """, (user_id,))
+                row = cur.fetchone()
                 if row:
                     return dict(row)
                 return None
@@ -75,11 +64,12 @@ class DatabaseService:
             logger.error("Error finding user", user_id=user_id, error=str(e))
             return None
 
-    async def get_user_stats(self, days: int) -> List[Dict[str, Any]]:
+    def get_user_stats(self, days: int) -> List[Dict[str, Any]]:
         """Get user statistics with aggregation"""
         try:
-            async with self._pool.acquire() as conn:
-                rows = await conn.fetch("""
+            conn = self._get_conn()
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute("""
                     SELECT u.id as user_id,
                            CONCAT(u.first_name, ' ', u.last_name) as user_name,
                            COUNT(DISTINCT o.id) as total_orders,
@@ -87,36 +77,31 @@ class DatabaseService:
                            COALESCE(AVG(o.total_amount), 0) as average_value
                     FROM users u
                     LEFT JOIN orders o ON u.id = o.user_id
-                      AND o.created_at >= NOW() - INTERVAL '$1 days'
+                      AND o.created_at >= NOW() - INTERVAL '%s days'
                     GROUP BY u.id, u.first_name, u.last_name
                     HAVING COUNT(DISTINCT o.id) > 0
                     ORDER BY total_value DESC
                     LIMIT 100
-                """, days)
-
+                """, (days,))
+                rows = cur.fetchall()
                 return [dict(row) for row in rows]
         except Exception as e:
             logger.error("Error getting user stats", days=days, error=str(e))
             return []
 
-    async def execute_query(self, query: str, *args) -> List[Dict[str, Any]]:
-        """Execute a custom query"""
-        try:
-            async with self._pool.acquire() as conn:
-                rows = await conn.fetch(query, *args)
-                return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error("Error executing query", query=query, error=str(e))
-            return []
+    def close(self):
+        """Close database connection"""
+        if self._conn and not self._conn.closed:
+            self._conn.close()
+
 
 # Global database service instance
 db_service: Optional[DatabaseService] = None
+
 
 def get_db_service() -> DatabaseService:
     """Get database service instance"""
     global db_service
     if db_service is None:
-        db_service = DatabaseService(
-            database_url=os.getenv('DATABASE_URL', 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api')
-        )
+        db_service = DatabaseService()
     return db_service

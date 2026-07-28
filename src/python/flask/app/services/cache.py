@@ -1,91 +1,70 @@
 """
-Cache service using redis.asyncio
+Cache service using redis (sync driver for Flask)
 """
 
-import json
-import redis.asyncio as redis
+import redis
 import structlog
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 import os
 
 logger = structlog.get_logger(__name__)
 
-class CacheService:
-    """Redis cache service"""
+REDIS_URL = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
 
-    def __init__(self, redis_url: str):
-        self.redis_url = redis_url
+
+class CacheService:
+    """Redis cache service (sync)"""
+
+    def __init__(self):
         self._client: Optional[redis.Redis] = None
 
-    async def initialize(self):
-        """Initialize Redis client"""
-        try:
+    def _get_client(self) -> redis.Redis:
+        """Get or create Redis client"""
+        if self._client is None:
             self._client = redis.from_url(
-                self.redis_url,
+                REDIS_URL,
                 encoding="utf-8",
                 decode_responses=True,
-                retry_on_timeout=True,
                 socket_connect_timeout=5,
                 socket_timeout=5,
-                socket_keepalive=True,
-                socket_keepalive_options={}
             )
-            await self._client.ping()
-            logger.info("Redis cache connected")
-        except Exception as e:
-            logger.error("Failed to connect to Redis", error=str(e))
-            raise
+        return self._client
 
-    async def close(self):
-        """Close Redis connection"""
-        if self._client:
-            await self._client.close()
-            logger.info("Redis connection closed")
-
-    async def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Optional[str]:
         """Get value from cache"""
         try:
-            value = await self._client.get(key)
-            if value:
-                return json.loads(value)
-            return None
+            client = self._get_client()
+            return client.get(key)
         except Exception as e:
             logger.error("Error getting cache value", key=key, error=str(e))
             return None
 
-    async def set(self, key: str, value: Any, ttl: int = 300) -> bool:
+    def set(self, key: str, value: str, ttl: int = 300) -> bool:
         """Set value in cache"""
         try:
-            serialized = json.dumps(value, default=str)
-            await self._client.setex(key, ttl, serialized)
+            client = self._get_client()
+            client.setex(key, ttl, value)
             return True
         except Exception as e:
             logger.error("Error setting cache value", key=key, error=str(e))
             return False
 
-    async def delete(self, key: str) -> bool:
+    def delete(self, key: str) -> bool:
         """Delete value from cache"""
         try:
-            await self._client.delete(key)
+            client = self._get_client()
+            client.delete(key)
             return True
         except Exception as e:
             logger.error("Error deleting cache value", key=key, error=str(e))
             return False
 
-    async def exists(self, key: str) -> bool:
-        """Check if key exists in cache"""
-        try:
-            result = await self._client.exists(key)
-            return bool(result)
-        except Exception as e:
-            logger.error("Error checking cache key", key=key, error=str(e))
-            return False
-
-    async def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> Dict[str, Any]:
         """Check Redis health"""
         try:
-            await self._client.ping()
-            info = await self._client.info()
+            client = self._get_client()
+            client.ping()
+            info = client.info()
             return {
                 'status': 'healthy',
                 'cache': 'connected',
@@ -100,14 +79,19 @@ class CacheService:
                 'error': str(e)
             }
 
+    def close(self):
+        """Close Redis connection"""
+        if self._client:
+            self._client.close()
+
+
 # Global cache service instance
 cache_service: Optional[CacheService] = None
+
 
 def get_cache_service() -> CacheService:
     """Get cache service instance"""
     global cache_service
     if cache_service is None:
-        cache_service = CacheService(
-            redis_url=os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
-        )
+        cache_service = CacheService()
     return cache_service

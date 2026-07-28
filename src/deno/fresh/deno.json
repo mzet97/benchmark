@@ -1,5 +1,18 @@
 {
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "imports": {
+    "postgres": "https://deno.land/x/postgres@v0.19.3/mod.ts",
+    "redis": "https://deno.land/x/redis@v0.32.1/mod.ts"
+  },
   "tasks": {
-    "start": "deno run -A --watch main.ts"
+    "start": "deno run -A server.ts",
+    "dev": "deno run --watch -A server.ts"
   }
 }

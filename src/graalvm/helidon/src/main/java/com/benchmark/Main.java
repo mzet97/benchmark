@@ -24,11 +24,23 @@ public class Main {
     private static CacheService cacheService;
 
     public static void main(String[] args) {
+        // Read database configuration from environment variables
+        String databaseUrl = System.getenv().getOrDefault("DATABASE_URL", "jdbc:postgresql://localhost:5432/benchmark_api");
+        String dbUsername = System.getenv().getOrDefault("DB_USERNAME", "app");
+        String dbPassword = System.getenv().getOrDefault("DB_PASSWORD", "");
+
+        // Read Redis configuration from environment variable (format: host:port:password)
+        String redisUrl = System.getenv().getOrDefault("REDIS_URL", "localhost:6379:");
+        String[] redisParts = redisUrl.split(":");
+        String redisHost = redisParts.length > 0 ? redisParts[0] : "localhost";
+        int redisPort = redisParts.length > 1 ? Integer.parseInt(redisParts[1]) : 6379;
+        String redisPassword = redisParts.length > 2 ? redisParts[2] : "";
+
         // Initialize PostgreSQL connection pool
         HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setJdbcUrl("jdbc:postgresql://spsql.home.arpa:5432/benchmark_api");
-        hikariConfig.setUsername("app");
-        hikariConfig.setPassword("Admin@123");
+        hikariConfig.setJdbcUrl(databaseUrl);
+        hikariConfig.setUsername(dbUsername);
+        hikariConfig.setPassword(dbPassword);
         hikariConfig.setMaximumPoolSize(25);
         hikariConfig.setMinimumIdle(5);
         dataSource = new HikariDataSource(hikariConfig);
@@ -36,7 +48,7 @@ public class Main {
         // Initialize Redis connection pool
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(25);
-        jedisPool = new JedisPool(poolConfig, "redis.home.arpa", 30379, 2000, "Admin@123");
+        jedisPool = new JedisPool(poolConfig, redisHost, redisPort, 2000, redisPassword.isEmpty() ? null : redisPassword);
 
         // Initialize services
         databaseService = new DatabaseService(dataSource);

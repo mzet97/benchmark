@@ -12,9 +12,9 @@ import java.time.Duration;
 @ConfigurationProperties("redis")
 @Refreshable
 public class RedisConfig {
-    private String host = "redis.home.arpa";
-    private int port = 30379;
-    private String password = "Admin@123";
+    private String host = System.getenv().getOrDefault("REDIS_HOST", "localhost");
+    private int port = Integer.parseInt(System.getenv().getOrDefault("REDIS_PORT", "6379"));
+    private String password = System.getenv().getOrDefault("REDIS_PASSWORD", "");
     private Duration timeout = Duration.ofSeconds(30);
 
     public String getHost() {

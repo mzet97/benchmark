@@ -1,0 +1,22 @@
+micronaut:
+  application:
+    name: graalvm-micronaut
+  server:
+    port: 3000
+    host: 0.0.0.0
+
+datasources:
+  default:
+    driver-class-name: org.postgresql.Driver
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/benchmark_api}
+    username: ${DB_USERNAME:app}
+    password: ${DB_PASSWORD:}
+
+redis:
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
+
+jackson:
+  serialization:
+    writeDatesAsTimestamps: false

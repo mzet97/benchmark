@@ -1,23 +1,26 @@
+import os
 import redis
 from typing import Optional
+from datetime import datetime
 
-r = redis.Redis.from_url('redis://:Admin@123@redis.home.arpa:30379')
+REDIS_URL = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
+
+r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 
 class CacheService:
     """Service for cache operations"""
 
     @staticmethod
-    def get_or_set(key: str, default_value: Optional[str] = None, ttl: int = 300) -> tuple[str, bool]:
+    def get_or_set(key: str, default_value: Optional[str] = None, ttl: int = 300) -> tuple:
         """
         Get value from cache or set if not exists
         Returns: (value, was_cached)
         """
         value = r.get(key)
         if value:
-            return value.decode(), True
+            return value, True
 
         if default_value is None:
-            from datetime import datetime
             default_value = f'cached-value-{key}-{datetime.utcnow().timestamp()}'
 
         r.set(key, default_value, ex=ttl)
@@ -29,5 +32,5 @@ class CacheService:
         try:
             r.ping()
             return True
-        except:
+        except Exception:
             return False

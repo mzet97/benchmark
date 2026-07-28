@@ -1,5 +1,5 @@
+import 'dart:io';
 import 'package:postgres/postgres.dart';
-import '../models/models.dart';
 import '../utils/logger.dart';
 
 class DatabaseService {
@@ -39,7 +39,7 @@ class DatabaseService {
     }
   }
 
-  Future<User?> getUser(int userId) async {
+  Future<Map<String, dynamic>?> getUser(int userId) async {
     if (!_initialized) {
       throw Exception('Database not initialized');
     }
@@ -60,17 +60,17 @@ class DatabaseService {
     }
 
     final row = result.first;
-    return User(
-      id: row[0] as int,
-      email: row[1] as String,
-      firstName: row[2] as String,
-      lastName: row[3] as String,
-      age: row[4] as int,
-      createdAt: row[5] as DateTime,
-    );
+    return {
+      'id': row[0] as int,
+      'email': row[1] as String,
+      'first_name': row[2] as String,
+      'last_name': row[3] as String,
+      'age': row[4] as int,
+      'created_at': (row[5] as DateTime).toIso8601String(),
+    };
   }
 
-  Future<List<Map<String, dynamic>>> getComplexUsers(int days) async {
+  Future<List<Map<String, dynamic>>> getComplexQuery(int days) async {
     if (!_initialized) {
       throw Exception('Database not initialized');
     }

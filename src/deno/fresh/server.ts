@@ -1,188 +1,240 @@
 /**
  * Benchmark API - Deno Fresh
- * High-performance REST API benchmark implementation using Fresh framework
- * Uses REAL PostgreSQL and Redis (NOT mock data)
+ * High-performance REST API benchmark implementation
  */
 
-import { Application } from 'https://deno.land/x/fresh@1.6.8/server.ts';
-import { Router } from 'https://deno.land/x/fresh@1.6.8/server.ts';
+import { Client } from "postgres";
+import { Redis } from "redis";
 
-// Import services and models
-import { PostgresDatabaseService } from './src/services/database_service.ts';
-import { RedisCacheService } from './src/services/cache_service.ts';
-import { mapUserToDto } from './src/models/user.ts';
-import type { ComplexOrderResponse } from './src/models/complex_result.ts';
+const PORT = parseInt(Deno.env.get("PORT") || "3000");
+const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api";
+const REDIS_URL = Deno.env.get("REDIS_URL") || "redis://:Admin@123@redis.home.arpa:30379";
 
-const app = new Application();
-const PORT = parseInt(Deno.env.get('PORT') || '3000');
+// ==================== Database Service ====================
+class DatabaseService {
+  private client: Client | null = null;
 
-// Initialize services
-const databaseService = new PostgresDatabaseService();
-const cacheService = new RedisCacheService();
+  async init() {
+    this.client = new Client(DATABASE_URL);
+    await this.client.connect();
+    console.log("Database connected");
+  }
 
-// Initialize database and cache connections
+  async close() {
+    if (this.client) {
+      await this.client.end();
+    }
+  }
+
+  async healthCheck(): Promise<boolean> {
+    if (!this.client) return false;
+    try {
+      await this.client.queryObject("SELECT 1");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async getUser(userId: number) {
+    if (!this.client) throw new Error("Database not initialized");
+    const result = await this.client.queryObject(
+      "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
+      [userId]
+    );
+    return result.rows[0] || null;
+  }
+
+  async getComplexQuery(days: number) {
+    if (!this.client) throw new Error("Database not initialized");
+    const result = await this.client.queryObject(`
+      SELECT
+        u.id as user_id,
+        CONCAT(u.first_name, ' ', u.last_name) as user_name,
+        COUNT(DISTINCT o.id) as total_orders,
+        COALESCE(SUM(o.total_amount), 0) as total_value,
+        COALESCE(AVG(o.total_amount), 0) as average_order_value
+      FROM users u
+      LEFT JOIN orders o ON u.id = o.user_id
+        AND o.created_at >= NOW() - INTERVAL '${days} days'
+        AND o.status = 'completed'
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      GROUP BY u.id, u.first_name, u.last_name
+      ORDER BY total_value DESC
+      LIMIT 100
+    `);
+    return result.rows;
+  }
+}
+
+// ==================== Cache Service ====================
+class CacheService {
+  private redis: Redis | null = null;
+
+  async init() {
+    const url = new URL(REDIS_URL);
+    this.redis = new Redis({
+      hostname: url.hostname,
+      port: parseInt(url.port || "6379"),
+      password: url.password || undefined,
+    });
+    await this.redis.ping();
+    console.log("Redis connected");
+  }
+
+  async close() {
+    if (this.redis) {
+      await this.redis.quit();
+    }
+  }
+
+  async ping(): Promise<boolean> {
+    if (!this.redis) return false;
+    try {
+      await this.redis.ping();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async get(key: string): Promise<string | null> {
+    if (!this.redis) throw new Error("Redis not initialized");
+    return await this.redis.get(key);
+  }
+
+  async set(key: string, value: string, ttl: number = 300) {
+    if (!this.redis) throw new Error("Redis not initialized");
+    await this.redis.setex(key, ttl, value);
+  }
+}
+
+// ==================== Initialize Services ====================
+const databaseService = new DatabaseService();
+const cacheService = new CacheService();
+
 await databaseService.init();
 await cacheService.init();
 
-// Handler functions
-const healthHandler = async (req: Request): Promise<Response> => {
-  const dbHealthy = await databaseService.healthCheck();
-  const cacheHealthy = await cacheService.healthCheck();
+// ==================== Route Handlers ====================
+const jsonHeaders = { "Content-Type": "application/json" };
 
-  return new Response(JSON.stringify({
-    status: 'healthy',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-    database: dbHealthy ? 'connected' : 'disconnected',
-    cache: cacheHealthy ? 'connected' : 'disconnected'
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
+const handleRequest = async (req: Request): Promise<Response> => {
+  const url = new URL(req.url);
+  const path = url.pathname;
 
-const jsonHandler = async (req: Request): Promise<Response> => {
-  return new Response(JSON.stringify({
-    message: 'Hello from Deno Fresh!',
-    timestamp: new Date().toISOString(),
-    random: Math.floor(Math.random() * 1000),
-    status: 'success',
-    data: {
-      id: 1,
-      name: 'Benchmark Test',
-      active: true,
-      tags: ['benchmark', 'fresh', 'deno', 'api']
+  try {
+    // Health check
+    if (path === "/health") {
+      const dbOk = await databaseService.healthCheck();
+      const cacheOk = await cacheService.ping();
+      const healthy = dbOk && cacheOk;
+      return new Response(JSON.stringify({
+        status: healthy ? "healthy" : "unhealthy",
+        version: "1.0.0",
+        timestamp: new Date().toISOString(),
+        database: dbOk ? "connected" : "disconnected",
+        cache: cacheOk ? "connected" : "disconnected",
+      }), { status: healthy ? 200 : 503, headers: jsonHeaders });
     }
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
 
-const dbSimpleHandler = async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  const userId = parseInt(url.searchParams.get('id') || '1');
+    // Kubernetes healthz
+    if (path === "/healthz") {
+      return new Response(JSON.stringify({ status: "ok" }), { headers: jsonHeaders });
+    }
 
-  if (isNaN(userId) || userId <= 0) {
-    return new Response(JSON.stringify({ error: 'Invalid id parameter' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // Root
+    if (path === "/") {
+      return new Response(JSON.stringify({
+        name: "Benchmark API - Deno Fresh",
+        version: "1.0.0",
+        runtime: "Deno",
+        framework: "Fresh",
+        database: "PostgreSQL",
+        cache: "Redis",
+        status: "running",
+      }), { headers: jsonHeaders });
+    }
+
+    // JSON serialization
+    if (path === "/json") {
+      const timestamp = new Date().toISOString();
+      const items = Array.from({ length: 1000 }, (_, i) => ({
+        id: i + 1,
+        uuid: crypto.randomUUID(),
+        name: `Item ${i + 1}`,
+        description: `This is item number ${i + 1}`,
+        timestamp,
+        random: `data-${crypto.randomUUID()}`,
+      }));
+      return new Response(JSON.stringify({ items, count: 1000, timestamp }), { headers: jsonHeaders });
+    }
+
+    // Simple DB query
+    if (path === "/db/simple") {
+      const idParam = url.searchParams.get("id");
+      if (!idParam) {
+        return new Response(JSON.stringify({ error: "Invalid id parameter" }), { status: 400, headers: jsonHeaders });
+      }
+      const userId = parseInt(idParam);
+      if (isNaN(userId) || userId <= 0) {
+        return new Response(JSON.stringify({ error: "Invalid id parameter" }), { status: 400, headers: jsonHeaders });
+      }
+      const user = await databaseService.getUser(userId);
+      if (!user) {
+        return new Response(JSON.stringify({ error: `User with id ${userId} not found` }), { status: 404, headers: jsonHeaders });
+      }
+      return new Response(JSON.stringify(user), { headers: jsonHeaders });
+    }
+
+    // Complex DB query
+    if (path === "/db/complex") {
+      const days = parseInt(url.searchParams.get("days") || "30");
+      if (isNaN(days) || days <= 0 || days > 365) {
+        return new Response(JSON.stringify({ error: "Days must be between 1 and 365" }), { status: 400, headers: jsonHeaders });
+      }
+      const results = await databaseService.getComplexQuery(days);
+      return new Response(JSON.stringify({
+        period_days: days,
+        total_users: results.length,
+        data: results,
+        timestamp: new Date().toISOString(),
+      }), { headers: jsonHeaders });
+    }
+
+    // Cache
+    if (path === "/cache") {
+      const key = url.searchParams.get("key");
+      if (!key) {
+        return new Response(JSON.stringify({ error: "Key parameter is required" }), { status: 400, headers: jsonHeaders });
+      }
+      const cached = await cacheService.get(key);
+      if (cached) {
+        return new Response(JSON.stringify({ key, value: cached, cached: true, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
+      }
+      const value = `Cached value for ${key} at ${new Date().toISOString()}`;
+      await cacheService.set(key, value, 300);
+      return new Response(JSON.stringify({ key, value, cached: false, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
+    }
+
+    return new Response(JSON.stringify({ error: "Not Found" }), { status: 404, headers: jsonHeaders });
+  } catch (error) {
+    console.error("Unhandled error:", error);
+    return new Response(JSON.stringify({ error: "Internal Server Error", message: String(error) }), { status: 500, headers: jsonHeaders });
   }
-
-  console.log('Database simple query executed', { user_id: userId });
-
-  const user = await databaseService.getUserById(userId);
-
-  if (!user) {
-    return new Response(JSON.stringify({ error: `User with id ${userId} not found` }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  const userDto = mapUserToDto(user);
-
-  return new Response(JSON.stringify({
-    user: userDto,
-    timestamp: new Date().toISOString()
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
 };
 
-const dbComplexHandler = async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  const days = parseInt(url.searchParams.get('days') || '30');
-
-  if (isNaN(days) || days <= 0 || days > 365) {
-    return new Response(JSON.stringify({ error: 'Days must be between 1 and 365' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  console.log('Database complex query executed', { days });
-
-  const results = await databaseService.getComplexQuery(days);
-
-  const response: ComplexOrderResponse = {
-    period_days: days,
-    total_users: results.length,
-    data: results,
-    timestamp: new Date().toISOString()
-  };
-
-  return new Response(JSON.stringify(response), {
-    headers: { 'Content-Type': 'application/json' }
-  });
+// ==================== Graceful Shutdown ====================
+const shutdown = async () => {
+  console.log("Shutting down...");
+  await databaseService.close();
+  await cacheService.close();
+  Deno.exit(0);
 };
 
-const cacheHandler = async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  const key = url.searchParams.get('key') || 'test_key';
+Deno.addSignalListener("SIGINT", shutdown);
+Deno.addSignalListener("SIGTERM", shutdown);
 
-  if (!key) {
-    return new Response(JSON.stringify({ error: 'Key parameter is required' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
-  console.log('Cache request for key:', key);
-
-  const value = await cacheService.getOrSet(
-    key,
-    async () => {
-      // Simulate some work
-      await new Promise(resolve => setTimeout(resolve, 50));
-      return `Cached value for ${key} at ${new Date().toISOString()}`;
-    },
-    300 // 5 minutes TTL
-  );
-
-  return new Response(JSON.stringify({
-    key: key,
-    value: value,
-    cached: !value.includes(`Cached value for ${key}`),
-    timestamp: new Date().toISOString()
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
-
-const rootHandler = async (req: Request): Promise<Response> => {
-  return new Response(JSON.stringify({
-    name: 'Benchmark API - Deno Fresh',
-    version: '1.0.0',
-    status: 'running',
-    database: 'PostgreSQL',
-    cache: 'Redis',
-    endpoints: [
-      'GET /health',
-      'GET /json',
-      'GET /db/simple?id=1',
-      'GET /db/complex?days=30',
-      'GET /cache?key=test'
-    ]
-  }), {
-    headers: { 'Content-Type': 'application/json' }
-  });
-};
-
-const healthzHandler = async (req: Request): Promise<Response> => {
-  return new Response('OK', { status: 200 });
-};
-
-// Router
-app.get('/', rootHandler);
-app.get('/health', healthHandler);
-app.get('/json', jsonHandler);
-app.get('/db/simple', dbSimpleHandler);
-app.get('/db/complex', dbComplexHandler);
-app.get('/cache', cacheHandler);
-app.get('/healthz', healthzHandler);
-
-console.log(`🚀 Server starting on port ${PORT}`);
-console.log(`✅ Using PostgreSQL: spsql.home.arpa:5432/benchmark_api`);
-console.log(`✅ Using Redis: redis.home.arpa:30379`);
-
-app.listen(PORT);
+// ==================== Start Server ====================
+console.log(`🚀 Deno Fresh server starting on port ${PORT}`);
+Deno.serve({ port: PORT }, handleRequest);

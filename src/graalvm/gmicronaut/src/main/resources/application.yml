@@ -1,6 +1,6 @@
 micronaut:
   application:
-    name: graalvm-micronaut
+    name: graalvm-micronaut-native
   server:
     port: 3000
     host: 0.0.0.0
@@ -8,14 +8,14 @@ micronaut:
 datasources:
   default:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://spsql.home.arpa:5432/benchmark_api
-    username: app
-    password: Admin@123
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/benchmark_api}
+    username: ${DB_USERNAME:app}
+    password: ${DB_PASSWORD:}
 
 redis:
-  host: redis.home.arpa
-  port: 30379
-  password: Admin@123
+  host: ${REDIS_HOST:localhost}
+  port: ${REDIS_PORT:6379}
+  password: ${REDIS_PASSWORD:}
 
 jackson:
   serialization:

@@ -5,19 +5,16 @@ import com.benchmark.vertx.services.DatabaseService;
 import com.benchmark.vertx.services.CacheService;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.pgclient.PgPool;
-import io.vertx.redis.client.Redis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 /**
- * Health check endpoint class HealthHandler implements handler.
+ * Health check endpoint handler.
  */
-public Handler<RoutingContext> {
+public class HealthHandler implements Handler<RoutingContext> {
     private static final Logger logger = LoggerFactory.getLogger(HealthHandler.class);
 
     private final Config config;
@@ -46,10 +43,8 @@ public Handler<RoutingContext> {
 
     @Override
     public void handle(RoutingContext ctx) {
-        // Check database health
         databaseService.healthCheck()
             .compose(dbHealthy -> {
-                // Check cache health
                 return cacheService.ping()
                     .map(cacheHealthy -> {
                         io.vertx.core.json.JsonObject health = new io.vertx.core.json.JsonObject();

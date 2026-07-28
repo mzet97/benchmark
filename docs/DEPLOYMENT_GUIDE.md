@@ -2,16 +2,27 @@
 
 ## Overview
 
-Guia completo para deploy das implementações em diferentes ambientes.
+Complete guide for deploying all 11 benchmark implementations across different environments.
 
 ## Prerequisites
 
 ### Required Tools
 - Docker 20.10+
 - Kubernetes 1.28+ (kubectl)
-- .NET 9 SDK (para build local)
 - PostgreSQL client (psql)
 - Redis client (redis-cli)
+
+### Language-Specific Tools (as needed)
+- .NET 9 SDK (C#)
+- Rust toolchain (Rust)
+- Java 21+ / Maven (Java, GraalVM)
+- Go 1.23+ (Go)
+- Kotlin / Gradle (Kotlin)
+- Node.js 22+ (Node.js)
+- Python 3.12+ (Python)
+- Bun 1.x (Bun)
+- Deno 2.x (Deno)
+- Dart 3.x (Dart)
 
 ### Optional Tools
 - k6 (benchmarks)
@@ -24,27 +35,86 @@ Guia completo para deploy das implementações em diferentes ambientes.
 - Redis: `redis.home.arpa:30379`
 - Kubernetes cluster com acesso aos hosts acima
 
+## Supported Languages
+
+| Language | Framework | Source Path | Build Tool |
+|----------|-----------|-------------|------------|
+| C# (.NET 9) | Minimal API | `src/csharp/MinimalApi/` | dotnet |
+| Rust | Actix Web | `src/rust/actix-web/` | cargo |
+| Java | Quarkus | `src/java/quarkus/` | maven |
+| Go | Fiber | `src/go/fiber/` | go build |
+| Kotlin | Ktor | `src/kotlin/ktor/` | gradle |
+| Node.js | Fastify | `src/nodejs/fastify/` | npm |
+| Python | FastAPI | `src/python/fastapi/` | pip |
+| Bun | Elysia | `src/bun/elysia/` | bun |
+| Deno | Oak | `src/deno/oak/` | deno |
+| Dart | Shelf | `src/dart/vaden/` | dart |
+| GraalVM | Vert.x | `src/graalvm/vertx/` | maven |
+
 ## Deployment Methods
 
 ### 1. Local Development
 
-#### Build and Run
+Each language has its own build and run process. Use the `build.sh` script in each directory:
+
 ```bash
-# Build C# application
+# C#
 cd src/csharp/MinimalApi
-dotnet restore
-dotnet build -c Release
+./build.sh
+./build.sh run
 
-# Publish com Native AOT
-dotnet publish -c Release -o ./publish \
-    -p:PublishAot=true \
-    -p:PublishSingleFile=true
+# Rust
+cd src/rust/actix-web
+./build.sh
+./build.sh run
 
-# Run locally
-./publish/benchmark-api --urls "http://localhost:8080"
+# Java
+cd src/java/quarkus
+./build.sh
+./build.sh run
+
+# Go
+cd src/go/fiber
+./build.sh
+./build.sh run
+
+# Kotlin
+cd src/kotlin/ktor
+./build.sh
+./build.sh run
+
+# Node.js
+cd src/nodejs/fastify
+./build.sh
+./build.sh run
+
+# Python
+cd src/python/fastapi
+./build.sh
+./build.sh run
+
+# Bun
+cd src/bun/elysia
+./build.sh
+./build.sh run
+
+# Deno
+cd src/deno/oak
+./build.sh
+./build.sh run
+
+# Dart
+cd src/dart/vaden
+./build.sh
+./build.sh run
+
+# GraalVM
+cd src/graalvm/vertx
+./build.sh
+./build.sh run
 ```
 
-#### Test Endpoints
+#### Test Endpoints (all languages)
 ```bash
 # Health check
 curl http://localhost:8080/health
@@ -64,67 +134,45 @@ curl http://localhost:8080/cache?key=test
 
 ### 2. Docker Deployment
 
-#### Build Image
+Each implementation includes a Dockerfile with multi-stage builds:
+
 ```bash
-# Build C# image
-cd src/csharp/MinimalApi
-docker build -t benchmark/csharp-minimalapi:latest .
+# Build any language image
+cd src/<language>/<framework>
+docker build -t benchmark/<language>-<framework>:latest .
 
-# Verify image
-docker images benchmark/csharp-minimalapi
-
-# Check image size
-docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" benchmark/csharp-minimalapi
+# Examples:
+cd src/csharp/MinimalApi && docker build -t benchmark/csharp-minimalapi:latest .
+cd src/rust/actix-web && docker build -t benchmark/rust-actix:latest .
+cd src/java/quarkus && docker build -t benchmark/java-quarkus:latest .
+cd src/go/fiber && docker build -t benchmark/go-fiber:latest .
+cd src/kotlin/ktor && docker build -t benchmark/kotlin-ktor:latest .
+cd src/nodejs/fastify && docker build -t benchmark/nodejs-fastify:latest .
+cd src/python/fastapi && docker build -t benchmark/python-fastapi:latest .
+cd src/bun/elysia && docker build -t benchmark/bun-elysia:latest .
+cd src/deno/oak && docker build -t benchmark/deno-oak:latest .
+cd src/dart/vaden && docker build -t benchmark/dart-shelf:latest .
+cd src/graalvm/vertx && docker build -t benchmark/graalvm-vertx:latest .
 ```
 
-#### Run Container
+#### Run Container (generic)
 ```bash
-# Run with environment variables
 docker run -d \
-  --name csharp-api \
+  --name <language>-api \
   -p 8080:8080 \
-  -e ConnectionStrings__DefaultConnection="Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=Admin@123;Maximum Pool Size=25;Connection Timeout=30;" \
-  -e Redis__ConnectionString="redis.home.arpa:30379,password=Admin@123,defaultDatabase=0,ssl=false" \
-  benchmark/csharp-minimalapi:latest
+  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  benchmark/<language>-<framework>:latest
 
 # Check logs
-docker logs -f csharp-api
+docker logs -f <language>-api
 
 # Test
 curl http://localhost:8080/health
 
 # Stop and remove
-docker stop csharp-api
-docker rm csharp-api
-```
-
-#### Docker Compose (Development)
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  csharp-api:
-    build:
-      context: ./src/csharp/MinimalApi
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - ConnectionStrings__DefaultConnection=Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=Admin@123;Maximum Pool Size=25;Connection Timeout=30;
-      - Redis__ConnectionString=redis.home.arpa:30379,password=Admin@123,defaultDatabase=0,ssl=false
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-```
-
-Run with:
-```bash
-docker-compose up -d
-docker-compose logs -f
-docker-compose down
+docker stop <language>-api
+docker rm <language>-api
 ```
 
 ### 3. Kubernetes Deployment
@@ -139,91 +187,55 @@ kubectl get nodes
 kubectl create namespace benchmark
 ```
 
-#### Deploy C# Application
+#### Deploy Any Language
 ```bash
-# Apply ConfigMap
-kubectl apply -f src/csharp/MinimalApi/k8s/configmap.yaml
+# Apply all manifests for a language
+kubectl apply -f src/<language>/<framework>/k8s/ -n benchmark
 
-# Apply Deployment
-kubectl apply -f src/csharp/MinimalApi/k8s/deployment.yaml
-
-# Apply Service
-kubectl apply -f src/csharp/MinimalApi/k8s/service.yaml
-
-# Verify deployment
-kubectl get all -n benchmark -l app=csharp-minimalapi
+# Examples:
+kubectl apply -f src/csharp/MinimalApi/k8s/ -n benchmark
+kubectl apply -f src/rust/actix-web/k8s/ -n benchmark
+kubectl apply -f src/java/quarkus/k8s/ -n benchmark
+kubectl apply -f src/go/fiber/k8s/ -n benchmark
+kubectl apply -f src/kotlin/ktor/k8s/ -n benchmark
+kubectl apply -f src/nodejs/fastify/k8s/ -n benchmark
+kubectl apply -f src/python/fastapi/k8s/ -n benchmark
+kubectl apply -f src/bun/elysia/k8s/ -n benchmark
+kubectl apply -f src/deno/oak/k8s/ -n benchmark
+kubectl apply -f src/dart/vaden/k8s/ -n benchmark
+kubectl apply -f src/graalvm/vertx/k8s/ -n benchmark
 ```
 
 #### Check Status
 ```bash
 # Pods status
-kubectl get pods -n benchmark -l app=csharp-minimalapi
+kubectl get pods -n benchmark
 
 # Wait for pods to be ready
-kubectl wait --for=condition=ready pod -l app=csharp-minimalapi --timeout=120s -n benchmark
+kubectl wait --for=condition=ready pod -l app=<language>-<framework> --timeout=120s -n benchmark
 
 # Describe pod (detailed info)
-kubectl describe pod -l app=csharp-minimalapi -n benchmark
+kubectl describe pod -l app=<language>-<framework> -n benchmark
 
 # View logs
-kubectl logs -l app=csharp-minimalapi -n benchmark --tail=100
-
-# Follow logs
-kubectl logs -l app=csharp-minimalapi -n benchmark -f
+kubectl logs -l app=<language>-<framework> -n benchmark --tail=100
 ```
 
 #### Test Service
 ```bash
 # Port-forward for local testing
-kubectl port-forward -n benchmark svc/csharp-minimalapi 8080:80
+kubectl port-forward -n benchmark svc/<language>-<framework> 8080:80
 
 # Test endpoints
 curl http://localhost:8080/health
-
-# Inside cluster (create temporary pod)
-kubectl run -it --rm debug --image=curlimages/curl:latest --restart=Never -- sh
-# Inside pod:
-curl http://csharp-minimalapi.benchmark.svc.cluster.local/health
-exit
-```
-
-#### Scale Deployment
-```bash
-# Scale to 10 replicas
-kubectl scale deployment csharp-minimalapi --replicas=10 -n benchmark
-
-# Verify
-kubectl get pods -n benchmark -l app=csharp-minimalapi
-
-# Auto-scaling (if metrics-server installed)
-kubectl autoscale deployment csharp-minimalapi --min=5 --max=15 --cpu-percent=80 -n benchmark
-```
-
-#### Update Deployment
-```bash
-# Update image
-kubectl set image deployment/csharp-minimalapi \
-  api=benchmark/csharp-minimalapi:v1.1 \
-  -n benchmark
-
-# Watch rollout
-kubectl rollout status deployment/csharp-minimalapi -n benchmark
-
-# Rollback if needed
-kubectl rollout undo deployment/csharp-minimalapi -n benchmark
 ```
 
 #### Remove Deployment
 ```bash
-# Delete all resources
-kubectl delete -f src/csharp/MinimalApi/k8s/service.yaml
-kubectl delete -f src/csharp/MinimalApi/k8s/deployment.yaml
-kubectl delete -f src/csharp/MinimalApi/k8s/configmap.yaml
+# Delete all resources for a language
+kubectl delete -f src/<language>/<framework>/k8s/ -n benchmark
 
-# Force delete pods (if stuck)
-kubectl delete pods -l app=csharp-minimalapi -n benchmark --force
-
-# Delete namespace
+# Delete all benchmark resources
 kubectl delete namespace benchmark
 ```
 
@@ -242,41 +254,27 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        language: [csharp, rust, java, go, kotlin, nodejs, python, bun, deno, dart, graalvm]
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '9.0.x'
-
-      - name: Build C# Application
+      - name: Build Application
         run: |
-          cd src/csharp/MinimalApi
-          dotnet restore
-          dotnet build -c Release
-          dotnet publish -c Release -o ./publish \
-            -p:PublishAot=true \
-            -p:PublishSingleFile=true
-
-      - name: Build Docker Image
-        run: |
-          cd src/csharp/MinimalApi
-          docker build -t benchmark/csharp-minimalapi:${{ github.sha }} .
-          docker tag benchmark/csharp-minimalapi:${{ github.sha }} benchmark/csharp-minimalapi:latest
+          cd src/${{ matrix.language }}/*
+          ./build.sh docker
 
       - name: Push to Registry
         run: |
           echo ${{ secrets.DOCKER_PASSWORD }} | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-          docker push benchmark/csharp-minimalapi:${{ github.sha }}
-          docker push benchmark/csharp-minimalapi:latest
+          docker push benchmark/${{ matrix.language }}:latest
 
       - name: Deploy to Kubernetes
         run: |
           echo ${{ secrets.KUBE_CONFIG }} | base64 -d > kubeconfig
           export KUBECONFIG=kubeconfig
-          kubectl set image deployment/csharp-minimalapi api=benchmark/csharp-minimalapi:${{ github.sha }} -n benchmark
-          kubectl rollout status deployment/csharp-minimalapi -n benchmark
+          kubectl apply -f src/${{ matrix.language }}/*/k8s/ -n benchmark
 ```
 
 ## Monitoring
@@ -305,7 +303,7 @@ Import dashboard for:
 All services log in JSON format:
 ```json
 {
-  "timestamp": "2025-12-07T10:00:00.000Z",
+  "timestamp": "2026-07-27T10:00:00.000Z",
   "level": "INFO",
   "message": "Request completed",
   "requestId": "req-123",
@@ -322,7 +320,7 @@ Deploy ELK or Loki stack for log aggregation.
 ### Health Checks
 
 #### Kubernetes Health Checks
-Already configured in deployment:
+Already configured in all deployments:
 - **Liveness Probe**: `/health` every 10s
 - **Readiness Probe**: `/health` every 5s
 - **Startup Probe**: `/health` (30s initial delay)
@@ -345,11 +343,8 @@ curl http://localhost:8080/healthz | jq
 # Check database connectivity
 psql -h spsql.home.arpa -p 5432 -U app -d benchmark_api -c "SELECT 1;"
 
-# Check connection string
-echo $ConnectionStrings__DefaultConnection
-
 # View logs
-kubectl logs -l app=csharp-minimalapi -n benchmark | grep -i "database\|connection"
+kubectl logs -l app=<language>-<framework> -n benchmark | grep -i "database\|connection"
 ```
 
 #### 2. Redis Connection Failed
@@ -357,17 +352,14 @@ kubectl logs -l app=csharp-minimalapi -n benchmark | grep -i "database\|connecti
 # Check Redis connectivity
 redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
 
-# Check connection string
-echo $Redis__ConnectionString
-
 # View logs
-kubectl logs -l app=csharp-minimalapi -n benchmark | grep -i "redis"
+kubectl logs -l app=<language>-<framework> -n benchmark | grep -i "redis"
 ```
 
 #### 3. Pods Not Starting
 ```bash
 # Check pod status
-kubectl get pods -l app=csharp-minimalapi -n benchmark
+kubectl get pods -n benchmark
 
 # Check events
 kubectl get events -n benchmark --sort-by='.lastTimestamp'
@@ -382,22 +374,19 @@ kubectl get events -n benchmark | grep "Failed to pull image"
 #### 4. High Latency
 ```bash
 # Check resource usage
-kubectl top pods -n benchmark -l app=csharp-minimalapi
+kubectl top pods -n benchmark
 
 # Check resource limits
-kubectl describe deployment csharp-minimalapi -n benchmark
-
-# Check connection pool
-# View application logs for pool metrics
+kubectl describe deployment <language>-<framework> -n benchmark
 ```
 
 #### 5. OutOfMemory
 ```bash
 # Check memory usage
-kubectl top pods -n benchmark -l app=csharp-minimalapi
+kubectl top pods -n benchmark
 
 # Increase memory limits
-kubectl patch deployment csharp-minimalapi -n benchmark -p '{"spec":{"template":{"spec":{"containers":[{"name":"api","resources":{"limits":{"memory":"1Gi"}}}]}}}}'
+kubectl patch deployment <language>-<framework> -n benchmark -p '{"spec":{"template":{"spec":{"containers":[{"name":"api","resources":{"limits":{"memory":"1Gi"}}}]}}}}'
 
 # Check for memory leaks
 kubectl describe pod <pod-name> -n benchmark | grep -A 5 "Last State"
@@ -407,51 +396,31 @@ kubectl describe pod <pod-name> -n benchmark | grep -A 5 "Last State"
 
 ```bash
 # Get all resources
-kubectl get all -n benchmark -l app=csharp-minimalapi
+kubectl get all -n benchmark
 
 # View config
-kubectl get configmap csharp-minimalapi-config -n benchmark -o yaml
+kubectl get configmap -n benchmark -o yaml
 
 # Exec into pod
 kubectl exec -it <pod-name> -n benchmark -- sh
-
-# Inside pod, check:
-ls -la
-ps aux
-cat /etc/resolv.conf
-curl -v http://spsql.home.arpa:5432
-curl -v http://redis.home.arpa:30379
 
 # Network debugging
 kubectl run -it --rm debug --image=nicolaka/netshoot --restart=Never -- sh
 # Inside debug pod:
 nslookup spsql.home.arpa
-dig spsql.home.arpa
-nc -zv spsql.home.arpa 54379
+nc -zv spsql.home.arpa 5432
 nc -zv redis.home.arpa 30379
 ```
 
 ## Performance Tuning
 
 ### Database Connection Pool
-Default: 25 connections
+Default: 25 connections per language
 
-Adjust in `appsettings.json`:
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "...;Maximum Pool Size=100;..."
-  }
-}
-```
+Adjust per language in configuration files.
 
 ### Redis Configuration
 Default TTL: 5 minutes
-
-Adjust in `CacheService.cs`:
-```csharp
-private readonly TimeSpan _defaultExpiry = TimeSpan.FromMinutes(10);
-```
 
 ### Kubernetes Resources
 Default:
@@ -469,25 +438,30 @@ resources:
     cpu: "1000m"
 ```
 
-### Native AOT Optimization
-Current settings in `.csproj`:
+### Native AOT Optimization (C# / GraalVM)
+
+For C# with Native AOT, the `.csproj` uses:
 ```xml
 <PublishAot>true</PublishAot>
-<PublishSingleFile>true</PublishSingleFile>
 <PublishTrimmed>false</PublishTrimmed>
-<EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
 <InvariantGlobalization>true</InvariantGlobalization>
+```
+
+For GraalVM with native image:
+```xml
+<quarkus.native.enabled>true</quarkus.native.enabled>
+<quarkus.native.container-build>true</quarkus.native.container-build>
 ```
 
 ## Security
 
-### Best Practices
-- ✅ Non-root user (UID 1001)
-- ✅ Read-only root filesystem
-- ✅ No privilege escalation
-- ✅ Dropped all capabilities
-- ✅ Health checks configured
-- ✅ Resource limits set
+### Best Practices (all languages)
+- Non-root user (UID 1001)
+- Read-only root filesystem
+- No privilege escalation
+- Dropped all capabilities
+- Health checks configured
+- Resource limits set
 
 ### Secrets Management
 Currently using ConfigMap for passwords (development only).
@@ -498,19 +472,11 @@ For production:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: csharp-minimalapi-secrets
+  name: benchmark-secrets
 type: Opaque
 stringData:
   database-password: "Admin@123"
   redis-password: "Admin@123"
-
-# Reference in deployment
-env:
-- name: DATABASE_PASSWORD
-  valueFrom:
-    secretKeyRef:
-      name: csharp-minimalapi-secrets
-      key: database-password
 ```
 
 ## Backup and Recovery
@@ -525,7 +491,7 @@ psql -h spsql.home.arpa -U app benchmark_api < backup.sql
 ```
 
 ### Application State
-Stateless application - no backup needed.
+All applications are stateless - no backup needed.
 
 ## Cost Optimization
 
@@ -538,12 +504,12 @@ Stateless application - no backup needed.
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: csharp-minimalapi-hpa
+  name: benchmark-hpa
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: csharp-minimalapi
+    name: <language>-<framework>
   minReplicas: 5
   maxReplicas: 20
   metrics:
@@ -557,16 +523,31 @@ spec:
 
 ## Next Steps
 
-1. ✅ Deploy C# (.NET 9)
-2. 🔄 Deploy Rust (Actix Web)
-3. 📋 Deploy Java (Quarkus)
-4. 📋 Deploy Go (Fiber)
-5. 📋 Deploy all other languages
+All 11 implementations are complete and deployed:
+
+1. C# (.NET 9) - Complete
+2. Rust (Actix Web) - Complete
+3. Java (Quarkus) - Complete
+4. Go (Fiber) - Complete
+5. Kotlin (Ktor) - Complete
+6. Node.js (Fastify) - Complete
+7. Python (FastAPI) - Complete
+8. Bun (Elysia) - Complete
+9. Deno (Oak) - Complete
+10. Dart (Shelf) - Complete
+11. GraalVM (Vert.x) - Complete
+
+**Next**: Run full benchmark suite across all implementations.
 
 ## Support
 
 For issues or questions:
-1. Check logs: `kubectl logs -l app=csharp-minimalapi -n benchmark`
+1. Check logs: `kubectl logs -l app=<language>-<framework> -n benchmark`
 2. Check events: `kubectl get events -n benchmark`
 3. Review this guide
 4. Open an issue
+
+---
+
+**Last Updated**: 2026-07-27
+**Status**: All 11 implementations complete

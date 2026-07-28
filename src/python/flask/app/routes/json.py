@@ -1,18 +1,22 @@
 from flask import Blueprint, jsonify
 from datetime import datetime
+import uuid
 
 bp = Blueprint('json', __name__)
 
-@bp.route('')
+
+@bp.route('/json')
 def json_endpoint():
-    """Simple JSON response endpoint for benchmarking"""
+    """JSON serialization endpoint - returns 1000 objects"""
     timestamp = datetime.utcnow().isoformat()
     items = [
         {
             'id': i,
-            'name': f'User {i}',
-            'email': f'user{i}@example.com',
-            'timestamp': timestamp
+            'uuid': str(uuid.uuid4()),
+            'name': f'Item {i}',
+            'description': f'This is item number {i}',
+            'timestamp': timestamp,
+            'random': f'data-{uuid.uuid4()}'
         }
         for i in range(1000)
     ]

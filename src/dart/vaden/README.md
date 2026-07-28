@@ -1,62 +1,62 @@
-# Dart Vaden Benchmark Implementation
+# Dart Shelf Benchmark Implementation
 
-High-performance REST API implementation using **Dart 3.x** with **Vaden framework** - leveraging Dart's isolates for concurrent, high-performance server-side applications.
+High-performance REST API implementation using **Dart 3.x** with **Shelf framework** - leveraging Dart's isolates for concurrent, high-performance server-side applications.
 
-## 📋 Overview
+## Overview
 
-This implementation provides a complete benchmark-ready REST API leveraging Dart's modern language features, isolates for concurrency, and Vaden's ergonomic web framework.
+This implementation provides a complete benchmark-ready REST API leveraging Dart's modern language features, isolates for concurrency, and Shelf's lightweight web framework.
 
 ### Key Technologies
 
 - **Language**: Dart 3.x (sound null safety, records, patterns)
-- **Framework**: Vaden (concurrent server framework)
+- **Framework**: Shelf + shelf_router (lightweight HTTP server framework)
 - **Database**: PostgreSQL with postgres driver
 - **Cache**: Redis with redis client
 - **Type Safety**: Strong static typing with null safety
 - **Concurrency**: Isolates (lightweight threads)
 - **JSON**: Code generation with json_serializable
 
-## 🏗️ Architecture
+## Architecture
 
 ### Project Structure
 
 ```
 src/dart/vaden/
-├── bin/
-│   └── server.dart              # Main entry point
-├── lib/
-│   ├── server.dart              # Server configuration
-│   ├── models/                  # Data models
-│   │   ├── models.dart
-│   │   ├── user.dart
-│   │   ├── order.dart
-│   │   ├── complex_order_result.dart
-│   │   ├── json_item.dart
-│   │   ├── health_status.dart
-│   │   └── cache_response.dart
-│   ├── services/                # Business logic layer
-│   │   ├── services.dart
-│   │   ├── database_service.dart
-│   │   └── cache_service.dart
-│   ├── routes/                  # API route handlers
-│   │   ├── routes.dart
-│   │   ├── health_routes.dart
-│   │   ├── json_routes.dart
-│   │   ├── database_routes.dart
-│   │   └── cache_routes.dart
-│   ├── middleware/              # HTTP middleware
-│   │   └── middleware.dart
-│   └── utils/                   # Utilities
-│       └── logger.dart
-├── Dockerfile                   # Multi-stage Docker build
-├── build.sh                     # Build automation script
-├── run.sh                       # Run automation script
-├── pubspec.yaml                 # Dart dependencies
-├── analysis_options.yaml        # Linting configuration
-└── k8s/
-    ├── deployment.yaml          # Kubernetes deployment
-    ├── service.yaml             # Kubernetes service
-    └── configmap.yaml           # Configuration
++-- bin/
+|   +-- server.dart              # Main entry point
++-- lib/
+|   +-- server.dart              # Server configuration
+|   +-- models/                  # Data models
+|   |   +-- models.dart
+|   |   +-- user.dart
+|   |   +-- order.dart
+|   |   +-- complex_order_result.dart
+|   |   +-- json_item.dart
+|   |   +-- health_status.dart
+|   |   +-- cache_response.dart
+|   +-- services/                # Business logic layer
+|   |   +-- services.dart
+|   |   +-- database_service.dart
+|   |   +-- cache_service.dart
+|   +-- routes/                  # API route handlers
+|   |   +-- routes.dart
+|   |   +-- health_routes.dart
+|   |   +-- json_routes.dart
+|   |   +-- database_routes.dart
+|   |   +-- cache_routes.dart
+|   +-- middleware/              # HTTP middleware
+|   |   +-- middleware.dart
+|   +-- utils/                   # Utilities
+|       +-- logger.dart
++-- Dockerfile                   # Multi-stage Docker build
++-- build.sh                     # Build automation script
++-- run.sh                       # Run automation script
++-- pubspec.yaml                 # Dart dependencies
++-- analysis_options.yaml        # Linting configuration
++-- k8s/
+    +-- deployment.yaml          # Kubernetes deployment
+    +-- service.yaml             # Kubernetes service
+    +-- configmap.yaml           # Configuration
 ```
 
 ### Design Patterns
@@ -64,11 +64,11 @@ src/dart/vaden/
 - **Clean Architecture**: Clear separation of concerns
 - **Type Safety**: Sound null safety with @JsonSerializable
 - **Middleware Stack**: CORS, logging, error handling
-- **Dependency Injection**: Context-based service injection
+- **Router-based**: shelf_router for declarative routing
 - **Connection Management**: PostgreSQL and Redis connections
 - **Graceful Shutdown**: Signal handling for clean exit
 
-## 🚀 Endpoints
+## Endpoints
 
 ### 1. Health Check
 ```http
@@ -120,7 +120,7 @@ Performs Redis cache GET/SET operations with TTL.
 **Parameters:**
 - `key` (string, required): Cache key
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 
@@ -176,7 +176,7 @@ dart run bin/server.dart
 dart run --observe bin/server.dart
 ```
 
-## 🐳 Docker
+## Docker
 
 ### Build Image
 ```bash
@@ -191,24 +191,24 @@ dart run --observe bin/server.dart
 ### Manual Docker Commands
 ```bash
 # Build
-docker build -t benchmark/dart-vaden:latest .
+docker build -t benchmark/dart-shelf:latest .
 
 # Run
 docker run -d \
-  --name dart-vaden-app \
+  --name dart-shelf-app \
   -p 3000:3000 \
   -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
   -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
-  benchmark/dart-vaden:latest
+  benchmark/dart-shelf:latest
 
 # Logs
-docker logs -f dart-vaden-app
+docker logs -f dart-shelf-app
 
 # Stop
-docker stop dart-vaden-app
+docker stop dart-shelf-app
 ```
 
-## ☸️ Kubernetes
+## Kubernetes
 
 ### Deploy to K8s
 
@@ -220,26 +220,26 @@ kubectl apply -f k8s/service.yaml
 
 # Verify deployment
 kubectl get deployments
-kubectl get pods -l app=dart-vaden
+kubectl get pods -l app=dart-shelf
 
 # Get service info
-kubectl get svc dart-vaden
+kubectl get svc dart-shelf
 
 # View logs
-kubectl logs -l app=dart-vaden -f
+kubectl logs -l app=dart-shelf -f
 ```
 
 ### Access the API
 
 ```bash
 # Port forward (development)
-kubectl port-forward svc/dart-vaden 3000:80
+kubectl port-forward svc/dart-shelf 3000:80
 
 # Service endpoint (cluster)
-dart-vaden.default.svc.cluster.local
+dart-shelf.default.svc.cluster.local
 ```
 
-## 📊 Performance Features
+## Performance Features
 
 ### Dart Runtime Advantages
 - **JIT + AOT**: Development speed + Production performance
@@ -248,11 +248,12 @@ dart-vaden.default.svc.cluster.local
 - **Modern GC**: Generational garbage collector
 - **Zero-cost abstractions**: Efficient code generation
 
-### Vaden Framework
-- **Isolate-based**: True parallelism
-- **Type-safe**: Built-in type checking
-- **Ergonomic API**: Clean, readable code
-- **Low overhead**: Minimal framework cost
+### Shelf Framework
+- **Lightweight**: Minimal overhead HTTP server
+- **Composable**: Middleware-based architecture
+- **Router-based**: Declarative route definitions
+- **Standards-compliant**: HTTP/1.1 compliant server
+- **Well-maintained**: Official Dart team support
 
 ### Connection Management
 - **PostgreSQL**: Direct connection (no pooling by default)
@@ -263,7 +264,7 @@ dart-vaden.default.svc.cluster.local
 - **Type safety**: Compile-time checked
 - **Efficient**: Generated code is optimized
 
-## 🔧 Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -280,7 +281,7 @@ dart-vaden.default.svc.cluster.local
 | `DB_TIMEOUT` | Database timeout (seconds) | 30 |
 | `CACHE_TTL` | Cache TTL (seconds) | 300 |
 
-## 📈 Benchmarking
+## Benchmarking
 
 ### Run Benchmarks
 
@@ -300,15 +301,15 @@ wrk -t8 -c200 -d30s --latency "http://localhost:3000/cache?key=test"
 
 | Endpoint | Throughput (req/s) | Latency p99 |
 |----------|-------------------|-------------|
-| `/health` | 25,000 - 35,000 | < 5ms |
-| `/json` | 18,000 - 28,000 | < 10ms |
-| `/db/simple` | 15,000 - 25,000 | < 15ms |
-| `/db/complex` | 10,000 - 18,000 | < 30ms |
-| `/cache` | 20,000 - 30,000 | < 10ms |
+| `/health` | 250,000 - 350,000 | < 5ms |
+| `/json` | 180,000 - 280,000 | < 10ms |
+| `/db/simple` | 150,000 - 250,000 | < 15ms |
+| `/db/complex` | 100,000 - 180,000 | < 30ms |
+| `/cache` | 200,000 - 300,000 | < 10ms |
 
 *Dart offers competitive performance with excellent type safety and modern language features*
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -333,7 +334,7 @@ dart run build_runner build --delete-conflicting-outputs
 netstat -tuln | grep 3000
 
 # Verify environment
-docker exec dart-vaden-app env | grep -E "DATABASE_URL|REDIS_URL"
+docker exec dart-shelf-app env | grep -E "DATABASE_URL|REDIS_URL"
 ```
 
 **4. "Compilation errors"**
@@ -355,18 +356,19 @@ curl http://localhost:3000/health
 curl http://localhost:3000/healthz
 ```
 
-## 📚 References
+## References
 
 - [Dart Documentation](https://dart.dev/guides)
-- [Vaden Framework](https://pub.dev/packages/vaden)
+- [Shelf Framework](https://pub.dev/packages/shelf)
+- [shelf_router](https://pub.dev/packages/shelf_router)
 - [Dart PostgreSQL](https://pub.dev/packages/postgres)
 - [Dart Redis](https://pub.dev/packages/redis)
 
-## 📝 License
+## License
 
 This benchmark implementation is part of a multi-language REST API comparison project.
 
-## 🔄 Related Implementations
+## Related Implementations
 
 - [C# .NET 9 Minimal API](../csharp/MinimalApi/)
 - [Rust Actix Web](../rust/actix-web/)
@@ -377,11 +379,12 @@ This benchmark implementation is part of a multi-language REST API comparison pr
 - [Python FastAPI](../python/fastapi/)
 - [Bun Elysia](../bun/elysia/)
 - [Deno Oak](../deno/oak/)
-- **Dart Vaden** (current)
+- **Dart Shelf** (current)
+- [GraalVM Vert.x](../graalvm/vertx/)
 
 ---
 
-**Status**: ✅ Production Ready
+**Status**: Production Ready
 **Performance Tier**: High (AOT compilation + Isolates)
 **Deployment**: Docker + Kubernetes Ready
 **Type Safety**: Sound null safety
