@@ -22,8 +22,13 @@ class DatabaseService:
         """Initialize connection pool"""
         if self._pool is None:
             logger.info("Initializing database connection pool")
+            # Add sslmode=disable if not specified
+            conn_str = self.connection_string
+            if "sslmode" not in conn_str:
+                sep = "&" if "?" in conn_str else "?"
+                conn_str = f"{conn_str}{sep}sslmode=disable"
             self._pool = await asyncpg.create_pool(
-                self.connection_string,
+                conn_str,
                 min_size=5,
                 max_size=25,
                 command_timeout=60,
@@ -67,7 +72,7 @@ class DatabaseService:
                    COALESCE(AVG(o.total_amount), 0) as average_value
             FROM users u
             LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - ($1 || ' days')::INTERVAL
+              AND o.created_at >= NOW() - INTERVAL '1 day' * $1
             GROUP BY u.id, u.first_name, u.last_name
             HAVING COUNT(DISTINCT o.id) > 0
             ORDER BY total_value DESC
