@@ -46,6 +46,12 @@ patches:
         value: grpc
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/tcpSocket/port
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/tcpSocket/port
+        value: grpc
         value: kotlin-grpc-armeria-config
 
   - target:

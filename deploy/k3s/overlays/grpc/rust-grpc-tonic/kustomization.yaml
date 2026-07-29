@@ -47,6 +47,12 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
         value: rust-grpc-tonic-config
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/tcpSocket/port
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/tcpSocket/port
+        value: grpc
 
   - target:
       kind: Service
