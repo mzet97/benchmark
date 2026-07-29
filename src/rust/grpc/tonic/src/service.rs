@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 pub mod benchmark {
     tonic::include_proto!("benchmark");
-    pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("../benchmark_descriptor.bin");
+    pub const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("../../benchmark_descriptor.bin");
 }
 
 use benchmark::benchmark_service_server::{BenchmarkService, BenchmarkServiceServer};
