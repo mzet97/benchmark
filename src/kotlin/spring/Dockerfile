@@ -1,7 +1,7 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
 COPY build.gradle .
-RUN ./gradlew build || true
+RUN ./gradlew dependencies --no-daemon
 COPY src ./src
 RUN ./gradlew build
 

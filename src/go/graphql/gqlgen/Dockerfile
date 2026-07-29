@@ -9,5 +9,7 @@ FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /server /usr/local/bin/server
 ENV PORT=8080
+RUN groupadd --gid 1001 app && useradd --uid 1001 --gid 1001 --shell /bin/false --create-home app
 EXPOSE 8080
+USER app
 CMD ["server"]

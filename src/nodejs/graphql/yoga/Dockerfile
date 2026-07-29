@@ -7,7 +7,7 @@ RUN npm install --production
 
 COPY src/ ./src/
 
-RUN addgroup -g 1001 app && adduser -u 1001 -G app -s /bin/sh -D app
+RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
 
 EXPOSE 3000
 

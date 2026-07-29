@@ -102,7 +102,7 @@ def build_and_deploy(ssh, impl_id, src_path, needs_root_context):
     if needs_root_context:
         # Dockerfile references paths relative to project root
         build_cmd = (
-            f"cd {BENCHMARK_DIR} && docker build "
+            f"cd {BENCHMARK_DIR} && docker build --no-cache "
             f"-f {dockerfile} "
             f"-t {image_name} "
             f"{BENCHMARK_DIR}"
@@ -110,7 +110,7 @@ def build_and_deploy(ssh, impl_id, src_path, needs_root_context):
     else:
         # Build from impl directory
         build_cmd = (
-            f"cd {BENCHMARK_DIR} && docker build "
+            f"cd {BENCHMARK_DIR} && docker build --no-cache "
             f"-f {src_path}/Dockerfile "
             f"-t {image_name} "
             f"{BENCHMARK_DIR}/{src_path}"
@@ -126,7 +126,7 @@ def build_and_deploy(ssh, impl_id, src_path, needs_root_context):
         if not needs_root_context:
             print(f"  RETRY: Trying with project root as context...")
             build_cmd_retry = (
-                f"cd {BENCHMARK_DIR} && docker build "
+                f"cd {BENCHMARK_DIR} && docker build --no-cache "
                 f"-f {src_path}/Dockerfile "
                 f"-t {image_name} "
                 f"{BENCHMARK_DIR}"

@@ -33,6 +33,10 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 COPY --from=builder /app/server /usr/local/bin/server
 
+RUN groupadd --gid 1001 app && useradd --uid 1001 --gid 1001 --shell /bin/false --create-home app
+
 EXPOSE 50051
+
+USER app
 
 CMD ["server"]

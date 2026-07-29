@@ -4,7 +4,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py .
 ENV PORT=8080
-RUN groupadd -r app && useradd -r -g app app
+RUN groupadd --gid 1001 app && useradd --uid 1001 --gid 1001 --shell /bin/false --create-home app
 
 EXPOSE 8080
 
