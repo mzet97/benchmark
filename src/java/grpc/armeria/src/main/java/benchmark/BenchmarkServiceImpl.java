@@ -1,7 +1,7 @@
 package benchmark;
 
 import dev.benchmark.grpc.BenchmarkServiceGrpc;
-import dev.benchmark.grpc.BenchmarkProto;
+import dev.benchmark.grpc.Benchmark;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
@@ -24,12 +24,12 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     // Scenario 1: Health check
     @Override
-    public void health(BenchmarkProto.HealthRequest request,
-                       StreamObserver<BenchmarkProto.HealthResponse> responseObserver) {
+    public void health(Benchmark.HealthRequest request,
+                       StreamObserver<Benchmark.HealthResponse> responseObserver) {
         String dbStatus = dbService.healthCheck();
         String cacheStatus = cacheService.healthCheck();
 
-        BenchmarkProto.HealthResponse response = BenchmarkProto.HealthResponse.newBuilder()
+        Benchmark.HealthResponse response = Benchmark.HealthResponse.newBuilder()
                 .setStatus("ok")
                 .setVersion(version)
                 .setTimestamp(Instant.now().toString())
@@ -43,13 +43,13 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     // Scenario 2: JSON serialization (1000 items)
     @Override
-    public void getJsonItems(BenchmarkProto.JsonItemsRequest request,
-                             StreamObserver<BenchmarkProto.JsonItemsResponse> responseObserver) {
+    public void getJsonItems(Benchmark.JsonItemsRequest request,
+                             StreamObserver<Benchmark.JsonItemsResponse> responseObserver) {
         int limit = request.getLimit() > 0 ? request.getLimit() : 1000;
 
-        BenchmarkProto.JsonItemsResponse.Builder builder = BenchmarkProto.JsonItemsResponse.newBuilder();
+        Benchmark.JsonItemsResponse.Builder builder = Benchmark.JsonItemsResponse.newBuilder();
         for (int i = 1; i <= limit; i++) {
-            builder.addItems(BenchmarkProto.JsonItem.newBuilder()
+            builder.addItems(Benchmark.JsonItem.newBuilder()
                     .setId(i)
                     .setUuid(UUID.randomUUID().toString())
                     .setName("Item " + i)
@@ -68,8 +68,8 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     // Scenario 3: Simple database query
     @Override
-    public void getUser(BenchmarkProto.GetUserRequest request,
-                        StreamObserver<BenchmarkProto.UserResponse> responseObserver) {
+    public void getUser(Benchmark.GetUserRequest request,
+                        StreamObserver<Benchmark.UserResponse> responseObserver) {
         try {
             DatabaseService.User user = dbService.getUser(request.getId());
             if (user == null) {
@@ -78,7 +78,7 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
                 return;
             }
 
-            BenchmarkProto.UserResponse response = BenchmarkProto.UserResponse.newBuilder()
+            Benchmark.UserResponse response = Benchmark.UserResponse.newBuilder()
                     .setId(user.getId())
                     .setEmail(user.getEmail())
                     .setFirstName(user.getFirstName())
@@ -97,18 +97,18 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     // Scenario 4: Complex database query (JOIN + aggregation)
     @Override
-    public void getComplexOrders(BenchmarkProto.ComplexOrdersRequest request,
-                                 StreamObserver<BenchmarkProto.ComplexOrdersResponse> responseObserver) {
+    public void getComplexOrders(Benchmark.ComplexOrdersRequest request,
+                                 StreamObserver<Benchmark.ComplexOrdersResponse> responseObserver) {
         try {
             int days = request.getDays() > 0 ? request.getDays() : 30;
             List<DatabaseService.UserOrderStat> data = dbService.getComplexOrders(days);
 
-            BenchmarkProto.ComplexOrdersResponse.Builder builder = BenchmarkProto.ComplexOrdersResponse.newBuilder();
+            Benchmark.ComplexOrdersResponse.Builder builder = Benchmark.ComplexOrdersResponse.newBuilder();
             builder.setPeriodDays(days);
             builder.setTotalUsers(data.size());
 
             for (DatabaseService.UserOrderStat stat : data) {
-                builder.addData(BenchmarkProto.UserOrderStats.newBuilder()
+                builder.addData(Benchmark.UserOrderStats.newBuilder()
                         .setUserId(stat.getUserId())
                         .setUserName(stat.getUserName())
                         .setTotalOrders(stat.getTotalOrders())
@@ -127,13 +127,13 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     // Scenario 5: Cache hit/miss
     @Override
-    public void getCacheValue(BenchmarkProto.CacheRequest request,
-                              StreamObserver<BenchmarkProto.CacheResponse> responseObserver) {
+    public void getCacheValue(Benchmark.CacheRequest request,
+                              StreamObserver<Benchmark.CacheResponse> responseObserver) {
         String key = request.getKey();
         CacheService.CacheResult result = cacheService.get(key);
 
         if (result.isHit()) {
-            BenchmarkProto.CacheResponse response = BenchmarkProto.CacheResponse.newBuilder()
+            Benchmark.CacheResponse response = Benchmark.CacheResponse.newBuilder()
                     .setKey(key)
                     .setValue(result.getValue())
                     .setCached(true)
@@ -147,7 +147,7 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
             String value = "value-" + System.currentTimeMillis();
             cacheService.set(key, value, 300);
 
-            BenchmarkProto.CacheResponse response = BenchmarkProto.CacheResponse.newBuilder()
+            Benchmark.CacheResponse response = Benchmark.CacheResponse.newBuilder()
                     .setKey(key)
                     .setValue(value)
                     .setCached(false)

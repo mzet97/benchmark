@@ -5,7 +5,7 @@
     "start": "deno run --allow-net --allow-env --allow-read server.ts"
   },
   "imports": {
-    "nice-grpc": "npm:nice-grpc@^2.9.0",
+    "nice-grpc": "npm:nice-grpc@^2.0.0",
     "nice-grpc-common": "npm:nice-grpc-common@^2.0.0",
     "@grpc/grpc-js": "npm:@grpc/grpc-js@^1.10.0",
     "@grpc/proto-loader": "npm:@grpc/proto-loader@^0.7.0",

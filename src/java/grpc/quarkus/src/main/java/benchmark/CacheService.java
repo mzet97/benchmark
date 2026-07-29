@@ -24,7 +24,7 @@ public class CacheService {
     public Uni<CacheResult> get(String key) {
         return redisAPI.get(key)
                 .onItem().transform(response -> {
-                    if (response != null && response.type() != ResponseType.NIL) {
+                    if (response != null && !response.toString().isEmpty()) {
                         return new CacheResult(response.toString(), true);
                     }
                     return new CacheResult(null, false);

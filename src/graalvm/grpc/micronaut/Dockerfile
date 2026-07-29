@@ -1,5 +1,10 @@
 # Stage 1: Build native image with GraalVM
 FROM ghcr.io/graalvm/graalvm-community:21 AS builder
+
+# Install Maven
+RUN curl -sL https://dlcdn.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz | tar xz -C /opt && \
+    ln -s /opt/apache-maven-3.9.9/bin/mvn /usr/local/bin/mvn
+
 WORKDIR /build
 
 # Cache dependencies first for better layer caching

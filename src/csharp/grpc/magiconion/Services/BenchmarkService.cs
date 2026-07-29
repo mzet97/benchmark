@@ -18,7 +18,7 @@ public class BenchmarkServiceImpl : ServiceBase<IBenchmarkService>, IBenchmarkSe
 
     public UnaryResult<HealthResponse> HealthAsync()
     {
-        return UnaryResult(new HealthResponse
+        return UnaryResult.FromResult(new HealthResponse
         {
             Status = "ok",
             Version = _version,
@@ -46,7 +46,7 @@ public class BenchmarkServiceImpl : ServiceBase<IBenchmarkService>, IBenchmarkSe
             });
         }
 
-        return UnaryResult(new JsonItemsResponse
+        return UnaryResult.FromResult(new JsonItemsResponse
         {
             Items = items,
             Count = items.Count,
