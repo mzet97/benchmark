@@ -1,5 +1,7 @@
 FROM dart:3.6-sdk AS builder
 
+RUN apt-get update && apt-get install -y protobuf-compiler && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY pubspec.yaml .

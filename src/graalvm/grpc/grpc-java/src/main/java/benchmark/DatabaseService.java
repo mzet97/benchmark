@@ -1,6 +1,6 @@
 package benchmark;
 
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.Benchmark.*;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;

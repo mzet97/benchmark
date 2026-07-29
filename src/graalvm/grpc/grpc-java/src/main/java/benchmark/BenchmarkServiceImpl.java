@@ -1,7 +1,7 @@
 package benchmark;
 
-import benchmark.BenchmarkServiceGrpc;
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.BenchmarkServiceGrpc;
+import dev.benchmark.grpc.Benchmark.*;
 import io.grpc.stub.StreamObserver;
 
 import java.time.Instant;
