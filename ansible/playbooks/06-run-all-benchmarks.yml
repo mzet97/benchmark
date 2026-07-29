@@ -1,0 +1,75 @@
+---
+# 06-run-all-benchmarks.yml
+# Run benchmarks for ALL implementations (sequential, randomized order).
+#
+# Usage:
+#   ansible-playbook playbooks/06-run-all-benchmarks.yml
+#   ansible-playbook playbooks/06-run-all-benchmarks.yml -e "protocol=rest"
+#   ansible-playbook playbooks/06-run-all-benchmarks.yml -e "protocol=grpc"
+#   ansible-playbook playbooks/06-run-all-benchmarks.yml -e "protocol=graphql"
+#   ansible-playbook playbooks/06-run-all-benchmarks.yml -e "environment=rust"
+
+- name: Run All Benchmarks
+  hosts: k3s_server
+  gather_facts: no
+  become: yes
+
+  vars:
+    protocol: "all"
+    environment: "all"
+    project_dir: "/home/k8s/benchmark"
+    namespace: "benchmark"
+    benchmark_duration: 60
+    benchmark_warmup: 30
+    benchmark_concurrency: "1 10 50 100 200"
+    scenarios: "health json db-simple db-complex cache"
+    mode: "single-pod"
+
+  tasks:
+    - name: Get list of implementations
+      shell: |
+        cd {{ project_dir }}
+        if [ "{{ protocol }}" = "all" ]; then
+          grep "^\s*- id:" config/implementations.yaml | awk '{print $3}'
+        else
+          grep "^\s*- id:" config/implementations.yaml | awk '{print $3}' | grep "{{ protocol }}"
+        fi
+      register: all_impls
+
+    - name: Filter by environment
+      shell: |
+        echo "{{ all_impls.stdout }}" | grep "{{ environment }}"
+      register: filtered_impls
+      when: environment != "all"
+      ignore_errors: yes
+
+    - name: Set implementation list
+      set_fact:
+        impl_list: "{{ (filtered_impls.stdout_lines if environment != 'all' else all_impls.stdout_lines) | shuffle }}"
+
+    - name: Display plan
+      debug:
+        msg: |
+          =========================================
+          Benchmark Plan
+          =========================================
+          Protocol: {{ protocol }}
+          Environment: {{ environment }}
+          Implementations: {{ impl_list | length }}
+          Mode: {{ mode }}
+          Scenarios: {{ scenarios }}
+          Concurrency: {{ benchmark_concurrency }}
+          Duration: {{ benchmark_duration }}s
+          =========================================
+
+    - name: Confirm execution
+      pause:
+        prompt: "Press Enter to continue or Ctrl+C to abort"
+      when: impl_list | length > 0
+
+    - name: Run benchmark for each implementation
+      include_tasks: tasks/bench-single.yml
+      loop: "{{ impl_list }}"
+      loop_control:
+        loop_var: impl
+      when: impl_list | length > 0

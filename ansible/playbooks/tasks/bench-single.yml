@@ -1,0 +1,119 @@
+---
+# tasks/bench-single.yml
+# Benchmark a single implementation.
+# Called from 06-run-all-benchmarks.yml
+
+- name: "=== Starting {{ impl }} ==="
+  debug:
+    msg: "{{ ansible_loop.index | default(0) }}/{{ impl_list | length }} - {{ impl }}"
+
+- name: Undeploy previous
+  shell: |
+    kubectl delete deployment {{ impl }} -n {{ namespace }} --ignore-not-found
+    kubectl delete service {{ impl }} -n {{ namespace }} --ignore-not-found
+    kubectl delete configmap {{ impl }}-config -n {{ namespace }} --ignore-not-found
+  ignore_errors: yes
+
+- name: Wait for cleanup
+  pause:
+    seconds: 5
+
+- name: Deploy implementation
+  shell: |
+    cd {{ project_dir }}
+    ./scripts/deploy.sh {{ impl }} {{ mode }}
+  register: deploy_result
+  timeout: 180
+  ignore_errors: yes
+
+- name: Check deploy success
+  set_fact:
+    deploy_ok: "{{ deploy_result.rc | default(1) == 0 }}"
+
+- name: Wait for readiness
+  shell: kubectl wait --for=condition=ready pod -l app={{ impl }} -n {{ namespace }} --timeout=120s
+  when: deploy_ok
+  ignore_errors: yes
+
+- name: Run smoke test
+  shell: |
+    cd {{ project_dir }}
+    ./scripts/smoke-test.sh {{ impl }}
+  when: deploy_ok
+  ignore_errors: yes
+
+- name: Get service endpoint
+  shell: |
+    SVC_IP=$(kubectl get svc {{ impl }} -n {{ namespace }} -o jsonpath='{.spec.clusterIP}')
+    SVC_PORT=$(kubectl get svc {{ impl }} -n {{ namespace }} -o jsonpath='{.spec.ports[0].port}')
+    echo "http://${SVC_IP}:${SVC_PORT}"
+  register: endpoint
+  when: deploy_ok
+
+- name: "Benchmark {{ impl }}"
+  shell: |
+    ENDPOINT="{{ endpoint.stdout | default('http://localhost:8080') }}"
+
+    for scenario in {{ scenarios }}; do
+      case $scenario in
+        health)     PATH="/health" ;;
+        json)       PATH="/json" ;;
+        db-simple)  PATH="/db/simple?id=1" ;;
+        db-complex) PATH="/db/complex?days=30" ;;
+        cache)      PATH="/cache?key=benchmark" ;;
+        *)          PATH="/health" ;;
+      esac
+
+      for conc in {{ benchmark_concurrency }}; do
+        echo "--- {{ impl }} | $scenario | concurrency=$conc ---"
+
+        JOB_NAME="bench-{{ impl }}-${scenario}-${conc}"
+
+        cat <<EOF | kubectl apply -f - -n {{ namespace }} 2>/dev/null
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: $JOB_NAME
+      namespace: {{ namespace }}
+    spec:
+      backoffLimit: 0
+      ttlSecondsAfterFinished: 300
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: wrk
+              image: williamyeh/wrk:latest
+              command: ["/bin/sh", "-c"]
+              args:
+                - |
+                  wrk -t4 -c$conc -d{{ benchmark_warmup }}s ${ENDPOINT}${PATH} > /dev/null 2>&1
+                  sleep 3
+                  wrk -t4 -c$conc -d{{ benchmark_duration }}s --latency ${ENDPOINT}${PATH}
+              resources:
+                requests: { cpu: "2", memory: "512Mi" }
+                limits:   { cpu: "2", memory: "512Mi" }}
+    EOF
+
+        kubectl wait --for=condition=complete job/$JOB_NAME -n {{ namespace }} --timeout=300s 2>/dev/null || true
+
+        mkdir -p {{ project_dir }}/results/raw/{{ impl }}/$scenario/{{ mode }}
+        kubectl logs job/$JOB_NAME -n {{ namespace }} > {{ project_dir }}/results/raw/{{ impl }}/$scenario/{{ mode }}/c${conc}.txt 2>/dev/null || true
+
+        kubectl delete job $JOB_NAME -n {{ namespace }} --ignore-not-found 2>/dev/null || true
+      done
+    done
+  when: deploy_ok
+  timeout: 1800
+  ignore_errors: yes
+
+- name: Undeploy implementation
+  shell: |
+    cd {{ project_dir }}
+    ./scripts/undeploy.sh {{ impl }}
+  ignore_errors: yes
+
+- name: Wait before next
+  pause:
+    seconds: 10
+  when: deploy_ok

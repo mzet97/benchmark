@@ -1,0 +1,41 @@
+---
+# 03-label-nodes.yml
+# Adiciona labels de benchmark nos nodes do K3s.
+#
+# Usage: ansible-playbook playbooks/03-label-nodes.yml
+
+- name: Label K3s Nodes for Benchmark
+  hosts: k3s_server
+  gather_facts: no
+  become: yes
+
+  vars:
+    # Configure which nodes get which roles
+    # Default: single node gets both roles
+    server_node: "{{ ansible_hostname }}"
+    loadgen_node: "{{ ansible_hostname }}"
+
+  tasks:
+    - name: Get node names
+      shell: kubectl get nodes -o jsonpath='{.items[*].metadata.name}'
+      register: node_names
+
+    - name: Display nodes
+      debug:
+        msg: "Nodes: {{ node_names.stdout }}"
+
+    - name: Label server node
+      shell: kubectl label node {{ server_node }} benchmark-role=server --overwrite
+
+    - name: Label loadgen node
+      shell: kubectl label node {{ loadgen_node }} benchmark-role=loadgen --overwrite
+      when: server_node != loadgen_node
+
+    - name: Verify labels
+      shell: kubectl get nodes --show-labels | grep benchmark-role
+      register: labels
+      ignore_errors: yes
+
+    - name: Display labels
+      debug:
+        msg: "{{ labels.stdout_lines | default(['No labels found']) }}"

@@ -1,0 +1,78 @@
+---
+# 04-build-images.yml
+# Build Docker images for benchmark implementations.
+#
+# Usage:
+#   ansible-playbook playbooks/04-build-images.yml -e "impl=rust-rest-actix-web"
+#   ansible-playbook playbooks/04-build-images.yml -e "impl=all" -e "protocol=rest"
+
+- name: Build Benchmark Docker Images
+  hosts: k3s_server
+  gather_facts: no
+  become: yes
+
+  vars:
+    impl: "rust-rest-actix-web"
+    protocol: "all"
+    project_dir: "/home/k8s/benchmark"
+    registry: "benchmark"
+
+  tasks:
+    - name: Check if project exists on server
+      stat:
+        path: "{{ project_dir }}"
+      register: project_stat
+
+    - name: Clone project if not exists
+      git:
+        repo: "https://github.com/mzet97/benchmark.git"
+        dest: "{{ project_dir }}"
+        version: main
+        force: yes
+      when: not project_stat.stat.exists
+
+    - name: Pull latest changes
+      git:
+        repo: "https://github.com/mzet97/benchmark.git"
+        dest: "{{ project_dir }}"
+        version: main
+        force: yes
+      when: project_stat.stat.exists
+
+    - name: Build single implementation
+      shell: |
+        cd {{ project_dir }}
+        chmod +x scripts/build-image.sh
+        ./scripts/build-image.sh {{ impl }}
+      register: build_result
+      when: impl != "all"
+
+    - name: Display single build result
+      debug:
+        msg: "{{ build_result.stdout_lines | default(['Build completed']) }}"
+      when: impl != "all"
+
+    - name: Get list of all implementations
+      shell: |
+        cd {{ project_dir }}
+        grep "^\s*- id:" config/implementations.yaml | awk '{print $3}' | grep "{{ protocol }}"
+      register: impl_list
+      when: impl == "all"
+
+    - name: Build all implementations
+      shell: |
+        cd {{ project_dir }}
+        chmod +x scripts/build-image.sh
+        ./scripts/build-image.sh {{ item }}
+      loop: "{{ impl_list.stdout_lines | default([]) }}"
+      register: build_all_result
+      when: impl == "all"
+      ignore_errors: yes
+
+    - name: List built images
+      shell: docker images | grep benchmark
+      register: images
+
+    - name: Display images
+      debug:
+        msg: "{{ images.stdout_lines | default(['No images found']) }}"

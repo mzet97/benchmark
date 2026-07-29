@@ -1,0 +1,169 @@
+---
+# 05-deploy-benchmark.yml
+# Deploy a single implementation and run benchmark.
+#
+# Usage:
+#   ansible-playbook playbooks/05-deploy-benchmark.yml -e "impl=rust-rest-actix-web"
+#   ansible-playbook playbooks/05-deploy-benchmark.yml -e "impl=rust-rest-actix-web" -e "mode=single-pod"
+#   ansible-playbook playbooks/05-deploy-benchmark.yml -e "impl=rust-rest-actix-web" -e "scenario=health"
+
+- name: Deploy and Benchmark Implementation
+  hosts: k3s_server
+  gather_facts: no
+  become: yes
+
+  vars:
+    impl: "rust-rest-actix-web"
+    mode: "single-pod"
+    scenario: "health"
+    project_dir: "/home/k8s/benchmark"
+    namespace: "benchmark"
+    benchmark_duration: 60
+    benchmark_warmup: 30
+    benchmark_repetitions: 5
+    benchmark_concurrency: "1 10 50 100 200"
+
+  tasks:
+    - name: Undeploy previous implementation
+      shell: |
+        cd {{ project_dir }}
+        kubectl delete deployment {{ impl }} -n {{ namespace }} --ignore-not-found
+        kubectl delete service {{ impl }} -n {{ namespace }} --ignore-not-found
+        kubectl delete configmap {{ impl }}-config -n {{ namespace }} --ignore-not-found
+      ignore_errors: yes
+
+    - name: Wait for cleanup
+      pause:
+        seconds: 5
+
+    - name: Deploy implementation
+      shell: |
+        cd {{ project_dir }}
+        chmod +x scripts/deploy.sh
+        ./scripts/deploy.sh {{ impl }} {{ mode }}
+      register: deploy_result
+      timeout: 180
+
+    - name: Display deploy result
+      debug:
+        msg: "{{ deploy_result.stdout_lines | default(['Deploy completed']) }}"
+
+    - name: Wait for readiness
+      shell: kubectl wait --for=condition=ready pod -l app={{ impl }} -n {{ namespace }} --timeout=120s
+      register: ready_result
+      ignore_errors: yes
+
+    - name: Display readiness
+      debug:
+        msg: "Ready: {{ 'OK' if ready_result.rc == 0 else 'TIMEOUT' }}"
+
+    - name: Run smoke test
+      shell: |
+        cd {{ project_dir }}
+        chmod +x scripts/smoke-test.sh
+        ./scripts/smoke-test.sh {{ impl }}
+      register: smoke_result
+      ignore_errors: yes
+
+    - name: Display smoke test result
+      debug:
+        msg: "{{ smoke_result.stdout_lines | default(['Smoke test completed']) }}"
+
+    - name: Get service endpoint
+      shell: |
+        SVC_IP=$(kubectl get svc {{ impl }} -n {{ namespace }} -o jsonpath='{.spec.clusterIP}')
+        SVC_PORT=$(kubectl get svc {{ impl }} -n {{ namespace }} -o jsonpath='{.spec.ports[0].port}')
+        echo "http://${SVC_IP}:${SVC_PORT}"
+      register: service_endpoint
+
+    - name: Display endpoint
+      debug:
+        msg: "Endpoint: {{ service_endpoint.stdout }}"
+
+    - name: Warm-up
+      shell: |
+        for i in $(seq 1 100); do
+          kubectl run warmup-$i --rm -i --restart=Never \
+            --image=curlimages/curl:latest -n {{ namespace }} -- \
+            curl -s {{ service_endpoint.stdout }}/health > /dev/null 2>&1 || true
+        done
+      ignore_errors: yes
+      timeout: 60
+
+    - name: Run benchmark (REST with wrk)
+      shell: |
+        cd {{ project_dir }}
+        cat <<EOF | kubectl apply -f - -n {{ namespace }}
+        apiVersion: batch/v1
+        kind: Job
+        metadata:
+          name: bench-{{ impl }}-{{ item }}
+          namespace: {{ namespace }}
+        spec:
+          backoffLimit: 0
+          ttlSecondsAfterFinished: 600
+          template:
+            spec:
+              restartPolicy: Never
+              containers:
+                - name: wrk
+                  image: williamyeh/wrk:latest
+                  command: ["/bin/sh", "-c"]
+                  args:
+                    - |
+                      echo "=== Benchmark {{ impl }} concurrency={{ item }} ==="
+                      echo "Warmup {{ benchmark_warmup }}s..."
+                      wrk -t4 -c{{ item }} -d{{ benchmark_warmup }}s {{ service_endpoint.stdout }}/health > /dev/null 2>&1
+                      sleep 5
+                      echo "Measuring {{ benchmark_duration }}s..."
+                      wrk -t4 -c{{ item }} -d{{ benchmark_duration }}s --latency {{ service_endpoint.stdout }}/{{ scenario_path }}
+                  resources:
+                    requests: { cpu: "2", memory: "512Mi" }
+                    limits:   { cpu: "2", memory: "512Mi" }
+        EOF
+      loop: "{{ benchmark_concurrency.split(' ') }}"
+      vars:
+        scenario_path: "{{ 'health' if scenario == 'health' else 'json' if scenario == 'json' else 'db/simple?id=1' if scenario == 'db-simple' else 'db/complex?days=30' if scenario == 'db-complex' else 'cache?key=benchmark' if scenario == 'cache' else 'health' }}"
+      ignore_errors: yes
+
+    - name: Wait for benchmark jobs
+      shell: |
+        for conc in {{ benchmark_concurrency }}; do
+          kubectl wait --for=condition=complete job/bench-{{ impl }}-$conc -n {{ namespace }} --timeout=300s 2>/dev/null || true
+        done
+      timeout: 600
+
+    - name: Collect benchmark results
+      shell: |
+        mkdir -p {{ project_dir }}/results/raw/{{ impl }}/{{ scenario }}/{{ mode }}
+        for conc in {{ benchmark_concurrency }}; do
+          kubectl logs job/bench-{{ impl }}-$conc -n {{ namespace }} > {{ project_dir }}/results/raw/{{ impl }}/{{ scenario }}/{{ mode }}/concurrency-${conc}.txt 2>/dev/null || true
+        done
+
+    - name: Display results summary
+      shell: |
+        echo "=== Results for {{ impl }} ==="
+        for conc in {{ benchmark_concurrency }}; do
+          echo ""
+          echo "--- Concurrency: $conc ---"
+          cat {{ project_dir }}/results/raw/{{ impl }}/{{ scenario }}/{{ mode }}/concurrency-${conc}.txt 2>/dev/null | grep -E "Requests/sec|Latency|Transfer" || echo "No data"
+        done
+      register: results_summary
+
+    - name: Show results
+      debug:
+        msg: "{{ results_summary.stdout_lines | default(['No results']) }}"
+
+    - name: Cleanup benchmark jobs
+      shell: |
+        for conc in {{ benchmark_concurrency }}; do
+          kubectl delete job bench-{{ impl }}-$conc -n {{ namespace }} --ignore-not-found
+        done
+      ignore_errors: yes
+
+    - name: Undeploy implementation
+      shell: |
+        cd {{ project_dir }}
+        chmod +x scripts/undeploy.sh
+        ./scripts/undeploy.sh {{ impl }}
+      ignore_errors: yes

@@ -1,0 +1,125 @@
+---
+# 01-preflight.yml
+# Verifica se o K3s está rodando e coleta informações do cluster.
+#
+# Usage: ansible-playbook playbooks/01-preflight.yml
+
+- name: K3s Preflight Check
+  hosts: k3s_server
+  gather_facts: yes
+  become: yes
+
+  vars:
+    benchmark_namespace: benchmark
+
+  tasks:
+    - name: Display system info
+      debug:
+        msg: |
+          Hostname: {{ ansible_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Architecture: {{ ansible_architecture }}
+          CPU cores: {{ ansible_processor_vcpus }}
+          Memory: {{ ansible_memtotal_mb }} MB
+
+    - name: Check if K3s is installed
+      shell: which k3s && k3s --version
+      register: k3s_version
+      ignore_errors: yes
+
+    - name: Display K3s version
+      debug:
+        msg: "{{ k3s_version.stdout_lines | default(['K3s not found']) }}"
+
+    - name: Check K3s service status
+      shell: systemctl is-active k3s
+      register: k3s_status
+      ignore_errors: yes
+
+    - name: Display K3s status
+      debug:
+        msg: "K3s status: {{ k3s_status.stdout | default('unknown') }}"
+
+    - name: Get Kubernetes nodes
+      shell: kubectl get nodes -o wide
+      register: k8s_nodes
+      ignore_errors: yes
+
+    - name: Display nodes
+      debug:
+        msg: "{{ k8s_nodes.stdout_lines | default(['Cannot reach K8s']) }}"
+
+    - name: Get cluster info
+      shell: kubectl cluster-info
+      register: cluster_info
+      ignore_errors: yes
+
+    - name: Display cluster info
+      debug:
+        msg: "{{ cluster_info.stdout_lines | default(['Cluster not available']) }}"
+
+    - name: Check if namespace exists
+      shell: kubectl get ns {{ benchmark_namespace }}
+      register: ns_check
+      ignore_errors: yes
+
+    - name: Create namespace if needed
+      shell: kubectl create namespace {{ benchmark_namespace }}
+      when: ns_check.rc != 0
+
+    - name: Check PostgreSQL connectivity
+      shell: |
+        kubectl run pg-check --rm -i --restart=Never \
+          --image=postgres:16-alpine -n {{ benchmark_namespace }} -- \
+          psql -h spsql.home.arpa -p 5432 -U app -d benchmark_api -c "SELECT 1;" 2>&1 || echo "FAILED"
+      register: pg_check
+      ignore_errors: yes
+      timeout: 30
+
+    - name: Display PostgreSQL status
+      debug:
+        msg: "{{ pg_check.stdout_lines | default(['PostgreSQL check failed']) }}"
+
+    - name: Check Redis connectivity
+      shell: |
+        kubectl run redis-check --rm -i --restart=Never \
+          --image=redis:7-alpine -n {{ benchmark_namespace }} -- \
+          redis-cli -h redis.home.arpa -p 30379 ping 2>&1 || echo "FAILED"
+      register: redis_check
+      ignore_errors: yes
+      timeout: 30
+
+    - name: Display Redis status
+      debug:
+        msg: "{{ redis_check.stdout_lines | default(['Redis check failed']) }}"
+
+    - name: Get storage classes
+      shell: kubectl get storageclass
+      register: storage
+      ignore_errors: yes
+
+    - name: Display storage
+      debug:
+        msg: "{{ storage.stdout_lines | default(['No storage classes']) }}"
+
+    - name: Get all pods in benchmark namespace
+      shell: kubectl get pods -n {{ benchmark_namespace }} -o wide
+      register: pods
+      ignore_errors: yes
+
+    - name: Display pods
+      debug:
+        msg: "{{ pods.stdout_lines | default(['No pods']) }}"
+
+    - name: Summary
+      debug:
+        msg: |
+          =========================================
+          Preflight Summary
+          =========================================
+          K3s: {{ k3s_status.stdout | default('unknown') }}
+          Nodes: {{ (k8s_nodes.stdout_lines | default([])) | length }}
+          Namespace: {{ 'exists' if ns_check.rc == 0 else 'created' }}
+          PostgreSQL: {{ 'OK' if 'FAILED' not in (pg_check.stdout | default('FAILED')) else 'FAILED' }}
+          Redis: {{ 'OK' if 'FAILED' not in (redis_check.stdout | default('FAILED')) else 'FAILED' }}
+          =========================================
