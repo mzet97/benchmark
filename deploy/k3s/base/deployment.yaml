@@ -51,25 +51,23 @@ spec:
                 name: benchmark-secrets
           resources:
             requests:
-              cpu: "1"
-              memory: "512Mi"
+              cpu: "250m"
+              memory: "256Mi"
             limits:
-              cpu: "1"
+              cpu: "500m"
               memory: "512Mi"
           livenessProbe:
-            httpGet:
-              path: /healthz
+            tcpSocket:
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
-            httpGet:
-              path: /readyz
+            tcpSocket:
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
           securityContext:
