@@ -10,7 +10,7 @@
     "@grpc/proto-loader": "npm:@grpc/proto-loader@^0.7.0",
     "@grpc/grpc-js": "npm:@grpc/grpc-js@^1.10.0",
     "@bufbuild/protobuf": "npm:@bufbuild/protobuf@^1.7.0",
-    "postgres": "jsr:@db/postgres@>=0.17.0",
+    "postgres": "jsr:@db/postgres@0",
     "ioredis": "npm:ioredis@^5.3.0"
   }
 }

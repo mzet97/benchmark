@@ -1,5 +1,4 @@
 import { Hono } from 'hono';
-import { serve } from '@hono/node-server';
 import pino from 'pino';
 import { databaseService } from './services/database.ts';
 import { cacheService } from './services/cache.ts';
@@ -104,7 +103,7 @@ const start = async () => {
 
     logger.info('Starting Benchmark API (Bun + Hono)...');
 
-    serve({
+    Bun.serve({
       fetch: app.fetch,
       port: PORT,
       hostname: HOST,
@@ -119,5 +118,3 @@ const start = async () => {
 };
 
 start();
-
-export default app;
