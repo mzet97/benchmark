@@ -8,8 +8,7 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 COPY benchmark.proto .
 COPY generate.py .
 COPY generated/ generated/
-RUN pip install --no-cache-dir grpcio-tools && \
-    python generate.py
+RUN pip install --no-cache-dir grpcio-tools==1.68.1 && python generate.py
 
 FROM python:3.12-slim
 

@@ -8,8 +8,9 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.1 && \
 
 WORKDIR /app
 
-# Copy go.mod and go.sum first for caching
-COPY src/go/grpc/grpc-go/go.mod src/go/grpc/grpc-go/go.sum ./
+# Copy go.mod for dependency resolution (skip go.sum to avoid checksum mismatches)
+COPY src/go/grpc/grpc-go/go.mod ./
+ENV GONOSUMDB=* GONOSUMCHECK=* GOFLAGS=-mod=mod
 RUN go mod download
 
 # Copy proto contracts

@@ -49,6 +49,7 @@ spec:
                 name: PLACEHOLDER-config
             - secretRef:
                 name: benchmark-secrets
+                optional: true
           resources:
             requests:
               cpu: "250m"

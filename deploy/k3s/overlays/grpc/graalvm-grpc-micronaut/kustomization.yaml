@@ -46,13 +46,13 @@ patches:
         value: grpc
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: graalvm-grpc-micronaut-config
       - op: replace
         path: /spec/template/spec/containers/0/livenessProbe/tcpSocket/port
         value: grpc
       - op: replace
         path: /spec/template/spec/containers/0/readinessProbe/tcpSocket/port
         value: grpc
-        value: graalvm-grpc-micronaut-config
 
   - target:
       kind: Service

@@ -7,6 +7,12 @@ import signal
 import sys
 from concurrent import futures
 
+import sys
+import os
+
+# Add generated/ to sys.path so benchmark_pb2_grpc can find benchmark_pb2
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "generated"))
+
 import grpc
 
 # Generated stubs

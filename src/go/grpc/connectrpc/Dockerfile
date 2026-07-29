@@ -9,8 +9,9 @@ RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.35.1 && \
 WORKDIR /app
 
 # Copy go.mod and go.sum first for caching
-COPY src/go/grpc/connectrpc/go.mod src/go/grpc/connectrpc/go.sum ./
-RUN go mod download
+COPY src/go/grpc/connectrpc/go.mod ./
+COPY src/go/grpc/connectrpc/go.sum* ./
+RUN go mod tidy || go mod download
 
 # Copy proto contracts
 COPY contracts/grpc/ /app/contracts/grpc/
