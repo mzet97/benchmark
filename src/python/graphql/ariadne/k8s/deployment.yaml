@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-python-ariadne
+  labels:
+    app: graphql-python-ariadne
+    benchmark: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-python-ariadne
+  template:
+    metadata:
+      labels:
+        app: graphql-python-ariadne
+        benchmark: "true"
+    spec:
+      containers:
+        - name: server
+          image: graphql-python-ariadne:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: graphql-python-ariadne-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

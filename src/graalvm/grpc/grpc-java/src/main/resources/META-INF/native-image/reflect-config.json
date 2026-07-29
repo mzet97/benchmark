@@ -1,0 +1,424 @@
+[
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.DefaultFileRegion",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventArray",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.EpollEventLoop",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.EpollServerSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.EpollSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.NativeDatagramPacket",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.socket.nio.NioServerSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.socket.nio.NioSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.compression.Lz4FrameDecoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.compression.Lz4FrameEncoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.compression.Lz4XXHash32",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.compression.Zstd32",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.compression.ZstdOptions",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.CleartextHttp2ServerUpgradeHandler",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.DefaultHttp2FrameWriter",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2ConnectionHandler",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2DataFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2FrameCodec",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2FrameLogger",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2GoAwayFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2HeadersFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2MultiplexHandler",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2MultiplexCodec",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2SettingsFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2StreamFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http2.Http2WindowUpdateFrame",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.BouncyCastleAlpnSslUtils",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.ConscryptAlpnSslEngine",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.JdkNpnApplicationProtocolNegotiator",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslEngine",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslContext",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslClientContext",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.ReferenceCountedOpenSslServerContext",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.SniHandler",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory$1",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.ssl.util.SimpleTrustManagerFactory$1",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http.websocketx.extensions.compression.DeflateDecoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http.websocketx.extensions.compression.DeflateEncoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http.websocketx.extensions.compression.PerMessageDeflateDecoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.handler.codec.http.websocketx.extensions.compression.PerMessageDeflateEncoder",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.Epoll",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.LinuxSocket",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.Native",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.epoll.NativeStaticallyReferencedJniMethods",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.AcceptFilter",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.BsdSocket",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueEventArray",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueEventLoop",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueServerSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.KQueueSocketChannel",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.Native",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.kqueue.NativeStaticallyReferencedJniMethods",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.unix.Errors",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.unix.IovArray",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.unix.Limits",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.unix.PeerCredentials",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.channel.unix.Socket",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.buffer.AbstractByteBufAllocator",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "io.grpc.netty.shaded.io.netty.util.AbstractReferenceCounted",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.google.protobuf.GeneratedMessageV3",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.google.protobuf.UnknownFieldSet",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "com.google.protobuf.ExtensionRegistry",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.Benchmark$HealthRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$HealthResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$JsonItemsRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$JsonItemsResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$JsonItem",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$GetUserRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$UserResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$ComplexOrdersRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$ComplexOrdersResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$UserOrderStats",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$CacheRequest",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.Benchmark$CacheResponse",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true,
+    "allDeclaredFields": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceGrpc",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceGrpc$BenchmarkServiceImplBase",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceGrpc$BenchmarkServiceStub",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceGrpc$BenchmarkServiceBlockingStub",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceGrpc$BenchmarkServiceFutureStub",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.BenchmarkServiceImpl",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.DatabaseService",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  },
+  {
+    "name": "benchmark.CacheService",
+    "allDeclaredConstructors": true,
+    "allDeclaredMethods": true
+  }
+]

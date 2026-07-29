@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deno-graphql-hono-config
+  labels:
+    app: deno-graphql-hono
+data:
+  app.name: "Benchmark GraphQL API - Deno Hono"
+  app.version: "1.0.0"
+  server.port: "3000"
+  server.host: "0.0.0.0"
+  database.pool_min: "5"
+  database.pool_max: "25"
+  cache.ttl: "300"

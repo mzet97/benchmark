@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: graphql-go-graphql
+  labels:
+    app: graphql-go-graphql
+spec:
+  selector:
+    app: graphql-go-graphql
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP

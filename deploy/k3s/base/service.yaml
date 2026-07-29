@@ -1,0 +1,22 @@
+# Base Service template.
+# Overlays must provide:
+#   - IMPLEMENTATION_ID
+#   - PORT
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: PLACEHOLDER
+  namespace: benchmark
+  labels:
+    app: PLACEHOLDER
+    benchmark-role: server
+spec:
+  type: ClusterIP
+  selector:
+    app: PLACEHOLDER
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

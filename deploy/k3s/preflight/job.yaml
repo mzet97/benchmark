@@ -1,0 +1,122 @@
+# Preflight check Job.
+# Validates connectivity to PostgreSQL and Redis from inside the cluster.
+#
+# Usage:
+#   kubectl apply -f deploy/k3s/preflight/job.yaml -n benchmark
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: benchmark-preflight
+  namespace: benchmark
+  labels:
+    benchmark-role: preflight
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        benchmark-role: preflight
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: preflight
+          image: postgres:16-alpine
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "========================================="
+              echo "  Benchmark Preflight Check"
+              echo "========================================="
+              echo ""
+
+              # Install tools
+              apk add --no-cache redis curl drill > /dev/null 2>&1
+
+              echo "--- DNS Resolution ---"
+              echo "spsql.home.arpa:"
+              drill spsql.home.arpa || echo "FAILED"
+              echo ""
+              echo "redis.home.arpa:"
+              drill redis.home.arpa || echo "FAILED"
+              echo ""
+
+              echo "--- PostgreSQL Connectivity ---"
+              PGPASSWORD=$(echo $DATABASE_URL | sed 's|.*://[^:]*:\([^@]*\)@.*|\1|')
+              PGHOST=$(echo $DATABASE_URL | sed 's|.*@\([^:]*\):.*|\1|')
+              PGPORT=$(echo $DATABASE_URL | sed 's|.*:\([0-9]*\)/.*|\1|')
+              PGDATABASE=$(echo $DATABASE_URL | sed 's|.*/\([^?]*\).*|\1|')
+              PGUSER=$(echo $DATABASE_URL | sed 's|.*://\([^:]*\):.*|\1|')
+
+              echo "Host: $PGHOST:$PGPORT"
+              echo "Database: $PGDATABASE"
+              echo "User: $PGUSER"
+
+              # Connection test
+              for i in 1 2 3; do
+                echo "Attempt $i..."
+                if psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -c "SELECT 1 as test;" 2>/dev/null; then
+                  echo "PostgreSQL: OK"
+                else
+                  echo "PostgreSQL: FAILED (attempt $i)"
+                fi
+                sleep 1
+              done
+
+              # Query performance
+              echo ""
+              echo "--- Query Performance ---"
+              psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -c "
+                SELECT count(*) as user_count FROM users;
+                SELECT count(*) as order_count FROM orders;
+                SELECT count(*) as item_count FROM order_items;
+              " 2>/dev/null || echo "Query failed"
+
+              echo ""
+              echo "--- Redis Connectivity ---"
+              REDIS_HOST=$(echo $REDIS_URL | sed 's|.*://[^@]*@\([^:]*\):.*|\1|')
+              REDIS_PORT=$(echo $REDIS_URL | sed 's|.*:\([0-9]*\)$|\1|')
+              REDIS_PASS=$(echo $REDIS_URL | sed 's|.*://:\([^@]*\)@.*|\1|')
+
+              echo "Host: $REDIS_HOST:$REDIS_PORT"
+
+              for i in 1 2 3; do
+                echo "Attempt $i..."
+                if redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASS ping 2>/dev/null | grep -q PONG; then
+                  echo "Redis: OK"
+                else
+                  echo "Redis: FAILED (attempt $i)"
+                fi
+                sleep 1
+              done
+
+              echo ""
+              echo "--- RTT Measurement ---"
+              # PostgreSQL RTT
+              START=$(date +%s%N)
+              psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -c "SELECT 1;" > /dev/null 2>&1
+              END=$(date +%s%N)
+              echo "PostgreSQL RTT: $(( (END - START) / 1000000 ))ms"
+
+              # Redis RTT
+              START=$(date +%s%N)
+              redis-cli -h $REDIS_HOST -p $REDIS_PORT -a $REDIS_PASS ping > /dev/null 2>&1
+              END=$(date +%s%N)
+              echo "Redis RTT: $(( (END - START) / 1000000 ))ms"
+
+              echo ""
+              echo "========================================="
+              echo "  Preflight Complete"
+              echo "========================================="
+          envFrom:
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

@@ -1,0 +1,13 @@
+name: graphql_server2_benchmark
+version: 1.0.0
+description: GraphQL benchmark with graphql_server2, shelf, and shelf_router
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  graphql_server2: ^3.0.0
+  shelf: ^1.4.2
+  shelf_router: ^1.1.5
+  postgres: ^3.2.0
+  redis: ^4.0.0
+  json_annotation: ^4.9.0

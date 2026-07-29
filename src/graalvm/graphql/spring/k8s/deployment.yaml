@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spring-graphql-native
+  labels:
+    app: spring-graphql-native
+    benchmark: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spring-graphql-native
+  template:
+    metadata:
+      labels:
+        app: spring-graphql-native
+        benchmark: "true"
+    spec:
+      containers:
+        - name: spring-graphql-native
+          image: benchmark/spring-graphql-native:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: spring-graphql-native-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+            limits:
+              cpu: "1000m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

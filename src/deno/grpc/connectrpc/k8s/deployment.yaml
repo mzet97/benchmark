@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-deno-connectrpc
+  labels:
+    app: benchmark-deno-connectrpc
+    runtime: deno
+    framework: connectrpc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-deno-connectrpc
+  template:
+    metadata:
+      labels:
+        app: benchmark-deno-connectrpc
+        runtime: deno
+        framework: connectrpc
+    spec:
+      containers:
+        - name: server
+          image: benchmark-deno-connectrpc:latest
+          ports:
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 30

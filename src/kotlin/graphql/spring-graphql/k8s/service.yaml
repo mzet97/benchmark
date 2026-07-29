@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: kotlin-spring-graphql
+  labels:
+    app: kotlin-spring-graphql
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: kotlin-spring-graphql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kotlin-spring-graphql-headless
+  labels:
+    app: kotlin-spring-graphql
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: kotlin-spring-graphql

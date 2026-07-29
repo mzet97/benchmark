@@ -1,0 +1,1002 @@
+# config/implementations.yaml
+# Source of truth for all benchmark implementations.
+# Used by scripts and Makefile to drive build/deploy/benchmark lifecycle.
+#
+# Each implementation has a unique ID: <environment>-<protocol>-<framework>
+# Example: rust-rest-actix-web, go-grpc-grpc-go, nodejs-graphql-mercurius
+
+defaults:
+  port: 8080
+  resources:
+    requests:
+      cpu: "1"
+      memory: "512Mi"
+    limits:
+      cpu: "1"
+      memory: "512Mi"
+  replicas: 5
+  probes:
+    healthz: /healthz
+    readyz: /readyz
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+implementations:
+  # ========================================================================
+  # RUST
+  # ========================================================================
+
+  # REST
+  - id: rust-rest-actix-web
+    environment: rust
+    protocol: rest
+    framework: actix-web
+    path: src/rust/actix-web
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: rust-rest-axum
+    environment: rust
+    protocol: rest
+    framework: axum
+    path: src/rust/axum
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: rust-rest-rocket
+    environment: rust
+    protocol: rest
+    framework: rocket
+    path: src/rust/rocket
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: rust-rest-warp
+    environment: rust
+    protocol: rest
+    framework: warp
+    path: src/rust/warp
+    port: 8080
+    maturity: stable
+    primary: false
+
+  # gRPC
+  - id: rust-grpc-tonic
+    environment: rust
+    protocol: grpc
+    framework: tonic
+    path: src/rust/grpc/tonic
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: rust-grpc-volo
+    environment: rust
+    protocol: grpc
+    framework: volo
+    path: src/rust/grpc/volo
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: rust-grpc-grpcio
+    environment: rust
+    protocol: grpc
+    framework: grpcio
+    path: src/rust/grpc/grpcio
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: rust-graphql-async-graphql-axum
+    environment: rust
+    protocol: graphql
+    framework: async-graphql-axum
+    path: src/rust/graphql/async-graphql-axum
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: rust-graphql-async-graphql-actix
+    environment: rust
+    protocol: graphql
+    framework: async-graphql-actix
+    path: src/rust/graphql/async-graphql-actix
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: rust-graphql-juniper
+    environment: rust
+    protocol: graphql
+    framework: juniper
+    path: src/rust/graphql/juniper
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # GO
+  # ========================================================================
+
+  # REST
+  - id: go-rest-fiber
+    environment: go
+    protocol: rest
+    framework: fiber
+    path: src/go/fiber
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: go-rest-gin
+    environment: go
+    protocol: rest
+    framework: gin
+    path: src/go/gin
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: go-rest-echo
+    environment: go
+    protocol: rest
+    framework: echo
+    path: src/go/echo
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: go-rest-chi
+    environment: go
+    protocol: rest
+    framework: chi
+    path: src/go/chi
+    port: 8080
+    maturity: stable
+    primary: false
+
+  # gRPC
+  - id: go-grpc-grpc-go
+    environment: go
+    protocol: grpc
+    framework: grpc-go
+    path: src/go/grpc/grpc-go
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: go-grpc-connectrpc
+    environment: go
+    protocol: grpc
+    framework: connectrpc
+    path: src/go/grpc/connectrpc
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: go-grpc-kitex
+    environment: go
+    protocol: grpc
+    framework: kitex
+    path: src/go/grpc/kitex
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: go-graphql-gqlgen
+    environment: go
+    protocol: graphql
+    framework: gqlgen
+    path: src/go/graphql/gqlgen
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: go-graphql-graphql-go
+    environment: go
+    protocol: graphql
+    framework: graphql-go
+    path: src/go/graphql/graphql-go
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: go-graphql-graphql-go-2
+    environment: go
+    protocol: graphql
+    framework: graphql-go-2
+    path: src/go/graphql/graphql-go-2
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # C#
+  # ========================================================================
+
+  # REST
+  - id: csharp-rest-minimal-api
+    environment: csharp
+    protocol: rest
+    framework: minimal-api
+    path: src/csharp/MinimalApi
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: csharp-rest-controllers
+    environment: csharp
+    protocol: rest
+    framework: controllers
+    path: src/csharp/Controllers
+    port: 8080
+    maturity: missing
+    primary: true
+
+  - id: csharp-rest-fastendpoints
+    environment: csharp
+    protocol: rest
+    framework: fastendpoints
+    path: src/csharp/FastEndpoints
+    port: 8080
+    maturity: missing
+    primary: true
+
+  # gRPC
+  - id: csharp-grpc-grpc-dotnet
+    environment: csharp
+    protocol: grpc
+    framework: grpc-dotnet
+    path: src/csharp/grpc/grpc-dotnet
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: csharp-grpc-protobuf-net-grpc
+    environment: csharp
+    protocol: grpc
+    framework: protobuf-net-grpc
+    path: src/csharp/grpc/protobuf-net-grpc
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: csharp-grpc-magiconion
+    environment: csharp
+    protocol: grpc
+    framework: magiconion
+    path: src/csharp/grpc/magiconion
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: csharp-graphql-hotchocolate
+    environment: csharp
+    protocol: graphql
+    framework: hotchocolate
+    path: src/csharp/graphql/hotchocolate
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: csharp-graphql-graphql-dotnet
+    environment: csharp
+    protocol: graphql
+    framework: graphql-dotnet
+    path: src/csharp/graphql/graphql-dotnet
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: csharp-graphql-entitygraphql
+    environment: csharp
+    protocol: graphql
+    framework: entitygraphql
+    path: src/csharp/graphql/entitygraphql
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # NODE.JS
+  # ========================================================================
+
+  # REST
+  - id: nodejs-rest-fastify
+    environment: nodejs
+    protocol: rest
+    framework: fastify
+    path: src/nodejs/fastify
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: nodejs-rest-express
+    environment: nodejs
+    protocol: rest
+    framework: express
+    path: src/nodejs/express
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: nodejs-rest-nestjs
+    environment: nodejs
+    protocol: rest
+    framework: nestjs
+    path: src/nodejs/nestjs
+    port: 8080
+    maturity: stable
+    primary: true
+
+  # gRPC
+  - id: nodejs-grpc-grpc-js
+    environment: nodejs
+    protocol: grpc
+    framework: grpc-js
+    path: src/nodejs/grpc/grpc-js
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: nodejs-grpc-nice-grpc
+    environment: nodejs
+    protocol: grpc
+    framework: nice-grpc
+    path: src/nodejs/grpc/nice-grpc
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: nodejs-grpc-connectrpc
+    environment: nodejs
+    protocol: grpc
+    framework: connectrpc
+    path: src/nodejs/grpc/connectrpc
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: nodejs-graphql-apollo
+    environment: nodejs
+    protocol: graphql
+    framework: apollo-server
+    path: src/nodejs/graphql/apollo
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: nodejs-graphql-mercurius
+    environment: nodejs
+    protocol: graphql
+    framework: mercurius
+    path: src/nodejs/graphql/mercurius
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: nodejs-graphql-yoga
+    environment: nodejs
+    protocol: graphql
+    framework: graphql-yoga
+    path: src/nodejs/graphql/yoga
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # BUN
+  # ========================================================================
+
+  # REST
+  - id: bun-rest-bun-serve
+    environment: bun
+    protocol: rest
+    framework: bun-serve
+    path: src/bun/bun_serve
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: bun-rest-elysia
+    environment: bun
+    protocol: rest
+    framework: elysia
+    path: src/bun/elysia
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: bun-rest-hono
+    environment: bun
+    protocol: rest
+    framework: hono
+    path: src/bun/hono
+    port: 8080
+    maturity: stable
+    primary: true
+
+  # gRPC (experimental — Bun HTTP/2 compat)
+  - id: bun-grpc-grpc-js
+    environment: bun
+    protocol: grpc
+    framework: grpc-js
+    path: src/bun/grpc/grpc-js
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  - id: bun-grpc-nice-grpc
+    environment: bun
+    protocol: grpc
+    framework: nice-grpc
+    path: src/bun/grpc/nice-grpc
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  - id: bun-grpc-connectrpc
+    environment: bun
+    protocol: grpc
+    framework: connectrpc
+    path: src/bun/grpc/connectrpc
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  # GraphQL
+  - id: bun-graphql-yoga
+    environment: bun
+    protocol: graphql
+    framework: graphql-yoga
+    path: src/bun/graphql/yoga
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: bun-graphql-apollo
+    environment: bun
+    protocol: graphql
+    framework: apollo-server
+    path: src/bun/graphql/apollo
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: bun-graphql-hono
+    environment: bun
+    protocol: graphql
+    framework: hono-graphql
+    path: src/bun/graphql/hono
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # KOTLIN
+  # ========================================================================
+
+  # REST
+  - id: kotlin-rest-ktor
+    environment: kotlin
+    protocol: rest
+    framework: ktor
+    path: src/kotlin/ktor
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: kotlin-rest-spring
+    environment: kotlin
+    protocol: rest
+    framework: spring
+    path: src/kotlin/spring
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: kotlin-rest-http4k
+    environment: kotlin
+    protocol: rest
+    framework: http4k
+    path: src/kotlin/http4k
+    port: 8080
+    maturity: stable
+    primary: true
+
+  # gRPC
+  - id: kotlin-grpc-grpc-kotlin
+    environment: kotlin
+    protocol: grpc
+    framework: grpc-kotlin
+    path: src/kotlin/grpc/grpc-kotlin
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: kotlin-grpc-spring-grpc
+    environment: kotlin
+    protocol: grpc
+    framework: spring-grpc
+    path: src/kotlin/grpc/spring-grpc
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: kotlin-grpc-armeria
+    environment: kotlin
+    protocol: grpc
+    framework: armeria
+    path: src/kotlin/grpc/armeria
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: kotlin-graphql-graphql-kotlin
+    environment: kotlin
+    protocol: graphql
+    framework: graphql-kotlin
+    path: src/kotlin/graphql/graphql-kotlin
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: kotlin-graphql-spring-graphql
+    environment: kotlin
+    protocol: graphql
+    framework: spring-graphql
+    path: src/kotlin/graphql/spring-graphql
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: kotlin-graphql-dgs
+    environment: kotlin
+    protocol: graphql
+    framework: netflix-dgs
+    path: src/kotlin/graphql/dgs
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # DENO
+  # ========================================================================
+
+  # REST
+  - id: deno-rest-deno-serve
+    environment: deno
+    protocol: rest
+    framework: deno-serve
+    path: src/deno/deno_serve
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: deno-rest-hono
+    environment: deno
+    protocol: rest
+    framework: hono
+    path: src/deno/hono
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: deno-rest-oak
+    environment: deno
+    protocol: rest
+    framework: oak
+    path: src/deno/oak
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: deno-rest-fresh
+    environment: deno
+    protocol: rest
+    framework: fresh
+    path: src/deno/fresh
+    port: 8080
+    maturity: placeholder
+    primary: false
+
+  # gRPC (experimental)
+  - id: deno-grpc-grpc-js
+    environment: deno
+    protocol: grpc
+    framework: grpc-js
+    path: src/deno/grpc/grpc-js
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  - id: deno-grpc-nice-grpc
+    environment: deno
+    protocol: grpc
+    framework: nice-grpc
+    path: src/deno/grpc/nice-grpc
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  - id: deno-grpc-connectrpc
+    environment: deno
+    protocol: grpc
+    framework: connectrpc
+    path: src/deno/grpc/connectrpc
+    port: 50051
+    maturity: experimental
+    primary: true
+
+  # GraphQL
+  - id: deno-graphql-yoga
+    environment: deno
+    protocol: graphql
+    framework: graphql-yoga
+    path: src/deno/graphql/yoga
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: deno-graphql-apollo
+    environment: deno
+    protocol: graphql
+    framework: apollo-server
+    path: src/deno/graphql/apollo
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: deno-graphql-hono
+    environment: deno
+    protocol: graphql
+    framework: hono-graphql
+    path: src/deno/graphql/hono
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # PYTHON
+  # ========================================================================
+
+  # REST
+  - id: python-rest-fastapi
+    environment: python
+    protocol: rest
+    framework: fastapi
+    path: src/python/fastapi
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: python-rest-flask
+    environment: python
+    protocol: rest
+    framework: flask
+    path: src/python/flask
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: python-rest-django
+    environment: python
+    protocol: rest
+    framework: django
+    path: src/python/django
+    port: 8080
+    maturity: stable
+    primary: true
+
+  # gRPC
+  - id: python-grpc-grpcio
+    environment: python
+    protocol: grpc
+    framework: grpcio
+    path: src/python/grpc/grpcio
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: python-grpc-grpclib
+    environment: python
+    protocol: grpc
+    framework: grpclib
+    path: src/python/grpc/grpclib
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: python-grpc-betterproto
+    environment: python
+    protocol: grpc
+    framework: betterproto
+    path: src/python/grpc/betterproto
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: python-graphql-strawberry
+    environment: python
+    protocol: graphql
+    framework: strawberry
+    path: src/python/graphql/strawberry
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: python-graphql-ariadne
+    environment: python
+    protocol: graphql
+    framework: ariadne
+    path: src/python/graphql/ariadne
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: python-graphql-graphene
+    environment: python
+    protocol: graphql
+    framework: graphene
+    path: src/python/graphql/graphene
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # DART
+  # ========================================================================
+
+  # REST
+  - id: dart-rest-vaden
+    environment: dart
+    protocol: rest
+    framework: vaden
+    path: src/dart/vaden
+    port: 3000
+    maturity: stable
+    primary: true
+
+  # gRPC
+  - id: dart-grpc-grpc-dart
+    environment: dart
+    protocol: grpc
+    framework: grpc-dart
+    path: src/dart/grpc/grpc-dart
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: dart-graphql-graphql-server2
+    environment: dart
+    protocol: graphql
+    framework: graphql-server2
+    path: src/dart/graphql/graphql-server2
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: dart-graphql-angel3
+    environment: dart
+    protocol: graphql
+    framework: angel3-graphql
+    path: src/dart/graphql/angel3
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: dart-graphql-leto
+    environment: dart
+    protocol: graphql
+    framework: leto
+    path: src/dart/graphql/leto
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # JAVA
+  # ========================================================================
+
+  # REST
+  - id: java-rest-quarkus
+    environment: java
+    protocol: rest
+    framework: quarkus
+    path: src/java/quarkus
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: java-rest-spring
+    environment: java
+    protocol: rest
+    framework: spring
+    path: src/java/spring
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: java-rest-micronaut
+    environment: java
+    protocol: rest
+    framework: micronaut
+    path: src/java/micronaut
+    port: 8080
+    maturity: stable
+    primary: true
+
+  # gRPC
+  - id: java-grpc-grpc-java
+    environment: java
+    protocol: grpc
+    framework: grpc-java
+    path: src/java/grpc/grpc-java
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: java-grpc-armeria
+    environment: java
+    protocol: grpc
+    framework: armeria
+    path: src/java/grpc/armeria
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: java-grpc-quarkus
+    environment: java
+    protocol: grpc
+    framework: quarkus-grpc
+    path: src/java/grpc/quarkus
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: java-graphql-spring-graphql
+    environment: java
+    protocol: graphql
+    framework: spring-graphql
+    path: src/java/graphql/spring-graphql
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: java-graphql-dgs
+    environment: java
+    protocol: graphql
+    framework: netflix-dgs
+    path: src/java/graphql/dgs
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: java-graphql-smallrye
+    environment: java
+    protocol: graphql
+    framework: smallrye-graphql
+    path: src/java/graphql/smallrye
+    port: 8080
+    maturity: planned
+    primary: true
+
+  # ========================================================================
+  # GRAALVM NATIVE IMAGE
+  # ========================================================================
+
+  # REST
+  - id: graalvm-rest-quarkus-native
+    environment: graalvm
+    protocol: rest
+    framework: quarkus-native
+    path: src/graalvm/gmicronaut
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: graalvm-rest-micronaut-native
+    environment: graalvm
+    protocol: rest
+    framework: micronaut-native
+    path: src/graalvm/micronaut
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: graalvm-rest-spring-native
+    environment: graalvm
+    protocol: rest
+    framework: spring-native
+    path: src/graalvm/gspring
+    port: 8080
+    maturity: stable
+    primary: true
+
+  - id: graalvm-rest-vertx
+    environment: graalvm
+    protocol: rest
+    framework: vertx
+    path: src/graalvm/vertx
+    port: 8080
+    maturity: stable
+    primary: false
+
+  - id: graalvm-rest-helidon
+    environment: graalvm
+    protocol: rest
+    framework: helidon
+    path: src/graalvm/helidon
+    port: 8080
+    maturity: stable
+    primary: false
+
+  # gRPC
+  - id: graalvm-grpc-quarkus-native
+    environment: graalvm
+    protocol: grpc
+    framework: quarkus-grpc-native
+    path: src/graalvm/grpc/quarkus
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: graalvm-grpc-micronaut-native
+    environment: graalvm
+    protocol: grpc
+    framework: micronaut-grpc-native
+    path: src/graalvm/grpc/micronaut
+    port: 50051
+    maturity: planned
+    primary: true
+
+  - id: graalvm-grpc-java-native
+    environment: graalvm
+    protocol: grpc
+    framework: grpc-java-native
+    path: src/graalvm/grpc/grpc-java
+    port: 50051
+    maturity: planned
+    primary: true
+
+  # GraphQL
+  - id: graalvm-graphql-smallrye-native
+    environment: graalvm
+    protocol: graphql
+    framework: smallrye-graphql-native
+    path: src/graalvm/graphql/smallrye
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: graalvm-graphql-spring-native
+    environment: graalvm
+    protocol: graphql
+    framework: spring-graphql-native
+    path: src/graalvm/graphql/spring
+    port: 8080
+    maturity: planned
+    primary: true
+
+  - id: graalvm-graphql-micronaut-native
+    environment: graalvm
+    protocol: graphql
+    framework: micronaut-graphql-native
+    path: src/graalvm/graphql/micronaut
+    port: 8080
+    maturity: planned
+    primary: true

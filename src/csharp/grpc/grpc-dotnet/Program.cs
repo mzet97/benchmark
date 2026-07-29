@@ -1,0 +1,27 @@
+using GrpcDotnet.Services;
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add gRPC services
+builder.Services.AddGrpc();
+builder.Services.AddSingleton<DatabaseService>();
+builder.Services.AddSingleton<CacheService>();
+
+// Configure Kestrel for gRPC
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(50051, listenOptions =>
+    {
+        listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2;
+    });
+});
+
+var app = builder.Build();
+
+// Map gRPC service
+app.MapGrpcService<BenchmarkServiceImpl>();
+
+// Health check endpoint for Kubernetes
+app.MapGet("/", () => "gRPC server is running. Use a gRPC client to connect.");
+
+app.Run();

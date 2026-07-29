@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graphql-dart-angel3-config
+  labels:
+    app: graphql-dart-angel3
+    benchmark: "true"
+data:
+  PORT: "8080"
+  DB_HOST: "postgresql.benchmark.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "benchmark"
+  DB_USER: "benchmark"
+  REDIS_HOST: "redis.benchmark.svc.cluster.local"
+  REDIS_PORT: "6379"

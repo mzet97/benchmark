@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-dart-angel3
+  labels:
+    app: graphql-dart-angel3
+    benchmark: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-dart-angel3
+  template:
+    metadata:
+      labels:
+        app: graphql-dart-angel3
+        benchmark: "true"
+    spec:
+      containers:
+        - name: graphql-dart-angel3
+          image: graphql-dart-angel3:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: graphql-dart-angel3-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10

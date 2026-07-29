@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-grpc-kotlin
+  labels:
+    app: benchmark-grpc-kotlin
+    component: grpc-server
+    benchmark: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-grpc-kotlin
+  template:
+    metadata:
+      labels:
+        app: benchmark-grpc-kotlin
+        component: grpc-server
+        benchmark: "true"
+    spec:
+      containers:
+        - name: grpc-kotlin
+          image: benchmark/grpc-kotlin:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-grpc-kotlin-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          readinessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

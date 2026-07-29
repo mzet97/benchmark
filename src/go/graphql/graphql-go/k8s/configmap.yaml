@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: graphql-go-graphql-config
+  labels:
+    app: graphql-go-graphql
+data:
+  PORT: "8080"
+  DATABASE_URL: "postgres://benchmark:benchmark@postgres:5432/benchmark"
+  REDIS_URL: "redis://redis:6379"

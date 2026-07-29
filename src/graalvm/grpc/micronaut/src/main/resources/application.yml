@@ -1,0 +1,22 @@
+micronaut:
+  application:
+    name: graalvm-micronaut-grpc
+  server:
+    port: 8080
+
+grpc:
+  server:
+    port: 3000
+
+datasources:
+  default:
+    url: ${DATABASE_URL:`jdbc:postgresql://localhost:5432/benchmark`}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USER:benchmark}
+    password: ${DB_PASSWORD:benchmark}
+    dialect: POSTGRES
+    maximum-pool-size: 25
+    minimum-idle: 5
+
+redis:
+  url: ${REDIS_URL:`redis://localhost:6379`}

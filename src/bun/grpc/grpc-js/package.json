@@ -1,0 +1,16 @@
+{
+  "name": "benchmark-bun-grpc-js",
+  "version": "1.0.0",
+  "description": "gRPC benchmark server for Bun using @grpc/grpc-js",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "bun run src/server.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.10.0",
+    "@grpc/proto-loader": "^0.7.0",
+    "pg": "^8.12.0",
+    "ioredis": "^5.3.0"
+  }
+}

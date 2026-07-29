@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-grpc-go
+  labels:
+    app: benchmark-grpc-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-grpc-go
+  template:
+    metadata:
+      labels:
+        app: benchmark-grpc-go
+    spec:
+      containers:
+        - name: server
+          image: benchmark-grpc-go:latest
+          ports:
+            - containerPort: 50051
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-grpc-go-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 30

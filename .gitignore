@@ -74,6 +74,8 @@ temp/
 # Kubernetes
 kubeconfig
 *.kubeconfig
+# Secrets (NEVER commit real credentials)
+kubernetes/secrets.yaml
 
 # Docker
 .dockerignore

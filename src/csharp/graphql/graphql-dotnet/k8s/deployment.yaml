@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-dotnet
+  labels:
+    app: graphql-dotnet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-dotnet
+  template:
+    metadata:
+      labels:
+        app: graphql-dotnet
+    spec:
+      containers:
+        - name: graphql-dotnet
+          image: graphql-dotnet:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: graphql-dotnet-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30

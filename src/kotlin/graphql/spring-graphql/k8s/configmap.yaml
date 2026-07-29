@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kotlin-spring-graphql-config
+  labels:
+    app: kotlin-spring-graphql
+data:
+  app.name: "Benchmark GraphQL API - Kotlin Spring"
+  app.version: "1.0.0"
+  server.port: "3000"
+  java.opts: "-Xms256m -Xmx512m"
+  database.pool_min: "5"
+  database.pool_max: "25"
+  cache.ttl: "300"

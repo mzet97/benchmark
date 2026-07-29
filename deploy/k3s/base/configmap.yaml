@@ -1,0 +1,15 @@
+# Base ConfigMap template.
+# Overlays must provide implementation-specific values.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: PLACEHOLDER-config
+  namespace: benchmark
+  labels:
+    app: PLACEHOLDER
+data:
+  PORT: "8080"
+  HOST: "0.0.0.0"
+  LOG_LEVEL: "info"
+  CACHE_TTL: "300"

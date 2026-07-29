@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: benchmark-grpc-volo
+  labels:
+    app: benchmark-grpc-volo
+spec:
+  type: ClusterIP
+  ports:
+    - port: 50051
+      targetPort: 50051
+      protocol: TCP
+      name: grpc
+  selector:
+    app: benchmark-grpc-volo

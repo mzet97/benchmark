@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-deno-grpc-js
+  labels:
+    app: benchmark-deno-grpc-js
+    runtime: deno
+    framework: grpc-js
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-deno-grpc-js
+  template:
+    metadata:
+      labels:
+        app: benchmark-deno-grpc-js
+        runtime: deno
+        framework: grpc-js
+    spec:
+      containers:
+        - name: server
+          image: benchmark-deno-grpc-js:latest
+          ports:
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "512Mi"
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 30

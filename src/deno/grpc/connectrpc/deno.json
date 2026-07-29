@@ -1,0 +1,16 @@
+{
+  "name": "benchmark-deno-connectrpc",
+  "version": "1.0.0",
+  "tasks": {
+    "start": "deno run --allow-net --allow-env --allow-read server.ts"
+  },
+  "imports": {
+    "@connectrpc/connect": "npm:@connectrpc/connect@^1.4.0",
+    "@connectrpc/connect-node": "npm:@connectrpc/connect-node@^1.4.0",
+    "@grpc/proto-loader": "npm:@grpc/proto-loader@^0.7.0",
+    "@grpc/grpc-js": "npm:@grpc/grpc-js@^1.10.0",
+    "@bufbuild/protobuf": "npm:@bufbuild/protobuf@^1.7.0",
+    "postgres": "jsr:@db/postgres@^0.17.0",
+    "ioredis": "npm:ioredis@^5.3.0"
+  }
+}

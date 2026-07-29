@@ -1,8 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'complex_order_result.g.dart';
-
-@JsonSerializable()
 class ComplexQueryResult {
   final int periodDays;
   final int totalUsers;
@@ -14,13 +9,15 @@ class ComplexQueryResult {
     required this.data,
   });
 
-  factory ComplexQueryResult.fromJson(Map<String, dynamic> json) =>
-      _$ComplexQueryResultFromJson(json);
-
-  Map<String, dynamic> toJson() => _$ComplexQueryResultToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'period_days': periodDays,
+      'total_users': totalUsers,
+      'data': data.map((e) => e.toJson()).toList(),
+    };
+  }
 }
 
-@JsonSerializable()
 class UserStats {
   final int userId;
   final String userName;
@@ -36,8 +33,13 @@ class UserStats {
     required this.averageValue,
   });
 
-  factory UserStats.fromJson(Map<String, dynamic> json) =>
-      _$UserStatsFromJson(json);
-
-  Map<String, dynamic> toJson() => _$UserStatsToJson(this);
+  Map<String, dynamic> toJson() {
+    return {
+      'user_id': userId,
+      'user_name': userName,
+      'total_orders': totalOrders,
+      'total_value': totalValue,
+      'average_value': averageValue,
+    };
+  }
 }

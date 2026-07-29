@@ -24,8 +24,7 @@ func (s *CacheService) GetOrSet(key string) (string, bool, error) {
 	}
 
 	newValue := "cached-value-" + key + "-" + time.Now().Format(time.RFC3339)
-	err = s.client.Set(ctx, key, newValue, 300*time.Second)
-	if err != nil {
+	if err := s.client.Set(ctx, key, newValue, 300*time.Second).Err(); err != nil {
 		return "", false, err
 	}
 

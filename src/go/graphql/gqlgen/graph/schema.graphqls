@@ -1,0 +1,89 @@
+# schema.graphql
+# Single source of truth for all GraphQL benchmark implementations.
+# All 11 environments must implement this exact schema.
+#
+# Rules:
+# - Use POST /graphql for all requests
+# - Disable GraphiQL, Playground, Apollo Sandbox during benchmarks
+# - Disable introspection during benchmarks (enable only for smoke tests)
+# - Disable tracing, persisted queries, automatic response caching
+# - Use fixed GraphQL documents (not dynamic queries)
+# - No DataLoader for scenarios without N+1
+
+# ============================================================================
+# Types
+# ============================================================================
+
+type Health {
+  status: String!
+  version: String!
+  timestamp: String!
+  database: String!
+  cache: String!
+}
+
+type JsonItem {
+  id: Int!
+  uuid: String!
+  name: String!
+  email: String!
+  createdAt: String!
+  isActive: Boolean!
+}
+
+type JsonItemsResult {
+  items: [JsonItem!]!
+  count: Int!
+  timestamp: String!
+}
+
+type User {
+  id: Int!
+  email: String!
+  firstName: String!
+  lastName: String!
+  age: Int!
+  createdAt: String!
+}
+
+type UserOrderStats {
+  userId: Int!
+  userName: String!
+  totalOrders: Int!
+  totalValue: Float!
+  averageOrderValue: Float!
+}
+
+type ComplexOrdersResult {
+  periodDays: Int!
+  totalUsers: Int!
+  data: [UserOrderStats!]!
+}
+
+type CacheEntry {
+  key: String!
+  value: String!
+  cached: Boolean!
+  ttl: Int!
+}
+
+# ============================================================================
+# Queries
+# ============================================================================
+
+type Query {
+  # Scenario 1: Health check
+  health: Health!
+
+  # Scenario 2: JSON serialization (1000 objects)
+  jsonItems(limit: Int = 1000): JsonItemsResult!
+
+  # Scenario 3: Simple database query
+  user(id: Int!): User
+
+  # Scenario 4: Complex database query
+  complexOrders(days: Int = 30): ComplexOrdersResult!
+
+  # Scenario 5: Cache hit/miss
+  cache(key: String!): CacheEntry!
+}

@@ -14,16 +14,13 @@ class CacheService {
     }
 
     final uri = Uri.parse(redisUrl);
-    _connection = RedisConnection();
+    final password = uri.userInfo.isNotEmpty ? uri.userInfo.split(':').last : null;
 
-    _command = await _connection.connect(
-      uri.host,
-      uri.port,
-      password: uri.userInfo.isNotEmpty ? uri.userInfo.split(':').last : null,
-    );
+    _connection = RedisConnection();
+    _command = await _connection.connect(uri.host, uri.port, password: password);
 
     _initialized = true;
-    logger.info('Redis connected');
+    logger.info('Redis connected to ${uri.host}:${uri.port}');
   }
 
   Future<void> close() async {
@@ -35,32 +32,23 @@ class CacheService {
   }
 
   Future<String?> get(String key) async {
-    if (!_initialized) {
-      throw Exception('Redis not initialized');
-    }
-
+    if (!_initialized) throw Exception('Redis not initialized');
     final result = await _command.send_object(['GET', key]);
     return result as String?;
   }
 
   Future<void> set(String key, String value, int ttlSeconds) async {
-    if (!_initialized) {
-      throw Exception('Redis not initialized');
-    }
-
+    if (!_initialized) throw Exception('Redis not initialized');
     await _command.send_object(['SETEX', key, ttlSeconds, value]);
   }
 
   Future<bool> ping() async {
-    if (!_initialized) {
-      return false;
-    }
-
+    if (!_initialized) return false;
     try {
       final result = await _command.send_object(['PING']);
       return result == 'PONG';
     } catch (error) {
-      logger.severe('Redis health check failed', error);
+      logger.severe('Redis health check failed: $error');
       return false;
     }
   }

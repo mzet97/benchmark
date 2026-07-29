@@ -1,8 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'user.g.dart';
-
-@JsonSerializable()
 class User {
   final int id;
   final String email;
@@ -20,12 +15,25 @@ class User {
     required this.createdAt,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as int,
+      email: json['email'] as String,
+      firstName: json['first_name'] as String,
+      lastName: json['last_name'] as String,
+      age: json['age'] as int,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
 
-  Map<String, dynamic> toJson() => _$UserToJson(this);
-
-  @override
-  String toString() {
-    return 'User{id: $id, email: $email, firstName: $firstName, lastName: $lastName, age: $age, createdAt: $createdAt}';
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+      'age': age,
+      'created_at': createdAt.toIso8601String(),
+    };
   }
 }

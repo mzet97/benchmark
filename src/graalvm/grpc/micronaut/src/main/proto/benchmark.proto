@@ -1,0 +1,130 @@
+// benchmark.proto
+// Single source of truth for all gRPC benchmark implementations.
+// All 11 environments must implement this service.
+//
+// Usage:
+//   protoc --go_out=. --go-grpc_out=. benchmark.proto     (Go)
+//   protoc --dart_out=grpc:lib/generated benchmark.proto  (Dart)
+//   protoc --java_out=. --grpc-java_out=. benchmark.proto (Java)
+//   protoc --rust_out=. --tonic_out=. benchmark.proto     (Rust via tonic)
+//   etc.
+
+syntax = "proto3";
+
+package benchmark;
+
+option java_package = "dev.benchmark.grpc";
+option go_package = "benchmark/generated";
+
+// ============================================================================
+// Service Definition
+// ============================================================================
+
+service BenchmarkService {
+  // Scenario 1: Health check
+  rpc Health(HealthRequest) returns (HealthResponse);
+
+  // Scenario 2: JSON serialization (1000 objects)
+  rpc GetJsonItems(JsonItemsRequest) returns (JsonItemsResponse);
+
+  // Scenario 3: Simple database query (single row)
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+
+  // Scenario 4: Complex database query (JOIN + aggregation)
+  rpc GetComplexOrders(ComplexOrdersRequest) returns (ComplexOrdersResponse);
+
+  // Scenario 5: Cache hit/miss
+  rpc GetCacheValue(CacheRequest) returns (CacheResponse);
+}
+
+// ============================================================================
+// Scenario 1: Health
+// ============================================================================
+
+message HealthRequest {}
+
+message HealthResponse {
+  string status = 1;
+  string version = 2;
+  string timestamp = 3;
+  string database = 4;
+  string cache = 5;
+}
+
+// ============================================================================
+// Scenario 2: JSON Serialization (1000 items)
+// ============================================================================
+
+message JsonItemsRequest {
+  int32 limit = 1; // Default: 1000
+}
+
+message JsonItemsResponse {
+  repeated JsonItem items = 1;
+  int32 count = 2;
+  string timestamp = 3;
+}
+
+message JsonItem {
+  int32 id = 1;
+  string uuid = 2;
+  string name = 3;
+  string email = 4;
+  string created_at = 5;
+  bool is_active = 6;
+}
+
+// ============================================================================
+// Scenario 3: Simple Database Query
+// ============================================================================
+
+message GetUserRequest {
+  int32 id = 1;
+}
+
+message UserResponse {
+  int32 id = 1;
+  string email = 2;
+  string first_name = 3;
+  string last_name = 4;
+  int32 age = 5;
+  string created_at = 6;
+}
+
+// ============================================================================
+// Scenario 4: Complex Database Query
+// ============================================================================
+
+message ComplexOrdersRequest {
+  int32 days = 1; // Default: 30
+}
+
+message ComplexOrdersResponse {
+  int32 period_days = 1;
+  int32 total_users = 2;
+  repeated UserOrderStats data = 3;
+}
+
+message UserOrderStats {
+  int32 user_id = 1;
+  string user_name = 2;
+  int32 total_orders = 3;
+  double total_value = 4;
+  double average_order_value = 5;
+}
+
+// ============================================================================
+// Scenario 5: Cache
+// ============================================================================
+
+message CacheRequest {
+  string key = 1;
+}
+
+message CacheResponse {
+  string key = 1;
+  string value = 2;
+  bool cached = 3;      // true = cache hit, false = cache miss
+  int32 ttl = 4;
+  string timestamp = 5;
+}

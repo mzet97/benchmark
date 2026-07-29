@@ -1,28 +1,28 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'json_item.g.dart';
-
-@JsonSerializable()
 class JsonItem {
   final int id;
+  final String uuid;
   final String name;
-  final String value;
-  final DateTime timestamp;
+  final String email;
+  final DateTime createdAt;
+  final bool isActive;
 
   const JsonItem({
     required this.id,
+    required this.uuid,
     required this.name,
-    required this.value,
-    required this.timestamp,
+    required this.email,
+    required this.createdAt,
+    required this.isActive,
   });
 
-  factory JsonItem.fromJson(Map<String, dynamic> json) =>
-      _$JsonItemFromJson(json);
-
-  Map<String, dynamic> toJson() => _$JsonItemToJson(this);
-
-  @override
-  String toString() {
-    return 'JsonItem{id: $id, name: $name, value: $value, timestamp: $timestamp}';
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'uuid': uuid,
+      'name': name,
+      'email': email,
+      'created_at': createdAt.toIso8601String(),
+      'is_active': isActive,
+    };
   }
 }

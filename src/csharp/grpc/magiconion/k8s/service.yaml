@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: csharp-magiconion
+  labels:
+    app: csharp-magiconion
+    benchmark: "true"
+spec:
+  type: ClusterIP
+  selector:
+    app: csharp-magiconion
+  ports:
+    - port: 50051
+      targetPort: 50051
+      protocol: TCP
+      name: grpc

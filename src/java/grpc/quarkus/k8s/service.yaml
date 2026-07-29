@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: benchmark-grpc-java-quarkus
+  labels:
+    app: benchmark-grpc-java-quarkus
+    component: grpc-server
+    benchmark: "true"
+spec:
+  type: ClusterIP
+  selector:
+    app: benchmark-grpc-java-quarkus
+  ports:
+    - port: 50051
+      targetPort: 50051
+      protocol: TCP
+      name: grpc
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http

@@ -1,0 +1,20 @@
+{
+  "name": "benchmark-bun-connectrpc",
+  "version": "1.0.0",
+  "description": "gRPC benchmark server for Bun using ConnectRPC",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "bun run src/server.js",
+    "dev": "bun run --watch src/server.js"
+  },
+  "dependencies": {
+    "@connectrpc/connect": "^1.4.0",
+    "@connectrpc/connect-node": "^1.4.0",
+    "@connectrpc/connect-fastify": "^1.4.0",
+    "@grpc/proto-loader": "^0.7.0",
+    "@bufbuild/protobuf": "^1.7.0",
+    "pg": "^8.12.0",
+    "ioredis": "^5.3.0",
+    "fastify": "^4.26.0"
+  }
+}

@@ -585,3 +585,65 @@ dev-test-csharp: test-csharp
 
 dev-test-rust: test-rust
 	@echo "Development test running..."
+
+# ================================
+# Implementation ID-based targets
+# ================================
+# These use the new implementation ID system.
+# Usage:
+#   make build IMPL=rust-rest-actix-web
+#   make deploy IMPL=rust-rest-actix-web MODE=single-pod
+#   make smoke IMPL=rust-rest-actix-web
+#   make undeploy IMPL=rust-rest-actix-web
+
+IMPL ?= $(error IMPL is required. Usage: make <target> IMPL=<implementation-id>)
+MODE ?= single-pod
+
+.PHONY: inventory build image push deploy smoke benchmark undeploy
+
+inventory:
+	@chmod +x scripts/list-implementations.sh
+	@./scripts/list-implementations.sh
+
+build:
+	@echo "Building $(IMPL)..."
+	@chmod +x scripts/build-image.sh
+	@./scripts/build-image.sh $(IMPL)
+
+image: build
+	@echo "Image built for $(IMPL)"
+
+push:
+	@echo "Pushing $(IMPL)..."
+	@docker push benchmark/$(IMPL):latest
+
+deploy:
+	@echo "Deploying $(IMPL) in mode $(MODE)..."
+	@chmod +x scripts/deploy.sh
+	@./scripts/deploy.sh $(IMPL) $(MODE)
+
+smoke:
+	@echo "Smoke testing $(IMPL)..."
+	@chmod +x scripts/smoke-test.sh
+	@./scripts/smoke-test.sh $(IMPL)
+
+benchmark:
+	@echo "Benchmarking $(IMPL) in mode $(MODE)..."
+	@chmod +x scripts/deploy.sh scripts/smoke-test.sh
+	@./scripts/deploy.sh $(IMPL) $(MODE)
+	@sleep 10
+	@./scripts/smoke-test.sh $(IMPL)
+	@echo "Benchmark for $(IMPL) would run here"
+
+undeploy:
+	@echo "Undeploying $(IMPL)..."
+	@chmod +x scripts/undeploy.sh
+	@./scripts/undeploy.sh $(IMPL)
+
+# K3s preflight
+preflight:
+	@echo "Running K3s preflight checks..."
+	@kubectl apply -f deploy/k3s/preflight/job.yaml -n benchmark
+	@echo "Waiting for preflight job to complete..."
+	@kubectl wait --for=condition=complete job/benchmark-preflight -n benchmark --timeout=120s || true
+	@kubectl logs job/benchmark-preflight -n benchmark

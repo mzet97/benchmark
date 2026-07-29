@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-apollo
+  labels:
+    app: graphql-apollo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-apollo
+  template:
+    metadata:
+      labels:
+        app: graphql-apollo
+    spec:
+      containers:
+        - name: graphql-apollo
+          image: graphql-apollo:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: graphql-apollo-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30

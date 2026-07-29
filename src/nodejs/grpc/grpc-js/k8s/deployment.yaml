@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-grpc-js
+  labels:
+    app: benchmark-grpc-js
+    component: grpc-server
+    benchmark: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-grpc-js
+  template:
+    metadata:
+      labels:
+        app: benchmark-grpc-js
+        component: grpc-server
+        benchmark: "true"
+    spec:
+      containers:
+        - name: grpc-js
+          image: benchmark/grpc-js:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 50051
+              name: grpc
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-grpc-js-config
+            - secretRef:
+                name: benchmark-secrets
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          livenessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-python
+  labels:
+    app: graphql-python
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-python
+  template:
+    metadata:
+      labels:
+        app: graphql-python
+    spec:
+      containers:
+        - name: server
+          image: graphql-python-strawberry:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: graphql-python-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

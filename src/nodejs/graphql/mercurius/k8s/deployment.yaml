@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphql-mercurius
+  labels:
+    app: graphql-mercurius
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: graphql-mercurius
+  template:
+    metadata:
+      labels:
+        app: graphql-mercurius
+    spec:
+      containers:
+        - name: graphql-mercurius
+          image: graphql-mercurius:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: graphql-mercurius-config
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30

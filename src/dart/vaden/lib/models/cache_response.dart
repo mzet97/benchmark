@@ -1,8 +1,3 @@
-import 'package:json_annotation/json_annotation.dart';
-
-part 'cache_response.g.dart';
-
-@JsonSerializable()
 class CacheResponse {
   final String key;
   final String value;
@@ -16,13 +11,12 @@ class CacheResponse {
     required this.ttl,
   });
 
-  factory CacheResponse.fromJson(Map<String, dynamic> json) =>
-      _$CacheResponseFromJson(json);
-
-  Map<String, dynamic> toJson() => _$CacheResponseToJson(this);
-
-  @override
-  String toString() {
-    return 'CacheResponse{key: $key, value: $value, cached: $cached, ttl: $ttl}';
+  Map<String, dynamic> toJson() {
+    return {
+      'key': key,
+      'value': value,
+      'cached': cached,
+      'ttl': ttl,
+    };
   }
 }

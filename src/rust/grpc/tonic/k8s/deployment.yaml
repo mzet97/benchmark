@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: benchmark-grpc-tonic
+  labels:
+    app: benchmark-grpc-tonic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: benchmark-grpc-tonic
+  template:
+    metadata:
+      labels:
+        app: benchmark-grpc-tonic
+    spec:
+      containers:
+        - name: server
+          image: benchmark-grpc-tonic:latest
+          ports:
+            - containerPort: 50051
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: benchmark-grpc-tonic-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          readinessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 30

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: benchmark-grpc-tonic
+  labels:
+    app: benchmark-grpc-tonic
+spec:
+  type: ClusterIP
+  selector:
+    app: benchmark-grpc-tonic
+  ports:
+    - port: 50051
+      targetPort: 50051
+      protocol: TCP
+      name: grpc

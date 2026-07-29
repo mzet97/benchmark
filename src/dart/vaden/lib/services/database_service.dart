@@ -12,13 +12,16 @@ class DatabaseService {
       throw Exception('DATABASE_URL is required');
     }
 
+    final uri = Uri.parse(databaseUrl);
+    final userInfo = uri.userInfo.split(':');
+
     _connection = await Connection.open(
       Endpoint(
-        host: Uri.parse(databaseUrl).host,
-        database: Uri.parse(databaseUrl).path.substring(1),
-        username: Uri.parse(databaseUrl).userInfo.split(':').first,
-        password: Uri.parse(databaseUrl).userInfo.split(':').last,
-        port: Uri.parse(databaseUrl).port,
+        host: uri.host,
+        database: uri.path.substring(1),
+        username: userInfo.first,
+        password: userInfo.length > 1 ? userInfo.last : '',
+        port: uri.port,
       ),
       settings: ConnectionSettings(
         timeoutInterval: Duration(
@@ -28,7 +31,7 @@ class DatabaseService {
     );
 
     _initialized = true;
-    logger.info('Database connected');
+    logger.info('Database connected to ${uri.host}:${uri.port}');
   }
 
   Future<void> close() async {
@@ -44,20 +47,12 @@ class DatabaseService {
       throw Exception('Database not initialized');
     }
 
-    final query = '''
-      SELECT id, email, first_name, last_name, age, created_at
-      FROM users
-      WHERE id = @id
-    ''';
-
     final result = await _connection.execute(
-      Sql.named(query),
+      Sql.named('SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = @id'),
       parameters: {'id': userId},
     );
 
-    if (result.isEmpty) {
-      return null;
-    }
+    if (result.isEmpty) return null;
 
     final row = result.first;
     return {
@@ -84,40 +79,36 @@ class DatabaseService {
         COALESCE(AVG(oi.quantity * oi.price), 0) as average_value
       FROM users u
       LEFT JOIN orders o ON u.id = o.user_id
-        AND o.created_at >= NOW() - INTERVAL '@days days'
+        AND o.created_at >= NOW() - INTERVAL '\$1 days'
         AND o.status = 'completed'
       LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.id IS NULL OR (o.created_at >= NOW() - INTERVAL '@days days' AND o.status = 'completed')
+      WHERE o.id IS NOT NULL
+        AND o.created_at >= NOW() - INTERVAL '\$1 days'
+        AND o.status = 'completed'
       GROUP BY u.id, u.first_name, u.last_name
       HAVING COUNT(DISTINCT o.id) > 0
       ORDER BY total_value DESC
       LIMIT 100
     ''';
 
-    final result = await _connection.execute(
-      Sql.named(query),
-      parameters: {'days': days},
-    );
+    final result = await _connection.execute(query, parameters: [days]);
 
     return result.map((row) => {
       'user_id': row[0] as int,
       'user_name': row[1] as String,
       'total_orders': row[2] as int,
-      'total_value': row[3] as double,
-      'average_value': row[4] as double,
+      'total_value': (row[3] as num).toDouble(),
+      'average_value': (row[4] as num).toDouble(),
     }).toList();
   }
 
   Future<bool> healthCheck() async {
-    if (!_initialized) {
-      return false;
-    }
-
+    if (!_initialized) return false;
     try {
       await _connection.execute('SELECT 1');
       return true;
     } catch (error) {
-      logger.severe('Database health check failed', error);
+      logger.severe('Database health check failed: $error');
       return false;
     }
   }

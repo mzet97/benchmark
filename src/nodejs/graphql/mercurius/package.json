@@ -1,0 +1,16 @@
+{
+  "name": "graphql-mercurius-benchmark",
+  "version": "1.0.0",
+  "description": "GraphQL benchmark with Fastify + Mercurius",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "fastify": "^5.3.3",
+    "mercurius": "^16.0.1",
+    "pg": "^8.13.3",
+    "redis": "^4.7.0"
+  }
+}

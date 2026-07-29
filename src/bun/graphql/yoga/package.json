@@ -1,0 +1,17 @@
+{
+  "name": "benchmark-bun-graphql-yoga",
+  "version": "1.0.0",
+  "description": "High-performance GraphQL API benchmark using Bun runtime with GraphQL Yoga",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "bun run --watch src/server.js",
+    "start": "bun src/server.js"
+  },
+  "dependencies": {
+    "graphql": "^16.8.1",
+    "@graphql-yoga/node": "^5.1.0",
+    "pg": "^8.11.3",
+    "ioredis": "^5.3.2"
+  }
+}
