@@ -42,8 +42,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("gRPC server listening on {}", addr);
 
+    let reflection_service = tonic_reflection::server::Builder::configure()
+        .register_encoded_file_descriptor_set(benchmark::FILE_DESCRIPTOR_SET)
+        .build()
+        .unwrap_or_else(|e| {
+            eprintln!("Warning: Reflection service failed to build: {}", e);
+            // Return a dummy service that will never match
+            tonic_reflection::server::Builder::configure().build().unwrap()
+        });
+
     Server::builder()
         .add_service(svc)
+        .add_service(reflection_service)
         .serve_with_shutdown(addr, async {
             signal::ctrl_c()
                 .await
