@@ -7,12 +7,8 @@ cd "$SCRIPT_DIR"
 IMAGE_NAME="benchmark/spring-graphql-native"
 IMAGE_TAG="${1:-latest}"
 
-echo "=== Building Spring GraphQL Native Benchmark ==="
+echo "=== Building Spring for GraphQL Native Benchmark ==="
 echo "Image: ${IMAGE_NAME}:${IMAGE_TAG}"
-
-docker run --rm -v "$(pwd)":/app -w /app \
-    ghcr.io/graalvm/native-image-community:21 \
-    ./mvnw package -Pnative -DskipTests -B
 
 docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
 

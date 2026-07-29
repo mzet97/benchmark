@@ -1,189 +1,182 @@
-# API REST Multi-Language Benchmark
+# API Benchmark — REST, gRPC & GraphQL
 
-## 📊 Visão Geral
+Comparativo de desempenho de **101 implementações** em **11 ambientes tecnológicos** e **3 protocolos**.
 
-Benchmark abrangente e comparativo de performance de frameworks REST API em **11 linguagens de programação** e **~35 frameworks**, focado em cenários de **alta performance**.
+## 📊 Resumo
 
-### 🎯 Objetivo
+| Protocolo | Implementações | Status |
+|-----------|---------------|--------|
+| REST | 36 | ✅ |
+| gRPC | 33 | ✅ |
+| GraphQL | 32 | ✅ |
+| **Total** | **101** | ✅ |
 
-Comparar performance entre diferentes linguagens e frameworks, identificando:
-- Throughput (requests/segundo)
-- Latência (p50, p95, p99)
-- Memory footprint
-- Cold start time
-- Trade-offs performance vs. facilidade de desenvolvimento
+## 🌐 Ambientes
 
-## 🏗️ Arquitetura
+| Ambiente | REST | gRPC | GraphQL | Total |
+|----------|------|------|---------|-------|
+| Rust | 4 | 3 | 3 | 10 |
+| Go | 4 | 3 | 3 | 10 |
+| C#/.NET | 3 | 3 | 3 | 9 |
+| Node.js | 3 | 3 | 3 | 9 |
+| Bun | 3 | 3 | 3 | 9 |
+| Deno | 4 | 3 | 3 | 10 |
+| Python | 3 | 3 | 3 | 9 |
+| Dart | 1 | 1 | 3 | 5 |
+| Java/JVM | 3 | 4 | 2 | 9 |
+| Kotlin/JVM | 3 | 3 | 3 | 9 |
+| GraalVM Native | 5 | 3 | 3 | 11 |
 
-### Infraestrutura
-- **PostgreSQL**: `spsql.home.arpa:5432` (database: `benchmark_api`)
-- **Redis**: `redis.home.arpa:30379`
-- **Kubernetes**: namespace `benchmark`, 5 réplicas por serviço
-- **Load Testing**: wrk (8 threads, 200 conexões, 30s) + k6 (50 VUs, 60s)
+## 📋 Contratos
 
-### Dados de Teste
-- **10.000 usuários** | **50.000 pedidos** | **200.000 itens de pedido**
-
-## 🌐 11 Linguagens Implementadas
-
-| Linguagem | Frameworks | Status | Performance |
-|-----------|-----------|--------|-------------|
-| **C# (.NET 9)** | Minimal API | ✅ Concluído | ⭐⭐⭐⭐⭐ |
-| **Rust** | Actix Web, Axum, Rocket, Warp | ✅ Concluído | ⭐⭐⭐⭐⭐ |
-| **Java (21+)** | Quarkus, Spring Boot, Micronaut | ✅ Concluído | ⭐⭐⭐⭐⭐ |
-| **Go (1.23+)** | Fiber, Gin, Echo, Chi | ✅ Concluído | ⭐⭐⭐⭐⭐ |
-| **Kotlin** | Ktor, Spring Boot, http4k | ✅ Concluído | ⭐⭐⭐⭐ |
-| **Node.js (22+)** | Fastify, Express, NestJS | ✅ Concluído | ⭐⭐⭐⭐ |
-| **Python (3.12+)** | FastAPI, Django, Flask | ✅ Concluído | ⭐⭐⭐ |
-| **Bun (1.x)** | Elysia, Hono, Bun.serve | ✅ Concluído | ⭐⭐⭐⭐ |
-| **Deno (2.x)** | Oak, Fresh, Hono, Deno.serve | ✅ Concluído | ⭐⭐⭐ |
-| **Dart (3.x)** | Shelf | ✅ Concluído | ⭐⭐⭐ |
-| **GraalVM (21+)** | Vert.x, Spring, Micronaut, Helidon | ✅ Concluído | ⭐⭐⭐⭐⭐ |
-
-## 🔌 Endpoints Obrigatórios
-
-Todos os serviços implementam os mesmos 5 endpoints:
+### REST — 5 Endpoints
 
 | Endpoint | Descrição |
 |----------|-----------|
-| `GET /health` | Health check (DB + Redis) |
-| `GET /json` | Serialização JSON (1000 objetos) |
-| `GET /db/simple?id={id}` | Query simples (SELECT por ID) |
-| `GET /db/complex?days={days}` | Query complexa (JOIN + agregação) |
-| `GET /cache?key={key}` | Cache Redis (GET/SET com TTL) |
+| `GET /health` | Health check |
+| `GET /json` | Serialização de 1000 objetos |
+| `GET /db/simple?id=1` | Query simples (PostgreSQL) |
+| `GET /db/complex?days=30` | Query complexa com JOIN |
+| `GET /cache?key=X` | Cache hit/miss (Redis) |
 
-## 🚀 Quick Start
+### gRPC
 
-```bash
-# 1. Setup Database
-make setup-database
+Contrato: `contracts/grpc/benchmark.proto`
 
-# 2. Build all 11 implementations
-make build-all
-
-# 3. Deploy all to Kubernetes
-make deploy-all
-
-# 4. Run all benchmarks (long-running)
-make benchmark-all
-
-# 5. Check status
-make status
-
-# 6. Undeploy all
-make undeploy-all
+```protobuf
+service BenchmarkService {
+  rpc Health(HealthRequest) returns (HealthResponse);
+  rpc GetJsonItems(JsonItemsRequest) returns (JsonItemsResponse);
+  rpc GetUser(GetUserRequest) returns (UserResponse);
+  rpc GetComplexOrders(ComplexOrdersRequest) returns (ComplexOrdersResponse);
+  rpc GetCacheValue(CacheRequest) returns (CacheResponse);
+}
 ```
 
-### Comandos Individuais
+### GraphQL
 
-```bash
-# Build/deploy/benchmark uma linguagem específica
-make build-rust
-make deploy-rust
-make benchmark-rust
-make undeploy-rust
+Schema: `contracts/graphql/schema.graphql`
 
-# Listar todas as linguagens disponíveis
-make help
+```graphql
+type Query {
+  health: Health!
+  jsonItems(limit: Int = 1000): JsonItemsResult!
+  user(id: Int!): User
+  complexOrders(days: Int = 30): ComplexOrdersResult!
+  cache(key: String!): CacheEntry!
+}
 ```
 
-## 📁 Estrutura do Projeto
+## 🏗️ Infraestrutura
+
+- **PostgreSQL**: `spsql.home.arpa:5432` (10k users, 50k orders, 200k items)
+- **Redis**: `redis.home.arpa:30379`
+- **Kubernetes**: K3s, namespace `benchmark`
+- **Load Testing**: wrk (REST), k6 (REST/GraphQL), ghz (gRPC)
+
+## 🏷️ Identificador Único
+
+Cada implementação possui um ID: `<ambiente>-<protocolo>-<framework>`
+
+Exemplos:
+- `rust-rest-actix-web`
+- `go-grpc-grpc-go`
+- `nodejs-graphql-mercurius`
+- `dart-rest-vaden`
+- `graalvm-graphql-smallrye`
+
+## 🚀 Comandos
+
+```bash
+# Listar todas as 101 implementações
+make inventory
+
+# Build por implementation ID
+make build IMPL=rust-grpc-tonic
+
+# Deploy em modo single-pod
+make deploy IMPL=go-graphql-gqlgen MODE=single-pod
+
+# Smoke test
+make smoke IMPL=nodejs-graphql-mercurius
+
+# Benchmark
+make benchmark IMPL=python-grpc-grpcio SCENARIO=health MODE=clusterip
+
+# Undeploy
+make undeploy IMPL=csharp-rest-controllers
+
+# Preflight check (PostgreSQL + Redis)
+make preflight
+```
+
+## 📈 Modos de Benchmark
+
+| Modo | Réplicas | Acesso | Objetivo |
+|------|----------|--------|----------|
+| A — Pod Single | 1 | Direto | Comparação entre frameworks |
+| B — ClusterIP | 1 | Service | Custo do Service/CoreDNS |
+| C — Scale-Out | 5 | Service | Escalabilidade horizontal |
+
+## 📁 Estrutura
 
 ```
 benchmark/
-├── Makefile                    # Automação (build/deploy/benchmark all)
-├── README.md                   # Este arquivo
-├── FINAL_SUMMARY.md            # Resumo executivo final
-├── sql/                        # Schema, seed, índices
-│   ├── 01_schema.sql
-│   ├── 02_seed.sql
-│   └── 03_indexes.sql
-├── kubernetes/                 # Secrets compartilhados
-│   └── secrets.yaml
-├── scripts/                    # Scripts de automação
-│   ├── deploy-k8s.sh          # Deploy genérico (qualquer linguagem)
-│   ├── undeploy-k8s.sh        # Undeploy genérico
-│   ├── benchmark-wrk-*.sh     # Benchmarks por linguagem (11)
-│   └── benchmark-k6.sh        # Benchmark k6
-├── docs/                       # Documentação
-│   ├── API_ENDPOINTS.md        # Especificação dos endpoints
-│   ├── DEPLOYMENT_GUIDE.md     # Guia de deploy
-│   └── BENCHMARK_RESULTS.md   # Resultados
-└── src/                        # Implementações
-    ├── csharp/MinimalApi/      # C# (.NET 9 Native AOT)
-    ├── rust/                   # Rust (4 frameworks)
-    ├── java/                   # Java (3 frameworks)
-    ├── go/                     # Go (4 frameworks)
-    ├── kotlin/                 # Kotlin (3 frameworks)
-    ├── nodejs/                 # Node.js (3 frameworks)
-    ├── python/                 # Python (3 frameworks)
-    ├── bun/                    # Bun (3 frameworks)
-    ├── deno/                   # Deno (4 frameworks)
-    ├── dart/vaden/             # Dart (Shelf)
-    └── graalvm/                # GraalVM (6 frameworks)
+├── config/implementations.yaml    # Fonte de verdade (101 impls)
+├── contracts/
+│   ├── grpc/benchmark.proto       # Contrato gRPC
+│   └── graphql/schema.graphql     # Schema GraphQL
+├── deploy/k3s/
+│   ├── base/                      # Kustomize base
+│   ├── overlays/                  # Overlays por protocolo
+│   ├── loadgen/                   # Jobs wrk/ghz/k6
+│   └── preflight/                 # Job de validação
+├── docs/                          # Documentação
+├── scripts/                       # Scripts genéricos
+├── src/                           # 11 ambientes × 3 protocolos
+│   ├── rust/     (4+3+3 = 10)
+│   ├── go/       (4+3+3 = 10)
+│   ├── csharp/   (3+3+3 = 9)
+│   ├── nodejs/   (3+3+3 = 9)
+│   ├── bun/      (3+3+3 = 9)
+│   ├── deno/     (4+3+3 = 10)
+│   ├── python/   (3+3+3 = 9)
+│   ├── dart/     (1+1+3 = 5)
+│   ├── java/     (3+4+2 = 9)
+│   ├── kotlin/   (3+3+3 = 9)
+│   └── graalvm/  (5+3+3 = 11)
+├── sql/                           # Schema, seed, indexes
+├── kubernetes/secrets.example.yaml
+└── Makefile
 ```
 
-## 📊 Performance Ranking
+## 📚 Documentação
 
-| Rank | Linguagem | Startup | Memória | Throughput | Latência |
-|------|-----------|---------|---------|------------|----------|
-| 🥇 | Go (Fiber) | <10ms | 10-20MB | 500k+/s | <1ms |
-| 🥇 | Rust (Actix) | 10-50ms | 10-20MB | 500k+/s | 0.5-1ms |
-| 🥈 | GraalVM (Vert.x) | <50ms | 20-50MB | 400k-600k/s | 1-2ms |
-| 🥈 | Java (Quarkus) | <50ms | 20-40MB | 400k-500k/s | 1-2ms |
-| 🥉 | Bun (Elysia) | 50-200ms | 30-80MB | 400k-600k/s | 1-2ms |
-| 6 | C# (.NET AOT) | 50-100ms | 50-80MB | 400k+/s | 1-2ms |
-| 7 | Deno (Oak) | 100-300ms | 40-100MB | 300k-500k/s | 1-3ms |
-| 8 | Node.js (Fastify) | 100-500ms | 50-100MB | 300k-500k/s | 1-3ms |
-| 9 | Dart (Shelf) | 200-500ms | 50-100MB | 300k-500k/s | 2-3ms |
-| 10 | Kotlin (Ktor) | 2-3s | 100-200MB | 300k-400k/s | 2-3ms |
-| 11 | Python (FastAPI) | 500ms-2s | 50-150MB | 100k-300k/s | 3-5ms |
+| Documento | Descrição |
+|-----------|-----------|
+| [SECURITY_REMEDIATION.md](docs/SECURITY_REMEDIATION.md) | Plano de rotação de credenciais |
+| [PROJECT_INVENTORY.md](docs/PROJECT_INVENTORY.md) | Inventário completo de 101 implementações |
+| [FRAMEWORK_MATRIX.md](docs/FRAMEWORK_MATRIX.md) | Matriz de frameworks por ambiente |
+| [API_CONTRACTS.md](docs/API_CONTRACTS.md) | Contratos REST/gRPC/GraphQL |
+| [BENCHMARK_METHODOLOGY.md](docs/BENCHMARK_METHODOLOGY.md) | Metodologia científica |
+| [RESULTS_SCHEMA.md](docs/RESULTS_SCHEMA.md) | Schema JSON dos resultados |
 
-## ☸️ Kubernetes
+## ⚠️ Segurança
 
-Cada implementação inclui:
-- **deployment.yaml**: 5 réplicas, health checks (liveness + readiness), resource limits
-- **service.yaml**: ClusterIP na porta 80 → targetPort do app
-- **configmap.yaml**: Configurações do servidor
+O arquivo `kubernetes/secrets.yaml` contém credenciais em texto aberto.
+Consulte [SECURITY_REMEDIATION.md](docs/SECURITY_REMEDIATION.md) para o plano de remediação.
 
-```bash
-# Deploy de uma linguagem específica
-./scripts/deploy-k8s.sh csharp
-./scripts/deploy-k8s.sh rust
-./scripts/deploy-k8s.sh go
+Use `kubernetes/secrets.example.yaml` como template seguro.
 
-# Undeploy
-./scripts/undeploy-k8s.sh csharp
+## 📊 Resultados
 
-# Status de todos os pods
-make status
-```
+Resultados serão classificados como:
+- **MEASURED**: Dados reais coletados
+- **ESTIMATED**: Valores projetados
+- **EXEMPLO**: Template/formato
 
-## 📈 Métricas Coletadas
+Rankings separados por protocolo, modo e cenário.
 
-- **Throughput**: Requests/segundo (wrk)
-- **Latência**: p50, p95, p99, p99.9
-- **Memory Footprint**: MB por pod (kubectl top)
-- **CPU Utilization**: % de uso
-- **Cold Start**: Tempo de inicialização
-- **Error Rate**: % de falhas (k6)
+## Licença
 
-## 🤝 Contribuindo
-
-Para adicionar uma nova linguagem:
-
-1. Crie diretório: `src/{linguagem}/{framework}/`
-2. Implemente os 5 endpoints obrigatórios
-3. Adicione Dockerfile multi-stage otimizado
-4. Crie manifests K8s (deployment, service, configmap)
-5. Adicione `build.sh` e `run.sh`
-6. Crie `README.md` com documentação
-7. Teste com `make benchmark-{linguagem}`
-
-## 📄 Licença
-
-MIT License
-
----
-
-**⭐ 11 linguagens. ~35 frameworks. Production-ready. Benchmark-grade. ⭐**
+MIT

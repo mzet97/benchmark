@@ -58,7 +58,6 @@ public class CacheService {
                 );
             }
 
-            // Generate a default value and cache it
             String defaultValue = "{\"key\": \"" + key + "\", \"generated\": true}";
             jedis.setex(key, 300, defaultValue);
 

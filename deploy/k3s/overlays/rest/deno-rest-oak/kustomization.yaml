@@ -1,0 +1,62 @@
+# Overlay for deno-rest-oak
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: deno-rest-oak
+  benchmark-protocol: rest
+  benchmark-environment: deno
+  benchmark-framework: oak
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-oak
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: deno-rest-oak
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: deno-rest-oak
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/deno-rest-oak:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: deno-rest-oak-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-oak
+      - op: replace
+        path: /spec/selector/app
+        value: deno-rest-oak
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-oak-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

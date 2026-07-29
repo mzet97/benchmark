@@ -1,0 +1,62 @@
+# Overlay for java-graphql-dgs
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: java-graphql-dgs
+  benchmark-protocol: graphql
+  benchmark-environment: java
+  benchmark-framework: dgs
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-graphql-dgs
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: java-graphql-dgs
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: java-graphql-dgs
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/java-graphql-dgs:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: java-graphql-dgs-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-graphql-dgs
+      - op: replace
+        path: /spec/selector/app
+        value: java-graphql-dgs
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-graphql-dgs-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

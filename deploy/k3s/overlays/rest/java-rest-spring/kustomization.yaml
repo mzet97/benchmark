@@ -1,0 +1,62 @@
+# Overlay for java-rest-spring
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: java-rest-spring
+  benchmark-protocol: rest
+  benchmark-environment: java
+  benchmark-framework: spring
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-rest-spring
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: java-rest-spring
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: java-rest-spring
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/java-rest-spring:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: java-rest-spring-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-rest-spring
+      - op: replace
+        path: /spec/selector/app
+        value: java-rest-spring
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: java-rest-spring-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

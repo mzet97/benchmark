@@ -1,0 +1,62 @@
+# Overlay for go-rest-chi
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: go-rest-chi
+  benchmark-protocol: rest
+  benchmark-environment: go
+  benchmark-framework: chi
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-rest-chi
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: go-rest-chi
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: go-rest-chi
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/go-rest-chi:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: go-rest-chi-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-rest-chi
+      - op: replace
+        path: /spec/selector/app
+        value: go-rest-chi
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-rest-chi-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

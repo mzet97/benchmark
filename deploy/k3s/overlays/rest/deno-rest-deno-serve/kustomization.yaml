@@ -1,0 +1,62 @@
+# Overlay for deno-rest-deno-serve
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: deno-rest-deno-serve
+  benchmark-protocol: rest
+  benchmark-environment: deno
+  benchmark-framework: deno-serve
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-deno-serve
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: deno-rest-deno-serve
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: deno-rest-deno-serve
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/deno-rest-deno-serve:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: deno-rest-deno-serve-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-deno-serve
+      - op: replace
+        path: /spec/selector/app
+        value: deno-rest-deno-serve
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: deno-rest-deno-serve-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

@@ -1,0 +1,62 @@
+# Overlay for bun-rest-bun-serve
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: bun-rest-bun-serve
+  benchmark-protocol: rest
+  benchmark-environment: bun
+  benchmark-framework: bun-serve
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-rest-bun-serve
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: bun-rest-bun-serve
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: bun-rest-bun-serve
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/bun-rest-bun-serve:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: bun-rest-bun-serve-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-rest-bun-serve
+      - op: replace
+        path: /spec/selector/app
+        value: bun-rest-bun-serve
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-rest-bun-serve-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

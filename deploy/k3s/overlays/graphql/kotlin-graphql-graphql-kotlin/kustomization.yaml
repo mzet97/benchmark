@@ -1,0 +1,62 @@
+# Overlay for kotlin-graphql-graphql-kotlin
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: kotlin-graphql-graphql-kotlin
+  benchmark-protocol: graphql
+  benchmark-environment: kotlin
+  benchmark-framework: graphql-kotlin
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-graphql-graphql-kotlin
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: kotlin-graphql-graphql-kotlin
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: kotlin-graphql-graphql-kotlin
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/kotlin-graphql-graphql-kotlin:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: kotlin-graphql-graphql-kotlin-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-graphql-graphql-kotlin
+      - op: replace
+        path: /spec/selector/app
+        value: kotlin-graphql-graphql-kotlin
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-graphql-graphql-kotlin-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

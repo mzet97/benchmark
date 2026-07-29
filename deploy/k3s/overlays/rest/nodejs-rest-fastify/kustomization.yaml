@@ -1,0 +1,62 @@
+# Overlay for nodejs-rest-fastify
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: nodejs-rest-fastify
+  benchmark-protocol: rest
+  benchmark-environment: nodejs
+  benchmark-framework: fastify
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: nodejs-rest-fastify
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: nodejs-rest-fastify
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: nodejs-rest-fastify
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/nodejs-rest-fastify:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: nodejs-rest-fastify-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: nodejs-rest-fastify
+      - op: replace
+        path: /spec/selector/app
+        value: nodejs-rest-fastify
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: nodejs-rest-fastify-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

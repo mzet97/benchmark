@@ -69,8 +69,8 @@ spec:
             scheme: HTTP
           initialDelaySeconds: 5
           periodSeconds: 5
- 3
-                   timeoutSeconds: failureThreshold: 3
+          timeoutSeconds: 5
+          failureThreshold: 3
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true

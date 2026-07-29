@@ -56,7 +56,7 @@ public class DatabaseService {
         }
     }
 
-    public Models.ComplexOrdersResult getComplexOrders(int days) {
+    public List<Models.UserOrderStats> getComplexOrders(int days) {
         String sql = """
                 SELECT
                     u.id AS user_id,
@@ -90,6 +90,6 @@ public class DatabaseService {
             throw new RuntimeException("Database error", e);
         }
 
-        return new Models.ComplexOrdersResult(days, statsList.size(), statsList);
+        return statsList;
     }
 }

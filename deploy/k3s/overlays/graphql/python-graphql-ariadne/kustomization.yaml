@@ -1,0 +1,62 @@
+# Overlay for python-graphql-ariadne
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: python-graphql-ariadne
+  benchmark-protocol: graphql
+  benchmark-environment: python
+  benchmark-framework: ariadne
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: python-graphql-ariadne
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: python-graphql-ariadne
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: python-graphql-ariadne
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/python-graphql-ariadne:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: python-graphql-ariadne-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: python-graphql-ariadne
+      - op: replace
+        path: /spec/selector/app
+        value: python-graphql-ariadne
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: python-graphql-ariadne-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

@@ -1,0 +1,62 @@
+# Overlay for bun-graphql-hono
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: bun-graphql-hono
+  benchmark-protocol: graphql
+  benchmark-environment: bun
+  benchmark-framework: hono
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-graphql-hono
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: bun-graphql-hono
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: bun-graphql-hono
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/bun-graphql-hono:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: bun-graphql-hono-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-graphql-hono
+      - op: replace
+        path: /spec/selector/app
+        value: bun-graphql-hono
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: bun-graphql-hono-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

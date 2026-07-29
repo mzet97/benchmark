@@ -1,0 +1,62 @@
+# Overlay for csharp-rest-controllers
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: csharp-rest-controllers
+  benchmark-protocol: rest
+  benchmark-environment: csharp
+  benchmark-framework: controllers
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-rest-controllers
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: csharp-rest-controllers
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: csharp-rest-controllers
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/csharp-rest-controllers:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: csharp-rest-controllers-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-rest-controllers
+      - op: replace
+        path: /spec/selector/app
+        value: csharp-rest-controllers
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-rest-controllers-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

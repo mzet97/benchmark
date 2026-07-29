@@ -1,0 +1,62 @@
+# Overlay for go-graphql-graphql-go
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: go-graphql-graphql-go
+  benchmark-protocol: graphql
+  benchmark-environment: go
+  benchmark-framework: graphql-go
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-graphql-graphql-go
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: go-graphql-graphql-go
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: go-graphql-graphql-go
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/go-graphql-graphql-go:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: go-graphql-graphql-go-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-graphql-graphql-go
+      - op: replace
+        path: /spec/selector/app
+        value: go-graphql-graphql-go
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: go-graphql-graphql-go-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

@@ -1,0 +1,62 @@
+# Overlay for dart-graphql-angel3
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: dart-graphql-angel3
+  benchmark-protocol: graphql
+  benchmark-environment: dart
+  benchmark-framework: angel3
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: dart-graphql-angel3
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: dart-graphql-angel3
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: dart-graphql-angel3
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/dart-graphql-angel3:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: dart-graphql-angel3-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: dart-graphql-angel3
+      - op: replace
+        path: /spec/selector/app
+        value: dart-graphql-angel3
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: dart-graphql-angel3-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"

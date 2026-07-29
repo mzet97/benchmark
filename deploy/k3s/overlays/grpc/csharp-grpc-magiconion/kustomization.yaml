@@ -1,0 +1,77 @@
+# Overlay for csharp-grpc-magiconion
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: csharp-grpc-magiconion
+  benchmark-protocol: grpc
+  benchmark-environment: csharp
+  benchmark-framework: magiconion
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-grpc-magiconion
+      - op: replace
+        path: /metadata/labels/benchmark-protocol
+        value: grpc
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: csharp-grpc-magiconion
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: csharp-grpc-magiconion
+      - op: replace
+        path: /spec/template/metadata/labels/benchmark-protocol
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/csharp-grpc-magiconion:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 50051
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/name
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: csharp-grpc-magiconion-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-grpc-magiconion
+      - op: replace
+        path: /spec/selector/app
+        value: csharp-grpc-magiconion
+      - op: replace
+        path: /spec/ports/0/name
+        value: grpc
+      - op: replace
+        path: /spec/ports/0/targetPort
+        value: grpc
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: csharp-grpc-magiconion-config
+      - op: replace
+        path: /data/PORT
+        value: "50051"

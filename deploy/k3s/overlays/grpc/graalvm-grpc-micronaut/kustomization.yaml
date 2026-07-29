@@ -1,0 +1,77 @@
+# Overlay for graalvm-grpc-micronaut
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: graalvm-grpc-micronaut
+  benchmark-protocol: grpc
+  benchmark-environment: graalvm
+  benchmark-framework: micronaut
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: graalvm-grpc-micronaut
+      - op: replace
+        path: /metadata/labels/benchmark-protocol
+        value: grpc
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: graalvm-grpc-micronaut
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: graalvm-grpc-micronaut
+      - op: replace
+        path: /spec/template/metadata/labels/benchmark-protocol
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/graalvm-grpc-micronaut:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 50051
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/name
+        value: grpc
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: graalvm-grpc-micronaut-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: graalvm-grpc-micronaut
+      - op: replace
+        path: /spec/selector/app
+        value: graalvm-grpc-micronaut
+      - op: replace
+        path: /spec/ports/0/name
+        value: grpc
+      - op: replace
+        path: /spec/ports/0/targetPort
+        value: grpc
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: graalvm-grpc-micronaut-config
+      - op: replace
+        path: /data/PORT
+        value: "50051"

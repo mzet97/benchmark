@@ -33,6 +33,7 @@ public class QueryController {
 
     @QueryMapping
     public Models.JsonItemsResult jsonItems(@Argument int limit) {
+        if (limit <= 0) limit = 1000;
         List<Models.JsonItem> items = new ArrayList<>(limit);
         for (int i = 0; i < limit; i++) {
             items.add(new Models.JsonItem(
@@ -54,7 +55,8 @@ public class QueryController {
 
     @QueryMapping
     public Models.ComplexOrdersResult complexOrders(@Argument int days) {
-        return databaseService.getComplexOrders(days);
+        List<Models.UserOrderStats> data = databaseService.getComplexOrders(days);
+        return new Models.ComplexOrdersResult(days, data.size(), data);
     }
 
     @QueryMapping

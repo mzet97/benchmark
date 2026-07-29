@@ -1,0 +1,62 @@
+# Overlay for kotlin-rest-http4k
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: benchmark
+
+resources:
+  - ../../../../base
+
+commonLabels:
+  app: kotlin-rest-http4k
+  benchmark-protocol: rest
+  benchmark-environment: kotlin
+  benchmark-framework: http4k
+
+namePrefix: ""
+
+patches:
+  - target:
+      kind: Deployment
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-rest-http4k
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: kotlin-rest-http4k
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: kotlin-rest-http4k
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: benchmark/kotlin-rest-http4k:latest
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 8080
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
+        value: kotlin-rest-http4k-config
+
+  - target:
+      kind: Service
+      name: PLACEHOLDER
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-rest-http4k
+      - op: replace
+        path: /spec/selector/app
+        value: kotlin-rest-http4k
+
+  - target:
+      kind: ConfigMap
+      name: PLACEHOLDER-config
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: kotlin-rest-http4k-config
+      - op: replace
+        path: /data/PORT
+        value: "8080"
