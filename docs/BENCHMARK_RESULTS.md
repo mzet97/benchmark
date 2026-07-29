@@ -1,4 +1,4 @@
-# Benchmark Results — First Real Measurements
+# Benchmark Results — Real Measurements
 
 **Date**: 2026-07-29
 **Server**: K3s v1.34.6+k3s1 (k8s1, 48 cores, 64GB RAM)
@@ -7,48 +7,62 @@
 ## Test Conditions
 
 - Single node K3s cluster
-- ~36 pods running simultaneously
-- 100 concurrent connections, 2 threads, 10s duration (REST)
-- 5 concurrent connections, 10 concurrent streams, 5s duration (gRPC)
-- 100 concurrent connections, 2 threads, 10s duration (GraphQL)
-- Endpoint: `/health` (REST), `Health` RPC (gRPC), `health` query (GraphQL)
-- Resource competition from other pods
+- ~37 pods running simultaneously
+- REST: 50 connections, 2 threads, 5s measurement
+- gRPC: 5 connections, 10 concurrency, 5s measurement
+- GraphQL: 50 connections, 2 threads, 5s measurement (POST /graphql)
+- Endpoint: `/health` (REST), `Health` RPC (gRPC), `{ health { status timestamp } }` (GraphQL)
 
 ---
 
-## REST Ranking (21 implementations)
+## REST Ranking (22 implementations)
 
 | Rank | Implementation | Req/s | Latency Avg |
 |------|---------------|-------|-------------|
-| 🥇 | **csharp-rest-minimal-api** | **18.686** | 13.09ms |
-| 🥈 | **csharp-rest-controllers** | **16.578** | 10.55ms |
-| 🥉 | **go-rest-fiber** | **5.447** | 25.66ms |
-| 4 | bun-rest-elysia | 4.363 | 23.86ms |
-| 5 | deno-rest-fresh | 4.317 | 23.23ms |
-| 6 | deno-rest-hono | 4.163 | 23.98ms |
-| 7 | deno-rest-deno-serve | 3.773 | 26.86ms |
-| 8 | bun-rest-bun-serve | 3.225 | 30.91ms |
-| 9 | nodejs-rest-fastify | 2.634 | 37.85ms |
-| 10 | graalvm-rest-vertx | 2.421 | 41.10ms |
-| 11 | nodejs-rest-nestjs | 2.060 | 49.49ms |
-| 12 | nodejs-rest-express | 1.471 | 70.87ms |
-| 13 | rust-rest-rocket | 1.245 | 81.27ms |
-| 14 | deno-rest-oak | 1.240 | 80.20ms |
-| 15 | rust-rest-axum | 1.198 | 84.38ms |
-| 16 | rust-rest-actix-web | 1.169 | 85.91ms |
-| 17 | go-rest-echo | 1.118 | 100.53ms |
-| 18 | go-rest-gin | 1.090 | 103.52ms |
-| 19 | python-rest-flask | 1.044 | 95.05ms |
-| 20 | python-rest-fastapi | 763 | 130.14ms |
-| 21 | python-rest-django | 367 | 289.67ms |
+| 🥇 | **rust-rest-actix-web** | **38.073** | 4.42ms |
+| 🥈 | **csharp-rest-minimal-api** | **30.045** | 6.09ms |
+| 🥉 | **csharp-rest-controllers** | **27.794** | 4.07ms |
+| 4 | rust-rest-rocket | 26.691 | 2.86ms |
+| 5 | rust-rest-axum | 24.409 | 2.14ms |
+| 6 | deno-rest-deno-serve | 20.541 | 2.45ms |
+| 7 | deno-rest-hono | 20.493 | 2.44ms |
+| 8 | deno-rest-fresh | 19.618 | 2.55ms |
+| 9 | bun-rest-bun-serve | 15.086 | 3.37ms |
+| 10 | kotlin-rest-ktor | 14.160 | 7.10ms |
+| 11 | go-rest-fiber | 14.155 | 13.61ms |
+| 12 | bun-rest-hono | 13.364 | 3.75ms |
+| 13 | bun-rest-elysia | 11.264 | 4.43ms |
+| 14 | go-rest-echo | 10.514 | 12.04ms |
+| 15 | go-rest-gin | 10.391 | 19.60ms |
+| 16 | graalvm-rest-vertx | 4.751 | 13.57ms |
+| 17 | nodejs-rest-fastify | 4.353 | 12.17ms |
+| 18 | deno-rest-oak | 3.242 | 15.38ms |
+| 19 | nodejs-rest-nestjs | 2.421 | 21.11ms |
+| 20 | nodejs-rest-express | 2.178 | 24.59ms |
+| 21 | python-rest-fastapi | 1.161 | 43.19ms |
+| 22 | python-rest-django | 390 | 134.79ms |
 
-### REST Notes
+### REST Category Winners
 
-- C# with Native AOT dominates (18k+ req/s)
-- Go Fiber is fastest among non-.NET (5.4k req/s)
-- Rust implementations underperform due to resource contention (30+ pods on single node)
-- Bun and Deno show competitive performance (3-4k req/s)
-- Python is slowest as expected (367-1k req/s)
+| Category | Winner | Value |
+|----------|--------|-------|
+| 🚀 Highest Throughput | rust-rest-actix-web | 38.073 req/s |
+| ⚡ Lowest Latency | rust-rest-axum | 2.14ms |
+| 🏆 Best Overall | rust-rest-actix-web | 38k req/s + 4.42ms |
+
+### REST by Language
+
+| Language | Best Framework | Req/s |
+|----------|---------------|-------|
+| Rust | actix-web | 38.073 |
+| C# | minimal-api | 30.045 |
+| Deno | deno-serve | 20.541 |
+| Bun | bun-serve | 15.086 |
+| Kotlin | ktor | 14.160 |
+| Go | fiber | 14.155 |
+| GraalVM | vertx | 4.751 |
+| Node.js | fastify | 4.353 |
+| Python | fastapi | 1.161 |
 
 ---
 
@@ -65,11 +79,9 @@
 
 ### gRPC Notes
 
-- MagicOnion (MessagePack) and protobuf-net fastest among gRPC
-- Bun gRPC shows good performance
-- csharp-grpc-dotnet had issues (likely port/reflection mismatch)
-- Deno gRPC had connection issues
-- Many gRPC implementations had build/deploy issues (proto compilation, reflection)
+- MagicOnion (C#, MessagePack serialization) leads gRPC
+- Many gRPC implementations had build/deploy issues
+- gRPC benchmarks used proto file (no reflection)
 
 ---
 
@@ -85,31 +97,50 @@
 
 ### GraphQL Notes
 
-- Java (Spring GraphQL, DGS) leads GraphQL performance
-- Python Ariadne surprisingly competitive (4.5k req/s)
-- Node.js Apollo and Yoga in mid-range
+- Java leads GraphQL (Spring GraphQL, DGS)
+- Python Ariadne surprisingly competitive
 - Query tested: `{ health { status timestamp } }`
 
 ---
 
-## Deployment Summary
+## Cross-Protocol Summary
 
-| Protocol | Deployed | Running | Benchmarked |
-|----------|----------|---------|-------------|
-| REST | 27 | 23 | 21 |
-| gRPC | 14 | 8 | 6 |
-| GraphQL | 6 | 5 | 5 |
-| **Total** | **47** | **36** | **32** |
+| Protocol | Top Implementation | Req/s | Latency |
+|----------|-------------------|-------|---------|
+| REST | rust-rest-actix-web | 38.073 | 4.42ms |
+| gRPC | csharp-grpc-magiconion | 2.501 | 2.99ms |
+| GraphQL | java-graphql-spring-graphql | 4.678 | 26.59ms |
+
+**Note**: REST, gRPC, and GraphQL results are NOT directly comparable (different serialization, protocols, and connection handling).
 
 ---
 
-## Caveats
+## Deployment Status
 
-1. **Resource contention**: 36 pods sharing 48 cores and 64GB RAM
-2. **Single node**: No network overhead but CPU/memory competition
-3. **No warm-up**: JVM implementations not fully warmed up
-4. **Low concurrency**: 100 connections (REST) may not saturate servers
-5. **Health endpoint only**: Simple response, no DB/Redis I/O
+| Protocol | Deployed | Running | Benchmarked |
+|----------|----------|---------|-------------|
+| REST | 27 | 22 | 22 |
+| gRPC | 14 | 8 | 6 |
+| GraphQL | 6 | 5 | 5 |
+| **Total** | **47** | **35** | **33** |
+
+---
+
+## Resource Usage (during benchmark)
+
+- CPU: ~788m (1% of 48 cores)
+- Memory: ~8.4GB (13% of 64GB)
+- Pods: 37 running
+
+---
+
+## Next Steps
+
+1. Fix 6 remaining gRPC pods (nice-grpc, connectrpc, betterproto, grpclib)
+2. Run benchmarks on all 5 scenarios (health, json, db-simple, db-complex, cache)
+3. Run with higher concurrency (100, 200, 500)
+4. Collect CPU/memory metrics per pod
+5. Generate normalized rankings
 
 ---
 
