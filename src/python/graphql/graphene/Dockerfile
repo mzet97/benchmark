@@ -4,5 +4,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py .
 ENV PORT=8080
+RUN groupadd -r app && useradd -r -g app app
+
 EXPOSE 8080
+
+USER app
+
 CMD ["gunicorn", "server:app", "--bind", "0.0.0.0:8080", "--workers", "4", "--timeout", "120"]

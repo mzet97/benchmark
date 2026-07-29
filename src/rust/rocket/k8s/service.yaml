@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rust-rocket
+  namespace: benchmark
+  labels:
+    app: rust-rocket
+    tier: api
+spec:
+  type: ClusterIP
+  selector:
+    app: rust-rocket
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  sessionAffinity: None

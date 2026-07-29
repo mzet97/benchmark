@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rust-rocket-config
+  namespace: benchmark
+  labels:
+    app: rust-rocket
+data:
+  port: "8080"

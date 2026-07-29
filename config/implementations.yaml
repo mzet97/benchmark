@@ -886,15 +886,6 @@ implementations:
     maturity: planned
     primary: true
 
-  - id: java-graphql-smallrye
-    environment: java
-    protocol: graphql
-    framework: smallrye-graphql
-    path: src/java/graphql/smallrye
-    port: 8080
-    maturity: planned
-    primary: true
-
   # ========================================================================
   # GRAALVM NATIVE IMAGE
   # ========================================================================
