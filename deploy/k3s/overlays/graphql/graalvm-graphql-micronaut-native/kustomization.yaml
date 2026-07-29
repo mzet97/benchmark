@@ -1,4 +1,4 @@
-# Overlay for graalvm-graphql-spring
+# Overlay for graalvm-graphql-micronaut-native
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -8,10 +8,10 @@ resources:
   - ../../../base
 
 commonLabels:
-  app: graalvm-graphql-spring
+  app: graalvm-graphql-micronaut-native
   benchmark-protocol: graphql
   benchmark-environment: graalvm
-  benchmark-framework: spring
+  benchmark-framework: micronaut
 
 namePrefix: ""
 
@@ -22,22 +22,22 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: graalvm-graphql-spring
+        value: graalvm-graphql-micronaut-native
       - op: replace
         path: /spec/selector/matchLabels/app
-        value: graalvm-graphql-spring
+        value: graalvm-graphql-micronaut-native
       - op: replace
         path: /spec/template/metadata/labels/app
-        value: graalvm-graphql-spring
+        value: graalvm-graphql-micronaut-native
       - op: replace
         path: /spec/template/spec/containers/0/image
-        value: benchmark/graalvm-graphql-spring:latest
+        value: benchmark/graalvm-graphql-micronaut-native:latest
       - op: replace
         path: /spec/template/spec/containers/0/ports/0/containerPort
         value: 8080
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/0/configMapRef/name
-        value: graalvm-graphql-spring-config
+        value: graalvm-graphql-micronaut-native-config
 
   - target:
       kind: Service
@@ -45,10 +45,10 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: graalvm-graphql-spring
+        value: graalvm-graphql-micronaut-native
       - op: replace
         path: /spec/selector/app
-        value: graalvm-graphql-spring
+        value: graalvm-graphql-micronaut-native
 
   - target:
       kind: ConfigMap
@@ -56,7 +56,7 @@ patches:
     patch: |-
       - op: replace
         path: /metadata/name
-        value: graalvm-graphql-spring-config
+        value: graalvm-graphql-micronaut-native-config
       - op: replace
         path: /data/PORT
         value: "8080"
