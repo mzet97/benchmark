@@ -1,0 +1,146 @@
+name: Smoke Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Language to test (python, rust, go, etc.) or "all"'
+        required: false
+        default: 'all'
+
+env:
+  PG_PASSWORD: ${{ secrets.PG_PASSWORD || 'Admin@123' }}
+  REDIS_URL: redis://redis:6379
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Python
+          - { language: python, framework: fastapi, port: 8000, health: /health }
+          - { language: python, framework: django, port: 8000, health: /health/ }
+          - { language: python, framework: flask, port: 5000, health: /health }
+          # Go
+          - { language: go, framework: fiber, port: 8080, health: /health }
+          # Rust
+          - { language: rust, framework: actix-web, port: 8080, health: /health }
+          # Node.js
+          - { language: nodejs, framework: fastify, port: 3000, health: /health }
+          # Bun
+          - { language: bun, framework: elysia, port: 3000, health: /health }
+          # Deno
+          - { language: deno, framework: oak, port: 8000, health: /health }
+          # Java
+          - { language: java, framework: spring, port: 8080, health: /health }
+          # Kotlin
+          - { language: kotlin, framework: ktor, port: 8080, health: /health }
+          # C#
+          - { language: csharp, framework: MinimalApi, port: 8080, health: /health }
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: benchmark
+          POSTGRES_USER: benchmark
+          POSTGRES_PASSWORD: ${{ env.PG_PASSWORD }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Filter by language
+        id: filter
+        run: |
+          if [ "${{ github.event.inputs.language }}" = "all" ] || [ -z "${{ github.event.inputs.language }}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event.inputs.language }}" = "${{ matrix.language }}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build image
+        if: steps.filter.outputs.run == 'true'
+        working-directory: src/${{ matrix.language }}/${{ matrix.framework }}
+        run: |
+          docker build -t benchmark/${{ matrix.language }}-${{ matrix.framework }}:test .
+
+      - name: Run container
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          docker run -d \
+            --name test-container \
+            --network host \
+            -e DATABASE_URL="postgresql://benchmark:${{ env.PG_PASSWORD }}@localhost:5432/benchmark" \
+            -e REDIS_URL="redis://localhost:6379" \
+            -e PORT=${{ matrix.port }} \
+            benchmark/${{ matrix.language }}-${{ matrix.framework }}:test
+
+      - name: Wait for startup
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          echo "Waiting for container to start..."
+          for i in $(seq 1 30); do
+            if curl -sf "http://localhost:${{ matrix.port }}${{ matrix.health }}" > /dev/null 2>&1; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Health check failed after 60s"
+          docker logs test-container
+          exit 1
+
+      - name: Test endpoints
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          echo "Testing basic endpoints..."
+
+          # Test /health
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/health")
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::GET /health returned $STATUS"
+            exit 1
+          fi
+          echo "✅ GET /health -> 200"
+
+          # Test /api/json
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/api/json")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::GET /api/json returned $STATUS (may not exist)"
+          else
+            echo "✅ GET /api/json -> 200"
+          fi
+
+          # Test /api/users (database endpoint)
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/api/users?limit=1")
+          if [ "$STATUS" != "200" ]; then
+            echo "::warning::GET /api/users returned $STATUS (DB may not be seeded)"
+          else
+            echo "✅ GET /api/users -> 200"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f test-container 2>/dev/null || true

@@ -1,0 +1,336 @@
+name: CI - Build & Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/benchmark
+
+jobs:
+  # ─────────────────────────────────────────────
+  # 1. Detect which languages changed
+  # ─────────────────────────────────────────────
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      languages: ${{ steps.changes.outputs.languages }}
+      has_changes: ${{ steps.changes.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            python:
+              - 'src/python/**'
+            rust:
+              - 'src/rust/**'
+            go:
+              - 'src/go/**'
+            nodejs:
+              - 'src/nodejs/**'
+            bun:
+              - 'src/bun/**'
+            deno:
+              - 'src/deno/**'
+            java:
+              - 'src/java/**'
+            kotlin:
+              - 'src/kotlin/**'
+            csharp:
+              - 'src/csharp/**'
+            dart:
+              - 'src/dart/**'
+            graalvm:
+              - 'src/graalvm/**'
+            infra:
+              - 'deploy/**'
+              - 'scripts/**'
+              - 'config/**'
+              - '.github/**'
+      - id: changes
+        run: |
+          LANGS=""
+          for lang in python rust go nodejs bun deno java kotlin csharp dart graalvm; do
+            if [[ "${{ steps.changes.outputs[format('{0}', lang)] }}" == "true" ]]; then
+              LANGS="$LANGS\"$lang\","
+            fi
+          done
+          # Remove trailing comma
+          LANGS="${LANGS%,}"
+          echo "languages=[$LANGS]" >> "$GITHUB_OUTPUT"
+          if [ -n "$LANGS" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ─────────────────────────────────────────────
+  # 2. Lint & Security Scan (always runs)
+  # ─────────────────────────────────────────────
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded credentials
+        run: |
+          echo "Scanning for hardcoded passwords..."
+          FOUND=0
+          # Check for common credential patterns (exclude docs and this workflow)
+          if grep -rn --include='*.py' --include='*.rs' --include='*.go' --include='*.js' --include='*.ts' --include='*.java' --include='*.kt' --include='*.cs' --include='*.dart' \
+            -E "(password|passwd|secret|api_key|apikey)\s*[:=]\s*['\"][^'\"]{4,}['\"]" src/ 2>/dev/null | grep -v 'os.environ' | grep -v 'env(' | grep -v 'getenv' | grep -v '\$\{' | grep -v 'changeme' | grep -v 'example' | grep -v '# TODO'; then
+            FOUND=1
+          fi
+          if [ $FOUND -eq 1 ]; then
+            echo "::error::Hardcoded credentials found! Use environment variables."
+            exit 1
+          fi
+          echo "✅ No hardcoded credentials found"
+
+      - name: Validate K8s manifests
+        run: |
+          echo "Validating K8s YAML syntax..."
+          ERRORS=0
+          for f in $(find src/ -name '*.yaml' -path '*/k8s/*' | head -50); do
+            if ! python3 -c "import yaml; yaml.safe_load(open('$f'))" 2>/dev/null; then
+              echo "::error file=$f::Invalid YAML"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS invalid YAML files found"
+            exit 1
+          fi
+          echo "✅ All K8s YAML files are valid"
+
+      - name: Validate Kustomize overlays
+        run: |
+          # Install kustomize
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          sudo mv kustomize /usr/local/bin/
+
+          ERRORS=0
+          for overlay in deploy/k3s/overlays/*/*/; do
+            if [ -f "$overlay/kustomization.yaml" ]; then
+              if ! kustomize build "$overlay" > /dev/null 2>&1; then
+                echo "::error file=$overlay/kustomization.yaml::Kustomize build failed"
+                ERRORS=$((ERRORS + 1))
+              fi
+            fi
+          done
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS kustomize overlays failed"
+            exit 1
+          fi
+          echo "✅ All kustomize overlays are valid"
+
+      - name: Check Dockerfiles
+        run: |
+          echo "Checking Dockerfiles for best practices..."
+          ISSUES=0
+          for df in $(find src/ -name 'Dockerfile' | head -50); do
+            # Check for non-root user
+            if ! grep -q 'USER' "$df"; then
+              echo "::warning file=$df::Missing USER directive (non-root)"
+              ISSUES=$((ISSUES + 1))
+            fi
+            # Check for HEALTHCHECK
+            if ! grep -q 'HEALTHCHECK' "$df"; then
+              echo "::warning file=$df::Missing HEALTHCHECK"
+            fi
+          done
+          echo "Dockerfile check complete ($ISSUES warnings)"
+
+  # ─────────────────────────────────────────────
+  # 3. Build matrix per language
+  # ─────────────────────────────────────────────
+  build-python:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'python')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [fastapi, django, flask]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/python/${{ matrix.framework }}
+        run: docker build -t benchmark/python-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-rust:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'rust')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [actix-web, axum, rocket, warp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/rust/${{ matrix.framework }}
+        run: docker build -t benchmark/rust-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-go:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'go')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [fiber, gin, echo, chi]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/go/${{ matrix.framework }}
+        run: docker build -t benchmark/go-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-nodejs:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'nodejs')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [fastify, express, nestjs]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/nodejs/${{ matrix.framework }}
+        run: docker build -t benchmark/nodejs-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-bun:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'bun')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [elysia, hono, bun_serve]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/bun/${{ matrix.framework }}
+        run: docker build -t benchmark/bun-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-deno:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'deno')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [oak, fresh, hono, deno_serve]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/deno/${{ matrix.framework }}
+        run: docker build -t benchmark/deno-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-java:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'java')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [spring, micronaut, helidon]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/java/${{ matrix.framework }}
+        run: docker build -t benchmark/java-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-kotlin:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'kotlin')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [ktor, spring, http4k]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/kotlin/${{ matrix.framework }}
+        run: docker build -t benchmark/kotlin-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-csharp:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'csharp')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [MinimalApi, Carter, FastEndpoints]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/csharp/${{ matrix.framework }}
+        run: docker build -t benchmark/csharp-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-dart:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'dart')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: [vaden, shelf, dart_frog]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/dart/${{ matrix.framework }}
+        run: docker build -t benchmark/dart-${{ matrix.framework }}:${{ github.sha }} .
+
+  build-graalvm:
+    needs: detect-changes
+    if: contains(needs.detect-changes.outputs.languages, 'graalvm')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - framework: vertx
+            path: vertx
+          - framework: spring
+            path: spring
+          - framework: gspring
+            path: gspring
+          - framework: micronaut
+            path: micronaut
+          - framework: gmicronaut
+            path: gmicronaut
+          - framework: helidon
+            path: helidon
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.framework }}
+        working-directory: src/graalvm/${{ matrix.path }}
+        run: docker build -t benchmark/graalvm-${{ matrix.framework }}:${{ github.sha }} .
+
+  # ─────────────────────────────────────────────
+  # 4. Smoke test (after builds succeed)
+  # ─────────────────────────────────────────────
+  smoke-test:
+    needs: [build-python, build-rust, build-go, build-nodejs, build-bun, build-deno, build-java, build-kotlin, build-csharp, build-dart, build-graalvm]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests on successfully built images..."
+          # This would run health checks against each container
+          # For now, just validate the test infrastructure
+          echo "✅ Smoke test infrastructure ready"

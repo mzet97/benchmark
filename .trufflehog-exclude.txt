@@ -1,0 +1,24 @@
+# TruffleHog exclusion patterns
+# One pattern per line
+
+# Example/template values
+changeme
+example
+your_password_here
+password_here
+secret_here
+
+# Test fixtures
+test_password
+mock_secret
+fake_token
+
+# Documentation
+README.md
+*.md
+
+# Dependencies
+node_modules/
+vendor/
+target/
+.pip-cache/

@@ -1,0 +1,119 @@
+name: Deploy to K3s
+
+on:
+  workflow_dispatch:
+    inputs:
+      language:
+        description: 'Language to deploy (python, rust, go, etc.)'
+        required: true
+      framework:
+        description: 'Framework to deploy (fastapi, actix-web, fiber, etc.)'
+        required: true
+      k8s_host:
+        description: 'K3s server IP'
+        required: true
+        default: '192.168.1.51'
+      replicas:
+        description: 'Number of replicas'
+        required: false
+        default: '5'
+
+env:
+  IMAGE_NAME: benchmark/${{ github.event.inputs.language }}-${{ github.event.inputs.framework }}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: src/${{ github.event.inputs.language }}/${{ github.event.inputs.framework }}
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Save image
+        run: |
+          docker save ${{ env.IMAGE_NAME }}:${{ github.sha }} | gzip > /tmp/image.tar.gz
+
+      - name: Transfer to K3s
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ github.event.inputs.k8s_host }}
+          username: k8s1
+          password: ${{ secrets.K3S_PASSWORD }}
+          source: /tmp/image.tar.gz
+          target: /tmp/
+
+      - name: Deploy to K3s
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ github.event.inputs.k8s_host }}
+          username: k8s1
+          password: ${{ secrets.K3S_PASSWORD }}
+          script: |
+            # Import image
+            gunzip -c /tmp/image.tar.gz | sudo k3s ctr images import -
+            rm /tmp/image.tar.gz
+
+            # Get deployment path
+            LANG="${{ github.event.inputs.language }}"
+            FRAMEWORK="${{ github.event.inputs.framework }}"
+            OVERLAY_DIR="benchmark/deploy/k3s/overlays/rest/${LANG}-rest-${FRAMEWORK}"
+
+            # Try different protocol overlays
+            for proto in rest grpc graphql; do
+              CANDIDATE="benchmark/deploy/k3s/overlays/${proto}/${LANG}-${proto}-${FRAMEWORK}"
+              if [ -d "$CANDIDATE" ]; then
+                OVERLAY_DIR="$CANDIDATE"
+                break
+              fi
+            done
+
+            # Apply with kustomize
+            if [ -d "$OVERLAY_DIR" ]; then
+              cd benchmark
+              kubectl apply -k "$OVERLAY_DIR"
+            else
+              # Fallback to raw manifests
+              MANIFEST_DIR="benchmark/src/${LANG}/${FRAMEWORK}/k8s"
+              if [ -d "$MANIFEST_DIR" ]; then
+                kubectl apply -f "$MANIFEST_DIR/"
+              else
+                echo "::error::No deployment manifests found"
+                exit 1
+              fi
+            fi
+
+            # Wait for rollout
+            kubectl rollout status deployment/${LANG}-${FRAMEWORK} -n benchmark --timeout=120s
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ github.event.inputs.k8s_host }}
+          username: k8s1
+          password: ${{ secrets.K3S_PASSWORD }}
+          script: |
+            LANG="${{ github.event.inputs.language }}"
+            FRAMEWORK="${{ github.event.inputs.framework }}"
+
+            echo "=== Pods ==="
+            kubectl get pods -n benchmark -l app=${LANG}-${FRAMEWORK}
+
+            echo "=== Service ==="
+            kubectl get svc -n benchmark ${LANG}-${FRAMEWORK} 2>/dev/null || echo "No service found"
+
+            echo "=== Health Check ==="
+            POD=$(kubectl get pods -n benchmark -l app=${LANG}-${FRAMEWORK} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
+            if [ -n "$POD" ]; then
+              kubectl exec -n benchmark "$POD" -- curl -sf http://localhost:8080/health 2>/dev/null && echo "✅ Healthy" || echo "⚠️ Health check failed"
+            fi
