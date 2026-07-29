@@ -8,38 +8,48 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class CacheService {
-    private val redisClient: RedisClient
-    private val connection: StatefulRedisConnection<String, String>
+    private var redisClient: RedisClient? = null
+    private var connection: StatefulRedisConnection<String, String>? = null
+    private val available: Boolean
 
     init {
-        val redisUrl = System.getenv("REDIS_URL") ?: "redis://:Admin@123@redis.home.arpa:30379"
+        var ok = false
+        try {
+            val redisUrl = System.getenv("REDIS_URL") ?: "redis://:Admin@123@redis.home.arpa:30379"
 
-        // Parse redis://:password@host:port (handle @ in password)
-        val afterScheme = redisUrl.substringAfter("://")
-        val lastAt = afterScheme.lastIndexOf('@')
-        val password = afterScheme.substring(1, lastAt) // skip leading ':'
-        val hostPort = afterScheme.substring(lastAt + 1)
-        val host = hostPort.substringBefore(':')
-        val port = hostPort.substringAfter(':').toIntOrNull() ?: 6379
+            // Parse redis://:password@host:port (handle @ in password)
+            val afterScheme = redisUrl.substringAfter("://")
+            val lastAt = afterScheme.lastIndexOf('@')
+            val password = afterScheme.substring(1, lastAt) // skip leading ':'
+            val hostPort = afterScheme.substring(lastAt + 1)
+            val host = hostPort.substringBefore(':')
+            val port = hostPort.substringAfter(':').toIntOrNull() ?: 6379
 
-        val redisUri = RedisURI.Builder.redis(host, port)
-            .withPassword(password.toCharArray())
-            .build()
+            val redisUri = RedisURI.Builder.redis(host, port)
+                .withPassword(password.toCharArray())
+                .build()
 
-        redisClient = RedisClient.create(redisUri)
-        connection = redisClient.connect()
+            redisClient = RedisClient.create(redisUri)
+            connection = redisClient!!.connect()
+            ok = true
+        } catch (e: Exception) {
+            System.err.println("Warning: Redis connection failed, cache disabled: ${e.message}")
+        }
+        available = ok
     }
 
     suspend fun get(key: String): String? = withContext(Dispatchers.IO) {
         try {
-            val syncCommands: RedisCommands<String, String> = connection.sync()
+            if (!available) return@withContext null
+            val syncCommands: RedisCommands<String, String> = connection!!.sync()
             syncCommands.get(key)
         } catch (e: Exception) { null }
     }
 
     suspend fun set(key: String, value: String, ttlSeconds: Long) = withContext(Dispatchers.IO) {
         try {
-            val syncCommands: RedisCommands<String, String> = connection.sync()
+            if (!available) return@withContext
+            val syncCommands: RedisCommands<String, String> = connection!!.sync()
             syncCommands.setex(key, ttlSeconds, value)
         } catch (e: Exception) { }
     }
@@ -51,13 +61,16 @@ class CacheService {
 
     suspend fun healthCheck(): Boolean = withContext(Dispatchers.IO) {
         try {
-            val syncCommands: RedisCommands<String, String> = connection.sync()
+            if (!available) return@withContext false
+            val syncCommands: RedisCommands<String, String> = connection!!.sync()
             syncCommands.ping() == "PONG"
         } catch (e: Exception) { false }
     }
 
     fun close() {
-        connection.close()
-        redisClient.shutdown()
+        try {
+            connection?.close()
+            redisClient?.shutdown()
+        } catch (_: Exception) {}
     }
 }

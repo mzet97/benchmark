@@ -1,5 +1,5 @@
 const fastify = require('fastify');
-const { fastifyConnectPlugin } = require('@connectrpc/fastify-connect-plugin');
+const { fastifyConnectPlugin } = require('@connectrpc/connect-fastify');
 const { BenchmarkService } = require('./gen/benchmark_connect');
 const serviceImpl = require('./service');
 const db = require('./db');

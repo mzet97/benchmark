@@ -7,21 +7,18 @@ RUN go install github.com/cloudwego/kitex/tool/cmd/kitex@latest
 
 WORKDIR /app
 
-# Copy go.mod and go.sum first for caching
-COPY src/go/grpc/kitex/go.mod ./
-COPY src/go/grpc/kitex/go.sum* ./
-RUN go mod tidy || go mod download
-
 # Copy proto contracts
 COPY contracts/grpc/ /app/contracts/grpc/
+
+# Copy source code
+COPY src/go/grpc/kitex/ /app/
+
+# Generate go.sum if missing and download deps
+RUN go mod tidy && go mod download
 
 # Generate Kitex code from proto
 RUN kitex -module benchmark-kitex -service benchmark -gen-path /app/kitex_gen \
     /app/contracts/grpc/benchmark.proto
-
-# Copy source code
-COPY src/go/grpc/kitex/internal/ /app/internal/
-COPY src/go/grpc/kitex/cmd/ /app/cmd/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/server/
 

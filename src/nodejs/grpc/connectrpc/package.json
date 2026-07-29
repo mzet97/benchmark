@@ -10,7 +10,7 @@
   "dependencies": {
     "@connectrpc/connect": "^1.4.0",
     "@connectrpc/connect-node": "^1.4.0",
-    "@connectrpc/fastify-connect-plugin": "^1.4.0",
+    "@connectrpc/connect-fastify": "^1.4.0",
     "@bufbuild/protobuf": "^1.7.0",
     "fastify": "^4.26.0",
     "pg": "^8.12.0",

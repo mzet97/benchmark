@@ -6,7 +6,7 @@ from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from ariadne.asgi import GraphQLApp
+from ariadne.asgi import GraphQL
 
 from schema import schema
 from db import ensure_schema
@@ -16,7 +16,7 @@ async def health(request: Request):
     return JSONResponse({"status": "ok"})
 
 
-graphql_app = GraphQLApp(
+graphql_app = GraphQL(
     schema,
     introspection=False,
 )

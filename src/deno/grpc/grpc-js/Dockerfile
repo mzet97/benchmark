@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Cache dependencies
 COPY deno.json ./
-RUN deno install --allow-scripts=false || true
+RUN deno install || true
 
 # Copy source
 COPY proto/ ./proto/
