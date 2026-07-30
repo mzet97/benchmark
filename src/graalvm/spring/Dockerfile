@@ -2,6 +2,9 @@
 FROM ghcr.io/graalvm/graalvm-community:21 AS builder
 WORKDIR /build
 
+# Install Maven
+RUN microdnf install -y maven && microdnf clean all
+
 # Cache dependencies first for better layer caching
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
