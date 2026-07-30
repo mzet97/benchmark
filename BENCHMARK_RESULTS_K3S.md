@@ -194,19 +194,38 @@
 | 7 | Node.js Mercurius | FAILED | Node.js |
 | 8 | Python Strawberry | FAILED | Python |
 
-## Infrastructure Deployed
+## Infrastructure Deployed (Updated)
 
-- **REST**: 23 frameworks ✅
-- **gRPC**: 17 frameworks (14 running, 3 failed)
-- **GraphQL**: 8 frameworks (5 running, 3 failed)
-- **Total**: 48 pods on K3s
+- **REST**: 24 frameworks ✅ (+1: go-rest-chi)
+- **gRPC**: 16 frameworks ✅ (+1: nodejs-grpc-grpc-js)
+- **GraphQL**: 13 frameworks ✅ (+5: bun-graphql-hono, deno-graphql-apollo/hono/yoga)
+- **Total**: 53 pods running on K3s
 
-## Summary Champions
+## New Implementations Added
+
+### REST
+| Framework | Req/s |
+|-----------|------:|
+| Go Chi | 1,951 |
+
+### GraphQL (new)
+| Framework | Req/s |
+|-----------|------:|
+| Bun Hono | 3,484 |
+| Deno Yoga | 3,633 |
+| Deno Hono | 3,050 |
+
+### gRPC (new)
+| Framework | Req/s |
+|-----------|------:|
+| Node.js grpc-js | 4,732 |
+
+## Summary Champions (53 frameworks tested)
 
 | Category | Winner | Req/s |
 |----------|--------|------:|
-| REST /health | C# Minimal API | 27,210 |
+| REST /health | C# Minimal API | 26,085 |
 | REST /db (PostgreSQL) | Go Fiber | 12,660 |
 | REST /cache (Redis) | Kotlin Ktor | 16,261 |
 | gRPC Health | Node.js connectrpc | 5,251 |
-| GraphQL __typename | Java Spring GraphQL | 7,200 |
+| GraphQL __typename | Python Ariadne | 4,435 |
