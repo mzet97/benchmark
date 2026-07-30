@@ -12,8 +12,7 @@ FROM denoland/deno:latest
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 denoapp && \
-    adduser --system --uid 1001 --gid 1001 denoapp
+RUN groupadd -r denoapp && useradd -r -g denoapp -u 1001 denoapp
 
 COPY --from=builder /deno-dir /deno-dir
 COPY --from=builder /app /app

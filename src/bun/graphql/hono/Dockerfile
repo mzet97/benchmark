@@ -13,8 +13,7 @@ FROM oven/bun:latest
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 bunapp && \
-    adduser --system --uid 1001 --gid 1001 bunapp
+RUN groupadd -r bunapp && useradd -r -g bunapp -u 1001 bunapp
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
