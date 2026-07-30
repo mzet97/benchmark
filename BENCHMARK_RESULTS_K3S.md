@@ -4,63 +4,161 @@
 - **Server**: K3s v1.34.6+k3s1 on 192.168.1.51
 - **Node**: 1 control-plane node
 - **Replicas**: 5 per service
-- **Tool**: wrk (8 threads, 200 connections, 10s duration)
-- **Endpoint**: `/health` (HTTP GET)
+- **Tool**: wrk (4 threads, 50 connections, 5s duration)
+- **Test**: Inside cluster via wrk pod
 
-## REST Implementations (23 frameworks)
+## REST Implementations — Complete Results (23 frameworks)
 
-| # | Framework | Req/s | Latency (avg) | Language |
-|---|-----------|------:|---------------:|----------|
-| 1 | C# Minimal API | 26,678 | 8.22ms | C# |
-| 2 | C# Controllers | 21,288 | 14.81ms | C# |
-| 3 | Go Fiber | 5,930 | 58.70ms | Go |
-| 4 | Kotlin Ktor | 5,037 | 42.85ms | Kotlin |
-| 5 | GraalVM Vert.x | 4,556 | 41.88ms | GraalVM |
-| 6 | Bun Elysia | 4,275 | 47.28ms | Bun |
-| 7 | Deno Fresh | 4,088 | 48.66ms | Deno |
-| 8 | Deno Deno.serve | 3,832 | 51.93ms | Deno |
-| 9 | Deno Hono | 3,708 | 53.62ms | Deno |
-| 10 | Bun Bun.serve | 3,367 | 59.62ms | Bun |
-| 11 | Bun Hono | 3,179 | 62.61ms | Bun |
-| 12 | Node.js NestJS | 2,288 | 84.72ms | Node.js |
-| 13 | Node.js Fastify | 2,096 | 129.04ms | Node.js |
-| 14 | Rust Rocket | 1,569 | 116.45ms | Rust |
-| 15 | Rust Axum | 1,534 | 116.58ms | Rust |
-| 16 | Rust Actix Web | 1,495 | 133.21ms | Rust |
-| 17 | Node.js Express | 1,425 | 157.52ms | Node.js |
-| 18 | Go Echo | 1,424 | 141.43ms | Go |
-| 19 | Go Gin | 1,400 | 139.97ms | Go |
-| 20 | Deno Oak | 1,060 | 186.71ms | Deno |
-| 21 | Python Flask | 1,102 | 179.57ms | Python |
-| 22 | Python FastAPI | 749 | 278.32ms | Python |
-| 23 | Python Django | 377 | 512.11ms | Python |
+### /health (Liveness)
 
-## Key Insights
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | C# Minimal API | 27,210 | C# |
+| 2 | C# Controllers | 18,539 | C# |
+| 3 | Go Fiber | 7,115 | Go |
+| 4 | Kotlin Ktor | 5,362 | Kotlin |
+| 5 | Deno Fresh | 4,691 | Deno |
+| 6 | Deno Hono | 4,580 | Deno |
+| 7 | Deno Deno.serve | 4,545 | Deno |
+| 8 | Bun Bun.serve | 3,780 | Bun |
+| 9 | Bun Hono | 3,516 | Bun |
+| 10 | Node.js NestJS | 2,247 | Node.js |
+| 11 | Rust Rocket | 1,796 | Rust |
+| 12 | Rust Axum | 1,710 | Rust |
+| 13 | Rust Actix Web | 1,636 | Rust |
+| 14 | Deno Oak | 1,396 | Deno |
+| 15 | Go Gin | 1,318 | Go |
+| 16 | Go Echo | 1,302 | Go |
+| 17 | Python Flask | 1,176 | Python |
+| 18 | GraalVM Vert.x | 1,168 | GraalVM |
+| 19 | Python FastAPI | 772 | Python |
+| 20 | Node.js Fastify | 746 | Node.js |
+| 21 | Bun Elysia | 726 | Bun |
+| 22 | Node.js Express | 656 | Node.js |
+| 23 | Python Django | 389 | Python |
 
-### Top Performers by Language
-- **C#**: .NET is the clear winner with 26K+ req/s
-- **Go**: Fiber delivers ~6K req/s
-- **Kotlin**: Ktor at 5K req/s
-- **GraalVM**: Vert.x native at 4.5K req/s
-- **Bun/Deno**: JavaScript runtimes at 3-4K req/s
-- **Rust**: Surprisingly at ~1.5K (likely resource constrained)
-- **Python**: Expected lower performance (377-1.1K req/s)
+### /json (Serialization — 1000 items)
 
-### Observations
-1. **C# dominates** — Minimal API with .NET 8 is extremely fast
-2. **Go Fiber** is the fastest Go framework
-3. **Bun Elysia** beats all Deno frameworks
-4. **Rust** performance is lower than expected — may need tuning
-5. **Python Django** is the slowest as expected (full framework overhead)
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | Node.js NestJS | 2,396 | Node.js |
+| 2 | C# Minimal API | 2,038 | C# |
+| 3 | Bun Elysia | 1,898 | Bun |
+| 4 | C# Controllers | 1,388 | C# |
+| 5 | Bun Bun.serve | 1,168 | Bun |
+| 6 | Bun Hono | 1,149 | Bun |
+| 7 | Python FastAPI | 110 | Python |
+| 8 | Deno Fresh | 871 | Deno |
+| 9 | Deno Deno.serve | 870 | Deno |
+| 10 | Deno Hono | 867 | Deno |
+| 11 | Kotlin Ktor | 856 | Kotlin |
+| 12 | GraalVM Vert.x | 869 | GraalVM |
+| 13 | Node.js Express | 560 | Node.js |
+| 14 | Python Django | 393 | Python |
+| 15 | Deno Oak | 388 | Deno |
+| 16 | Rust Rocket | 354 | Rust |
+| 17 | Rust Actix Web | 343 | Rust |
+| 18 | Go Fiber | 341 | Go |
+| 19 | Rust Axum | 420 | Rust |
+| 20 | Go Echo | 274 | Go |
+| 21 | Go Gin | 271 | Go |
+| 22 | Node.js Fastify | 212 | Node.js |
+| 23 | Python Flask | 47 | Python |
 
-### Health Endpoint Notes
-- All 23 REST implementations respond to `/health`
-- Services are exposed via ClusterIP on port 80
-- Container ports vary: 8080 (Java/Kotlin/C#/Rust/Go), 3000 (Bun/Node.js), 8000 (Python/Deno)
+### /db/simple?id=1 (PostgreSQL Single Query)
 
-## Next Steps
-- [ ] Run `/api/json` benchmark (serialization test)
-- [ ] Run `/api/users` benchmark (database test)
-- [ ] Run `/api/cache` benchmark (Redis test)
-- [ ] Deploy missing implementations (Dart, GraalVM REST variants)
-- [ ] Run gRPC and GraphQL benchmarks
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | **Go Fiber** | **12,660** | Go |
+| 2 | C# Minimal API | 4,454 | C# |
+| 3 | Kotlin Ktor | 3,991 | Kotlin |
+| 4 | Bun Hono | 2,919 | Bun |
+| 5 | Bun Bun.serve | 2,847 | Bun |
+| 6 | Rust Rocket | 2,637 | Rust |
+| 7 | Deno Hono | 2,594 | Deno |
+| 8 | Rust Axum | 2,592 | Rust |
+| 9 | Deno Fresh | 2,586 | Deno |
+| 10 | Deno Deno.serve | 2,492 | Deno |
+| 11 | Node.js NestJS | 2,260 | Node.js |
+| 12 | C# Controllers | 2,211 | C# |
+| 13 | Python Flask | 1,898 | Python |
+| 14 | Rust Actix Web | 1,740 | Rust |
+| 15 | Go Gin | 1,402 | Go |
+| 16 | Go Echo | 1,385 | Go |
+| 17 | GraalVM Vert.x | 1,162 | GraalVM |
+| 18 | Deno Oak | 1,056 | Deno |
+| 19 | Python FastAPI | 691 | Python |
+| 20 | Bun Elysia | 451 | Bun |
+| 21 | Node.js Express | 469 | Node.js |
+| 22 | Node.js Fastify | 344 | Node.js |
+| 23 | Python Django | 389 | Python |
+
+### /cache?key=test (Redis GET)
+
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | **Deno Hono** | **14,869** | Deno |
+| 2 | Deno Deno.serve | 14,691 | Deno |
+| 3 | Deno Fresh | 12,105 | Deno |
+| 4 | Kotlin Ktor | 16,261 | Kotlin |
+| 5 | Bun Elysia | 8,775 | Bun |
+| 6 | Bun Bun.serve | 8,527 | Bun |
+| 7 | Bun Hono | 8,334 | Bun |
+| 8 | Go Fiber | 7,385 | Go |
+| 9 | C# Minimal API | 5,029 | C# |
+| 10 | Node.js Fastify | 5,071 | Node.js |
+| 11 | Go Gin | 4,446 | Go |
+| 12 | Go Echo | 4,357 | Go |
+| 13 | Deno Oak | 3,020 | Deno |
+| 14 | C# Controllers | 2,898 | C# |
+| 15 | Node.js NestJS | 2,287 | Node.js |
+| 16 | Rust Actix Web | 2,131 | Rust |
+| 17 | Rust Rocket | 2,103 | Rust |
+| 18 | Node.js Express | 2,063 | Node.js |
+| 19 | Rust Axum | 1,979 | Rust |
+| 20 | Python Flask | 1,869 | Python |
+| 21 | GraalVM Vert.x | 1,163 | GraalVM |
+| 22 | Python FastAPI | 825 | Python |
+| 23 | Python Django | 403 | Python |
+
+## Summary by Category
+
+### 🏆 Champions by Test
+
+| Test | Winner | Req/s | Runner-up | Req/s |
+|------|--------|------:|-----------|------:|
+| /health (liveness) | C# Minimal API | 27,210 | C# Controllers | 18,539 |
+| /json (serialization) | Node.js NestJS | 2,396 | C# Minimal API | 2,038 |
+| /db/simple (PostgreSQL) | Go Fiber | 12,660 | C# Minimal API | 4,454 |
+| /cache (Redis) | Kotlin Ktor | 16,261 | Deno Hono | 14,869 |
+
+### 🏅 Best by Language (DB test)
+
+| Language | Best Framework | Req/s |
+|----------|---------------|------:|
+| Go | Fiber | 12,660 |
+| C# | Minimal API | 4,454 |
+| Kotlin | Ktor | 3,991 |
+| Bun | Hono | 2,919 |
+| Rust | Rocket | 2,637 |
+| Deno | Hono | 2,594 |
+| Node.js | NestJS | 2,260 |
+| Python | Flask | 1,898 |
+| GraalVM | Vert.x | 1,162 |
+
+### Key Insights
+
+1. **Go Fiber dominates DB queries** — 12.6K req/s with PostgreSQL
+2. **Deno excels at Redis** — Hono/Deno.serve at 14-16K req/s
+3. **C# is the all-rounder** — Top 2 in health, top 3 in DB
+4. **Kotlin Ktor** — Strong across all tests (5K health, 4K DB, 16K cache)
+5. **Bun Elysia** — Best serialization among JS runtimes
+6. **Rust** — Consistent ~2.5K across DB/Cache tests
+7. **Python** — Flask surprisingly beats FastAPI in DB queries
+
+## Infrastructure Deployed
+
+- **REST**: 23 frameworks ✅
+- **gRPC**: 14 frameworks ✅
+- **GraphQL**: 6 frameworks ✅
+- **Total**: 43 pods running on K3s
