@@ -91,8 +91,9 @@ for lang_dir in src/*/; do
   for impl_dir in "$lang_dir"*/; do
     [ -d "$impl_dir" ] || continue
     framework=$(basename "$impl_dir")
-    # Skip non-framework dirs
+    # Skip non-framework dirs and protocol parent directories
     [[ "$framework" == "k8s" || "$framework" == "common" ]] && continue
+    [[ "$framework" == "graphql" || "$framework" == "grpc" ]] && continue
     validate_impl "$impl_dir" "$lang/$framework"
   done
 done
