@@ -1,9 +1,9 @@
-FROM eclipse-temurin:21-jdk AS builder
+FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
 COPY build.gradle .
-RUN ./gradlew dependencies --no-daemon
+RUN gradle dependencies --no-daemon
 COPY src ./src
-RUN ./gradlew build
+RUN gradle build
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

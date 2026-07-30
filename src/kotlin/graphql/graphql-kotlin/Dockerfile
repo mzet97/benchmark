@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-jdk AS builder
+FROM gradle:8.5-jdk21 AS builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN chmod +x gradlew && ./gradlew dependencies --no-daemon 2>/dev/null || true
 
 COPY src ./src
 
-RUN ./gradlew bootJar --no-daemon
+RUN gradle bootJar --no-daemon
 
 FROM eclipse-temurin:21-jre
 
