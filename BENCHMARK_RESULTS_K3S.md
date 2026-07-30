@@ -156,9 +156,57 @@
 6. **Rust** — Consistent ~2.5K across DB/Cache tests
 7. **Python** — Flask surprisingly beats FastAPI in DB queries
 
+## gRPC Implementations (17 frameworks)
+
+### Health (ghz, 2 conns, 100 requests)
+
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | **Node.js connectrpc** | **5,251** | Node.js |
+| 2 | C# protobuf-net-grpc | 2,760 | C# |
+| 3 | C# MagicOnion | 2,654 | C# |
+| 4 | Bun connectrpc | 2,281 | Bun |
+| 5 | Java grpc-java | 1,522 | Java |
+| 6 | Python betterproto | 1,394 | Python |
+| 7 | Bun grpc-js | 964 | Bun |
+| 8 | Bun nice-grpc | 958 | Bun |
+| 9 | Node.js nice-grpc | 651 | Node.js |
+| 10 | Python grpclib | 557 | Python |
+| 11 | Deno connectrpc | FAILED | Deno |
+| 12 | Deno grpc-js | FAILED | Deno |
+| 13 | Deno nice-grpc | FAILED | Deno |
+| 14 | C# grpc-dotnet | FAILED | C# |
+
+**Note**: Deno gRPC services have connection issues. C# grpc-dotnet timeout.
+
+## GraphQL Implementations (8 frameworks)
+
+### __typename Query (wrk POST, 4 threads, 50 conns, 5s)
+
+| # | Framework | Req/s | Language |
+|---|-----------|------:|----------|
+| 1 | **Java Spring GraphQL** | **7,200** | Java |
+| 2 | Java DGS | 6,313 | Java |
+| 3 | Python Ariadne | 4,404 | Python |
+| 4 | Node.js Apollo | 3,088 | Node.js |
+| 5 | Node.js Yoga | 2,026 | Node.js |
+| 6 | Go gqlgen | FAILED | Go |
+| 7 | Node.js Mercurius | FAILED | Node.js |
+| 8 | Python Strawberry | FAILED | Python |
+
 ## Infrastructure Deployed
 
 - **REST**: 23 frameworks ✅
-- **gRPC**: 14 frameworks ✅
-- **GraphQL**: 6 frameworks ✅
-- **Total**: 43 pods running on K3s
+- **gRPC**: 17 frameworks (14 running, 3 failed)
+- **GraphQL**: 8 frameworks (5 running, 3 failed)
+- **Total**: 48 pods on K3s
+
+## Summary Champions
+
+| Category | Winner | Req/s |
+|----------|--------|------:|
+| REST /health | C# Minimal API | 27,210 |
+| REST /db (PostgreSQL) | Go Fiber | 12,660 |
+| REST /cache (Redis) | Kotlin Ktor | 16,261 |
+| gRPC Health | Node.js connectrpc | 5,251 |
+| GraphQL __typename | Java Spring GraphQL | 7,200 |
