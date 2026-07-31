@@ -1,42 +1,32 @@
-# Stage 1: Build with GraalVM native-image
-FROM ghcr.io/graalvm/graalvm-community:21 AS builder
+# Stage 1: Build with Maven + GraalVM JDK
+FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /build
-# Install Maven
-RUN microdnf install -y maven && microdnf clean all
 
-# Cache dependencies first for better layer caching
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source and build native image
 COPY src ./src
-RUN mvn package -Pnative -DskipTests -B
+RUN mvn package -DskipTests -B
+RUN mvn dependency:copy-dependencies -DincludeScope=runtime -DoutputDirectory=target/dependency
 
-# Stage 2: Minimal runtime (native binary needs minimal deps)
-FROM debian:bookworm-slim AS runtime
+# Stage 2: Runtime with JDK
+FROM eclipse-temurin:21-jre
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Create non-root user
-RUN groupadd --gid 1001 appuser && \
-    useradd --uid 1001 --gid 1001 --shell /bin/false --create-home appuser
+RUN groupadd -r appuser && useradd -r -g appuser -u 1001 appuser
 
-# Copy native binary from builder
-COPY --from=builder /build/target/graalvm-spring /app/app
-RUN chmod +x /app/app
+COPY --from=builder /build/target/*.jar /app/app.jar
+COPY --from=builder /build/target/dependency/ /app/lib/
 
-# Set ownership
 RUN chown -R appuser:appuser /app
-
-USER 1001
+USER appuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
-ENTRYPOINT ["./app"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

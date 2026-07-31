@@ -4,12 +4,13 @@ import com.benchmark.model.User;
 import com.benchmark.model.UserStats;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.jdbc.annotation.JdbcRepository;
+import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.micronaut.data.repository.CrudRepository;
 
 import java.util.List;
 import java.util.Optional;
 
-@JdbcRepository
+@JdbcRepository(dialect = Dialect.POSTGRES)
 public interface UserRepository extends CrudRepository<User, Integer> {
     @Query("SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = :id")
     Optional<User> findByIdRaw(Integer id);

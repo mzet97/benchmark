@@ -65,24 +65,19 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
-                <groupId>org.graalvm.nativeimage</groupId>
-                <artifactId>native-image-maven-plugin</artifactId>
-                <version>${graalvm.version}</version>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.6.1</version>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>build-native</goal>
-                        </goals>
+                        <id>copy-deps</id>
+                        <phase>package</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/dependency</outputDirectory>
+                        </configuration>
                     </execution>
                 </executions>
-                <configuration>
-                    <imageName>${project.artifactId}</imageName>
-                    <mainClass>com.benchmark.Main</mainClass>
-                    <buildArgs>
-                        --no-fallback
-                        --initialize-at-run-time=org.postgresql.Driver
-                    </buildArgs>
-                </configuration>
             </plugin>
         </plugins>
     </build>
