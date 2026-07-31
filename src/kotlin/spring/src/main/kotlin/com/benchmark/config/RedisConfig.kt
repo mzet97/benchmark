@@ -14,16 +14,15 @@ class RedisConfig {
     @Bean
     fun redisConnectionFactory(): RedisConnectionFactory {
         val config = RedisStandaloneConfiguration()
-        config.hostName = System.getenv("REDIS_HOST") ?: "redis.home.arpa"
-        config.port = (System.getenv("REDIS_PORT") ?: "30379").toInt()
-        config.password = org.springframework.validation.annotation.Validated::class
+        config.hostName = System.getenv("REDIS_HOST") ?: "localhost"
+        config.port = (System.getenv("REDIS_PORT") ?: "6379").toInt()
         return JedisConnectionFactory(config)
     }
 
     @Bean
     fun redisTemplate(connectionFactory: RedisConnectionFactory): RedisTemplate<String, String> {
         val template = RedisTemplate<String, String>()
-        template.connectionFactory = connectionFactory)
+        template.connectionFactory = connectionFactory
         template.keySerializer = StringRedisSerializer()
         template.valueSerializer = StringRedisSerializer()
         template.hashKeySerializer = StringRedisSerializer()
