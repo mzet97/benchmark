@@ -50,11 +50,17 @@ COPY --chown=app:app . .
 USER app
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# Port and worker count are contract-level, not per-implementation choices.
+# Previously: Flask/Django ran gunicorn with 4 workers x 2 threads while
+# FastAPI ran uvicorn with a single worker, which is what produced the
+# "Flask beats FastAPI" result. BENCH_CPUS comes from the shared ConfigMap.
+# Shell form (not exec form) so the variable is expanded at runtime.
+# See docs/ACTION_PLAN.md, Fase 3.1.
+CMD uvicorn app.main:app --host 0.0.0.0 --port 8080 --workers ${BENCH_CPUS:-4}

@@ -1,4 +1,4 @@
-// Entry point for Node.js Express Benchmark API.
+// Entry point for the Node.js Fastify Benchmark API.
 //
 // Node runs JavaScript on a single thread, so a bare `node server.js` in a pod
 // with 7 CPUs would use one of them. Every other runtime in this benchmark

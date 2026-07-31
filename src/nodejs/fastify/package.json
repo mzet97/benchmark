@@ -2,10 +2,10 @@
   "name": "benchmark-nodejs-fastify",
   "version": "1.0.0",
   "description": "High-performance REST API benchmark - Node.js Fastify",
-  "main": "src/server.js",
+  "main": "src/index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node src/index.js",
     "dev": "node --watch src/server.js",
     "build": "echo 'No build step required for Node.js'",
     "test": "node --test src/**/*.test.js",

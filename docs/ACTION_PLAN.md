@@ -145,8 +145,29 @@ uniforme, sem Ingress.
       `crypto/rand`, `GOMAXPROCS` de `BENCH_CPUS`, `pgxpool` com `DB_POOL_MAX`,
       modelos e envelopes alinhados ao proto, teste de regressão do contrato
 
-**Pendente**: aplicar o mesmo padrão às ~35 demais implementações REST, depois
-gRPC e GraphQL. O gate falha até que todas passem.
+**Implementações convertidas e verificadas contra a referência** (10/36 REST):
+
+| Ambiente | Implementações | Verificação |
+|---|---|---|
+| Go | fiber, chi, echo, gin | `go build`, `go vet`, `go test` + cross-check |
+| Python | flask, fastapi, django | função extraída por AST + cross-check |
+| Node.js | express, fastify, nestjs | executada com Node + cross-check |
+
+Divergências encontradas ao converter — cada uma invalidava o ranking `/json`:
+
+| Implementação | Divergência |
+|---|---|
+| `go/fiber` | `crypto/rand` por item; `string(rune(id))` |
+| `go/chi,echo,gin` | `time.Now()` dentro do laço (1000 leituras de relógio/req) |
+| `python/flask` | **dois `uuid4()` por item** = 2000 UUIDs/req |
+| `python/django` | `utcnow()` dentro do laço |
+| `nodejs/fastify` | `uuidv4()` por item; schema de resposta filtrava campos |
+| `nodejs/nestjs` | ids a partir de 1; envelope sem `timestamp`; **rotas sob `/api`** enquanto o runner batia na raiz; porta 3000 |
+| Python (todas) | workers desiguais (Flask 4×2, FastAPI 1); porta 8000 |
+| Node (todas) | single-thread — usariam 1 dos 7 cores |
+
+**Pendente**: ~26 implementações REST (Bun, Deno, Rust, C#, Java, Kotlin,
+GraalVM, Dart), depois gRPC e GraphQL. O gate falha até que todas passem.
 
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
