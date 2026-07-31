@@ -16,8 +16,16 @@ dependencies {
     implementation 'org.postgresql:postgresql'
 }
 
-tasks.withType<KotlinCompile> {
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
     kotlinOptions {
         jvmTarget = '21'
     }
+}
+
+jar {
+    enabled = false
+}
+
+bootJar {
+    archiveFileName = 'app.jar'
 }

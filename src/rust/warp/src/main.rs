@@ -68,11 +68,11 @@ async fn main() {
     warp::serve(routes).run(([0, 0, 0, 0], 3000)).await;
 }
 
-fn with_db(db: Arc<Database>) -> impl Filter<Extract = (Arc<Database>,), Error = Rejection> + Clone {
+fn with_db(db: Arc<Database>) -> impl Filter<Extract = (Arc<Database>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || db.clone())
 }
 
-fn with_cache(cache: Arc<Cache>) -> impl Filter<Extract = (Arc<Cache>,), Error = Rejection> + Clone {
+fn with_cache(cache: Arc<Cache>) -> impl Filter<Extract = (Arc<Cache>,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || cache.clone())
 }
 
@@ -160,9 +160,9 @@ async fn cache_handler(query: cache::CacheQuery, cache: Arc<Cache>) -> Result<im
 }
 
 #[derive(Debug)]
-struct AppError;
-impl warp::reject::Reject for AppError {}
-impl AppError {
-    fn internal() -> Self { Self }
-    fn service_unavailable() -> Self { Self }
+enum AppError {
+    BadRequest,
+    Internal,
+    ServiceUnavailable,
 }
+impl warp::reject::Reject for AppError {}

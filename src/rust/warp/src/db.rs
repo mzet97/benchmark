@@ -18,18 +18,18 @@ impl Database {
 
     pub async fn health_check(&self) -> Result<()> {
         sqlx::query("SELECT 1")
-            .fetch_one(&self.pool)
+            .execute(&self.pool)
             .await
             .map(|_| ())
+            .map_err(Into::into)
     }
 
     pub async fn get_user(&self, id: i32) -> Result<Option<User>> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT id, email, first_name, last_name, age, created_at 
-             FROM users WHERE id = $1",
-            id
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, email, first_name, last_name, age, created_at
+             FROM users WHERE id = $1"
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
@@ -37,9 +37,8 @@ impl Database {
     }
 
     pub async fn get_complex_query(&self, days: i32) -> Result<Vec<ComplexUserStats>> {
-        let users = sqlx::query!(
-            r#"
-            SELECT u.id as user_id,
+        let rows = sqlx::query_as::<_, ComplexUserStats>(
+            r#"SELECT u.id as user_id,
                    u.email as user_email,
                    COUNT(DISTINCT o.id) as total_orders,
                    COALESCE(SUM(o.total_amount), 0) as total_value,
@@ -47,30 +46,17 @@ impl Database {
                    EXTRACT(DAY FROM NOW() - MIN(o.created_at)) as days_since_first_order
             FROM users u
             LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - INTERVAL '%s days'
+              AND o.created_at >= NOW() - ($1 || ' days')::INTERVAL
             GROUP BY u.id, u.email
             HAVING COUNT(DISTINCT o.id) > 0
             ORDER BY total_value DESC
-            LIMIT 100
-            "#,
-            days
+            LIMIT 100"#
         )
+        .bind(days)
         .fetch_all(&self.pool)
         .await?;
 
-        let result: Vec<ComplexUserStats> = users
-            .into_iter()
-            .map(|row| ComplexUserStats {
-                user_id: row.user_id,
-                user_email: row.user_email,
-                total_orders: row.total_orders,
-                total_value: row.total_value,
-                average_value: row.average_value,
-                days_since_first_order: row.days_since_first_order,
-            })
-            .collect();
-
-        Ok(result)
+        Ok(rows)
     }
 }
 
@@ -84,7 +70,7 @@ pub struct User {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(sqlx::FromRow, Debug, Clone, Serialize)]
 pub struct ComplexUserStats {
     pub user_id: i32,
     pub user_email: String,
