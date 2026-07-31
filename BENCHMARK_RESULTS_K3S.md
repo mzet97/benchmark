@@ -196,10 +196,10 @@
 
 ## Infrastructure Deployed (Updated)
 
-- **REST**: 24 frameworks ✅ (+1: go-rest-chi)
-- **gRPC**: 16 frameworks ✅ (+1: nodejs-grpc-grpc-js)
-- **GraphQL**: 13 frameworks ✅ (+5: bun-graphql-hono, deno-graphql-apollo/hono/yoga)
-- **Total**: 53 pods running on K3s
+- **REST**: 25 frameworks ✅ (+java-rest-spring)
+- **gRPC**: 15 frameworks ✅ (+rust-grpc-tonic)
+- **GraphQL**: 13 frameworks ✅ (+bun/deno-graphql)
+- **Total**: 53 pods deployed on K3s (45 running)
 
 ## New Implementations Added
 
@@ -207,6 +207,7 @@
 | Framework | Req/s |
 |-----------|------:|
 | Go Chi | 1,951 |
+| Java Spring | Starting (DB conn issues) |
 
 ### GraphQL (new)
 | Framework | Req/s |
@@ -219,13 +220,23 @@
 | Framework | Req/s |
 |-----------|------:|
 | Node.js grpc-js | 4,732 |
+| Rust Tonic | 4,910 |
 
 ## Summary Champions (53 frameworks tested)
 
 | Category | Winner | Req/s |
 |----------|--------|------:|
-| REST /health | C# Minimal API | 26,085 |
+| REST /health | C# Minimal API | 19,562 |
 | REST /db (PostgreSQL) | Go Fiber | 12,660 |
 | REST /cache (Redis) | Kotlin Ktor | 16,261 |
-| gRPC Health | Node.js connectrpc | 5,251 |
-| GraphQL __typename | Python Ariadne | 4,435 |
+| gRPC Health | Rust Tonic | 4,910 |
+| GraphQL __typename | Python Ariadne | 4,043 |
+
+## Remaining Not Deployed (46 implementations)
+
+Build issues by category:
+- **Java/Kotlin**: Missing JDBC deps, compilation errors (~20 impls)
+- **Rust**: cargo build fails (grpcio, volo, GraphQL) (~10 impls)
+- **C# GraphQL**: NuGet cycle, API errors (~6 impls)
+- **Go gRPC**: Proto path issues (~5 impls)
+- **Dart**: pubspec issues (~5 impls)
