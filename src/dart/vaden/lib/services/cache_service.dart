@@ -17,7 +17,7 @@ class CacheService {
     final password = uri.userInfo.isNotEmpty ? uri.userInfo.split(':').last : null;
 
     _connection = RedisConnection();
-    _command = await _connection.connect(uri.host, uri.port, password: password);
+    _command = await _connection.connect(uri.host, uri.port);
 
     _initialized = true;
     logger.info('Redis connected to ${uri.host}:${uri.port}');

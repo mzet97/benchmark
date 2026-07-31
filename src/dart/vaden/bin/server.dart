@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
+import 'package:shelf/shelf.dart' show Pipeline;
 
 import 'package:benchmark_dart_vaden/services/database_service.dart';
 import 'package:benchmark_dart_vaden/services/cache_service.dart';

@@ -24,9 +24,7 @@ class DatabaseService {
         port: uri.port,
       ),
       settings: ConnectionSettings(
-        timeoutInterval: Duration(
-          seconds: int.parse(Platform.environment['DB_TIMEOUT'] ?? '30'),
-        ),
+        connectTimeout: Duration(seconds: int.parse(Platform.environment['DB_TIMEOUT'] ?? '30')),
       ),
     );
 
