@@ -13,10 +13,7 @@ class DatabaseService:
 
     def __init__(self):
         self._pool: Optional[asyncpg.Pool] = None
-        self.connection_string = os.getenv(
-            "DATABASE_URL",
-            "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-        )
+        self.connection_string = os.environ["DATABASE_URL"]
 
     async def init_pool(self):
         """Initialize connection pool"""

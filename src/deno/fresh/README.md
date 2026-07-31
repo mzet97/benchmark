@@ -39,6 +39,6 @@ kubectl apply -f k8s/ -n benchmark
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api` | PostgreSQL connection string |
-| `REDIS_URL` | `redis://:Admin@123@redis.home.arpa:30379` | Redis connection string |
+| `DATABASE_URL` | `postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api` | PostgreSQL connection string |
+| `REDIS_URL` | `redis://:${REDIS_PASSWORD}@redis.home.arpa:30379` | Redis connection string |
 | `PORT` | `3000` | Server port |

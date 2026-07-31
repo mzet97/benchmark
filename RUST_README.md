@@ -38,8 +38,8 @@ docker build -t benchmark/rust-actix-web:latest src/rust/actix-web
 ### Run
 ```bash
 docker run -p 8080:8080 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/rust-actix-web:latest
 ```
 
@@ -219,10 +219,10 @@ rustup update
 ### Connection Errors
 ```bash
 # Check PostgreSQL
-psql "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+psql "postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
 
 # Check Redis
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED>
 ```
 
 ### Port Already in Use

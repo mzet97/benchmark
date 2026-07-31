@@ -6,8 +6,8 @@ metadata:
   labels:
     app: csharp-minimalapi
 data:
-  database.url: "Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=Admin@123;Maximum Pool Size=25;Connection Timeout=30;"
-  redis.url: "redis.home.arpa:30379,password=Admin@123,defaultDatabase=0,ssl=false"
+  database.url: "Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=${DB_PASSWORD};Maximum Pool Size=25;Connection Timeout=30;"
+  redis.url: "redis.home.arpa:30379,Password=${DB_PASSWORD},defaultDatabase=0,ssl=false"
 ---
 apiVersion: v1
 kind: Secret
@@ -18,5 +18,5 @@ metadata:
     app: csharp-minimalapi
 type: Opaque
 stringData:
-  database-password: "Admin@123"
-  redis-password: "Admin@123"
+  database-password: ${DB_PASSWORD}
+  redis-password: ${DB_PASSWORD}

@@ -3,7 +3,7 @@ import redis
 from typing import Optional
 from datetime import datetime
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
+REDIS_URL = os.environ["REDIS_URL"]
 
 r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
 

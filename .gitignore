@@ -99,3 +99,7 @@ kubernetes/secrets.yaml
 
 # Native AOT
 *.rsp
+
+# Python bytecode (can embed constant-folded secrets)
+__pycache__/
+*.pyc

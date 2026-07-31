@@ -9,7 +9,7 @@ HOST=${1:-"spsql.home.arpa"}
 PORT=${2:-"5432"}
 DATABASE=${3:-"benchmark_api"}
 USERNAME=${4:-"app"}
-PASSWORD=${5:-"Admin@123"}
+PASSWORD=${5:?5 is required}
 
 PGPASSWORD="$PASSWORD"
 

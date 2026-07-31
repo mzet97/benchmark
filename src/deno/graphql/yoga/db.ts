@@ -1,7 +1,6 @@
 import pg from "pg";
 
-const DATABASE_URL = Deno.env.get("DATABASE_URL") ||
-  "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api";
+const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
 
 const pool = new pg.Pool({
   connectionString: DATABASE_URL,

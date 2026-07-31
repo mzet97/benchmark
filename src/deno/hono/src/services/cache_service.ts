@@ -17,8 +17,7 @@ export class RedisCacheService implements CacheService {
   private connectionString: string;
 
   constructor() {
-    this.connectionString = Deno.env.get('REDIS_URL') ||
-      'redis://:Admin@123@redis.home.arpa:30379';
+    this.connectionString = Deno.env.get('REDIS_URL') || (() => { throw new Error('REDIS_URL is required'); })();
   }
 
   async init(): Promise<void> {

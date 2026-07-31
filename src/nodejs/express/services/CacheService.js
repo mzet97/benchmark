@@ -7,7 +7,7 @@ class CacheService {
 
   async init() {
     try {
-      const redisUrl = process.env.REDIS_URL || 'redis://:Admin@123@redis.home.arpa:30379';
+      const redisUrl = process.env.REDIS_URL || (() => { throw new Error('REDIS_URL is required'); })();
 
       this.client = createClient({
         url: redisUrl,

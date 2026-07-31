@@ -79,8 +79,8 @@ cd src/nodejs/fastify
 
 # Run
 docker run -p 8080:8080 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/nodejs-fastify:latest
 ```
 

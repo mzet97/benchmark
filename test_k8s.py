@@ -1,4 +1,5 @@
 
+import os
 import paramiko
 import sys
 
@@ -6,7 +7,7 @@ client = paramiko.SSHClient()
 client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 try:
-    client.connect('192.168.1.51', username='k8s', password='Admin@123', timeout=10)
+    client.connect('192.168.1.51', username='k8s', password=os.environ["K3S_SSH_PASSWORD"], timeout=10)
     print("✅ SSH connection successful!")
     
     # Run basic commands

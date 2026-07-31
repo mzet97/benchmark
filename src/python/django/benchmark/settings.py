@@ -22,13 +22,13 @@ if DATABASE_URL:
         db_user, db_pass, db_host, db_port, db_name = match.groups()
     else:
         db_user = os.getenv('DB_USER', 'app')
-        db_pass = os.getenv('DB_PASSWORD', 'Admin@123')
+        db_pass = os.environ["DB_PASSWORD"]
         db_host = os.getenv('DB_HOST', 'spsql.home.arpa')
         db_port = os.getenv('DB_PORT', '5432')
         db_name = os.getenv('DB_NAME', 'benchmark_api')
 else:
     db_user = os.getenv('DB_USER', 'app')
-    db_pass = os.getenv('DB_PASSWORD', 'Admin@123')
+    db_pass = os.environ["DB_PASSWORD"]
     db_host = os.getenv('DB_HOST', 'spsql.home.arpa')
     db_port = os.getenv('DB_PORT', '5432')
     db_name = os.getenv('DB_NAME', 'benchmark_api')
@@ -60,4 +60,4 @@ REST_FRAMEWORK = {
     ],
 }
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
+REDIS_URL = os.environ["REDIS_URL"]

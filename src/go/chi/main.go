@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/go-chi/chi/v5"
 	"chi/handlers"
@@ -17,19 +18,30 @@ var (
 	redisClient *goredis.Client
 )
 
+// mustEnv returns the value of key, aborting if it is unset. Credentials are
+// never defaulted: a missing variable must fail loudly, not connect silently.
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		log.Fatalf("%s is required", key)
+	}
+	return v
+}
+
 func main() {
 	var err error
 
-	db, err = sql.Open("postgres", "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api")
+	db, err = sql.Open("postgres", mustEnv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 	defer db.Close()
 
-	redisClient = goredis.NewClient(&goredis.Options{
-		Addr:     "redis.home.arpa:30379",
-		Password: "Admin@123",
-	})
+	redisOpt, err := goredis.ParseURL(mustEnv("REDIS_URL"))
+	if err != nil {
+		log.Fatal("Failed to parse REDIS_URL:", err)
+	}
+	redisClient = goredis.NewClient(redisOpt)
 	defer redisClient.Close()
 
 	dbService := services.NewDatabaseService(db)

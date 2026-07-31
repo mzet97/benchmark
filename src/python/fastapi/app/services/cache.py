@@ -12,10 +12,7 @@ class CacheService:
 
     def __init__(self):
         self._redis: Optional[aioredis.Redis] = None
-        self.redis_url = os.getenv(
-            "REDIS_URL",
-            "redis://:Admin@123@redis.home.arpa:30379"
-        )
+        self.redis_url = os.environ["REDIS_URL"]
 
     async def init_redis(self):
         """Initialize Redis connection"""

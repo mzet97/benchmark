@@ -34,8 +34,7 @@ export class PostgresDatabaseService implements DatabaseService {
   private connectionString: string;
 
   constructor() {
-    this.connectionString = Deno.env.get('DATABASE_URL') ||
-      'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api';
+    this.connectionString = Deno.env.get('DATABASE_URL') || (() => { throw new Error('DATABASE_URL is required'); })();
 
     // Create connection pool
     this.pool = {

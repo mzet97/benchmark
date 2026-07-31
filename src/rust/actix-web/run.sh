@@ -41,8 +41,8 @@ case $MODE in
     "dev")
         print_info "Starting in development mode..."
         export RUST_LOG=debug
-        export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-        export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+        : "${DATABASE_URL:?DATABASE_URL is required}"
+        : "${REDIS_URL:?REDIS_URL is required}"
         export SERVER_WORKERS=4
         ./target/release/benchmark-actix
         ;;
@@ -56,8 +56,8 @@ case $MODE in
         print_info "Running via Docker..."
         docker run -it --rm \
             -p 8080:8080 \
-            -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-            -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+            -e DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}" \
+            -e REDIS_URL="${REDIS_URL:?REDIS_URL is required}" \
             benchmark/rust-actix-web:latest
         ;;
 

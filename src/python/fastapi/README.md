@@ -172,8 +172,8 @@ pip install -r requirements.txt
 
 2. **Configure Environment**
 ```bash
-export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+export DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
+export REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379"
 export DEBUG="true"
 ```
 
@@ -215,8 +215,8 @@ docker build -t benchmark/python-fastapi:latest .
 docker run -d \
   --name python-fastapi-app \
   -p 8000:8000 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/python-fastapi:latest
 
 # Logs
@@ -366,7 +366,7 @@ docker exec python-fastapi-app env | grep -E "DATABASE_URL|REDIS_URL"
 **2. Database Connection Errors**
 ```bash
 # Test database connectivity
-psql "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" -c "SELECT 1;"
+psql "postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" -c "SELECT 1;"
 
 # Check connection pool
 curl http://localhost:8000/health | jq '.database'
@@ -375,7 +375,7 @@ curl http://localhost:8000/health | jq '.database'
 **3. Redis Connection Errors**
 ```bash
 # Test Redis connectivity
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED> ping
 
 # Check cache operations
 curl http://localhost:8000/cache?key=test | jq '.cached'

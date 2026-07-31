@@ -6,8 +6,8 @@
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
 import { Redis } from "https://deno.land/x/redis@v0.32.1/mod.ts";
 
-const DATABASE_URL = Deno.env.get("DATABASE_URL") || "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api";
-const REDIS_URL = Deno.env.get("REDIS_URL") || "redis://:Admin@123@redis.home.arpa:30379";
+const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
+const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
 
 // ==================== Database Service ====================
 class DatabaseService {

@@ -19,8 +19,8 @@ export LOG_LEVEL=${LOG_LEVEL:-info}
 export DEBUG=${DEBUG:-false}
 
 # Default database and cache URLs
-export DATABASE_URL=${DATABASE_URL:-"postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"}
-export REDIS_URL=${REDIS_URL:-"redis://:Admin@123@redis.home.arpa:30379"}
+export DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+export REDIS_URL=${REDIS_URL:?REDIS_URL is required}
 export CACHE_TTL=${CACHE_TTL:-300}
 
 echo "Configuration:"

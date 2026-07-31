@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Write content to remote file via SSH."""
+import os
 import sys
 import paramiko
 import base64
@@ -30,4 +31,4 @@ if __name__ == '__main__':
     if len(sys.argv) != 3:
         print(f"Usage: {sys.argv[0]} <local_path> <remote_path>")
         sys.exit(1)
-    ssh_write('192.168.1.51', 'k8s1', 'Admin@123', sys.argv[2], sys.argv[1])
+    ssh_write('192.168.1.51', 'k8s1', os.environ["K3S_SSH_PASSWORD"], sys.argv[2], sys.argv[1])

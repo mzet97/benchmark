@@ -134,10 +134,8 @@ async fn cache_endpoint(cache: &State<Cache>, key: Option<String>) -> Result<Jso
 async fn rocket() -> _ {
     dotenvy::dotenv().ok();
     
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api".to_string());
-    let redis_url = std::env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
 
     let database = Database::new(&database_url).await;
     let cache = Cache::new(&redis_url).await;

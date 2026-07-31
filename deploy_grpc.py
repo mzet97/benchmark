@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Build and deploy gRPC implementations on K3s server via SSH (paramiko)."""
 
+import os
 import paramiko
 import sys
 import time
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 BENCHMARK_DIR = "/home/k8s1/benchmark"
 
 # (impl_id, src_path_relative_to_benchmark, needs_project_root_context)

@@ -244,10 +244,10 @@ gradle --version
 ### Connection Errors
 ```bash
 # Test PostgreSQL
-psql "jdbc:postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+psql "jdbc:postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
 
 # Test Redis
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 PING
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED> PING
 ```
 
 ### Port Already in Use

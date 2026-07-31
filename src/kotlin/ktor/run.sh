@@ -43,8 +43,8 @@ case $MODE in
         export PORT=8080
         export DATABASE_URL="jdbc:postgresql://spsql.home.arpa:5432/benchmark_api"
         export DATABASE_USER="app"
-        export DATABASE_PASSWORD="Admin@123"
-        export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+        : "${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}"
+        : "${REDIS_URL:?REDIS_URL is required}"
         java -XX:+UseG1GC -Xms128m -Xmx512m -jar ./build/libs/benchmark-ktor.jar
         ;;
 
@@ -61,8 +61,8 @@ case $MODE in
             -e PORT=8080 \
             -e DATABASE_URL="jdbc:postgresql://spsql.home.arpa:5432/benchmark_api" \
             -e DATABASE_USER="app" \
-            -e DATABASE_PASSWORD="Admin@123" \
-            -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+            -e DATABASE_PASSWORD="${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}" \
+            -e REDIS_URL="${REDIS_URL:?REDIS_URL is required}" \
             benchmark/kotlin-ktor:latest
         ;;
 

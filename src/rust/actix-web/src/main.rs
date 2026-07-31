@@ -165,8 +165,8 @@ async fn cache_handler(data: web::Data<AppState>, query: web::Query<std::collect
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    let database_url = std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgresql://app:Admin@123@10.43.43.29:5432/benchmark_api".to_string());
-    let redis_url = std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://:Admin@123@10.43.190.124:6379".to_string());
+    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
 
     println!("Connecting to PostgreSQL...");

@@ -33,8 +33,8 @@ def create_app():
     # Configuration
     app.config['DEBUG'] = os.getenv('DEBUG', 'false').lower() == 'true'
     app.config['LOG_LEVEL'] = os.getenv('LOG_LEVEL', 'info')
-    app.config['DATABASE_URL'] = os.getenv('DATABASE_URL', 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api')
-    app.config['REDIS_URL'] = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
+    app.config['DATABASE_URL'] = os.environ["DATABASE_URL"]
+    app.config['REDIS_URL'] = os.environ["REDIS_URL"]
 
     # Register blueprints
     from app.routes import health, json, database, cache

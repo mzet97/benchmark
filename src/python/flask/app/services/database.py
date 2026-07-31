@@ -10,7 +10,7 @@ import os
 
 logger = structlog.get_logger(__name__)
 
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api')
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 
 class DatabaseService:

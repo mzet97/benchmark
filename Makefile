@@ -71,8 +71,8 @@ build-csharp:
 test-csharp:
 	@echo "Testing C# application..."
 	@cd src/csharp/MinimalApi && \
-		DATABASE_URL="Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=Admin@123;Maximum Pool Size=25;Connection Timeout=30;" \
-		REDIS_CONNECTIONSTRING="redis.home.arpa:30379,password=Admin@123,defaultDatabase=0,ssl=false" \
+		DATABASE_URL="$(DATABASE_URL)" \
+		REDIS_CONNECTIONSTRING="$(REDIS_URL)" \
 		dotnet run --urls "http://localhost:8080"
 
 deploy-csharp:

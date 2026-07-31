@@ -34,9 +34,9 @@ print_info() {
 case $MODE in
     "dev")
         print_info "Starting in development mode..."
-        export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+        : "${DATABASE_URL:?DATABASE_URL is required}"
         export REDIS_HOST="redis.home.arpa:30379"
-        export REDIS_PASSWORD="Admin@123"
+        : "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"
         mvn quarkus:dev
         ;;
 
@@ -62,9 +62,9 @@ case $MODE in
         print_info "Running via Docker..."
         docker run -it --rm \
             -p 8080:8080 \
-            -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
+            -e DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}" \
             -e REDIS_HOST="redis.home.arpa:30379" \
-            -e REDIS_PASSWORD="Admin@123" \
+            -e REDIS_PASSWORD="${REDIS_PASSWORD:?REDIS_PASSWORD is required}" \
             benchmark/java-quarkus:latest
         ;;
 
@@ -72,9 +72,9 @@ case $MODE in
         print_info "Running JVM Docker image..."
         docker run -it --rm \
             -p 8080:8080 \
-            -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
+            -e DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}" \
             -e REDIS_HOST="redis.home.arpa:30379" \
-            -e REDIS_PASSWORD="Admin@123" \
+            -e REDIS_PASSWORD="${REDIS_PASSWORD:?REDIS_PASSWORD is required}" \
             benchmark/java-quarkus:jvm
         ;;
 

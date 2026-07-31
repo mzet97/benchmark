@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Final fix for Rust implementations - write files, rebuild, deploy."""
+import os
 import paramiko
 import time
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 
 # Rocket main.rs - remove Shield, fix imports
 ROCKET_MAIN = r"""#[macro_use]
@@ -120,10 +121,8 @@ async fn cache_endpoint(cache: &State<Cache>, key: Option<String>) -> Result<Jso
 #[launch]
 async fn rocket() -> _ {
     dotenvy::dotenv().ok();
-    let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api".to_string());
-    let redis_url = std::env::var("REDIS_URL")
-        .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
     let database = Database::new(&database_url).await;
     let cache = Cache::new(&redis_url).await;
     rocket::build()
@@ -242,8 +241,7 @@ pub struct DatabaseService {
 
 impl DatabaseService {
     pub async fn new() -> Self {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api".to_string());
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
         let pool = PgPool::connect_lazy(&database_url)
             .expect("Failed to create database pool");
         Self { pool }
@@ -276,8 +274,7 @@ pub struct CacheService {
 
 impl CacheService {
     pub async fn new() -> Self {
-        let redis_url = env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
+        let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
         let client = RedisClient::open(redis_url)
             .expect("Failed to create Redis client");
         Self { client }

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import os
 import sys
 import paramiko
 
@@ -19,5 +20,5 @@ def ssh_exec(host, user, password, cmd):
 
 if __name__ == '__main__':
     cmd = ' '.join(sys.argv[1:])
-    code = ssh_exec('192.168.1.51', 'k8s1', 'Admin@123', cmd)
+    code = ssh_exec('192.168.1.51', 'k8s1', os.environ["K3S_SSH_PASSWORD"], cmd)
     sys.exit(code)

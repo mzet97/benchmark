@@ -8,7 +8,7 @@ export class CacheService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     this.client = createClient({
-      url: process.env.REDIS_URL || 'redis://:Admin@123@redis.home.arpa:30379'
+      url: process.env.REDIS_URL || (() => { throw new Error('REDIS_URL is required'); })()
     });
 
     this.client.on('error', (err) => this.logger.error('Redis Client Error', err));

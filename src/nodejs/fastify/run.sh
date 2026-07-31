@@ -43,8 +43,8 @@ case $MODE in
         export PORT=8080
         export NODE_ENV=development
         export LOG_LEVEL=debug
-        export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-        export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+        : "${DATABASE_URL:?DATABASE_URL is required}"
+        : "${REDIS_URL:?REDIS_URL is required}"
         npm run dev
         ;;
 
@@ -62,8 +62,8 @@ case $MODE in
             -p 8080:8080 \
             -e PORT=8080 \
             -e NODE_ENV=production \
-            -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-            -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+            -e DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}" \
+            -e REDIS_URL="${REDIS_URL:?REDIS_URL is required}" \
             benchmark/nodejs-fastify:latest
         ;;
 

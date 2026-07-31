@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Run a long-running command on the K3s server detached, write output to a file, poll until done."""
+import os
 import paramiko
 import sys
 import time
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 
 
 def main():

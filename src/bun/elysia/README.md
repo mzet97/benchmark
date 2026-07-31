@@ -132,8 +132,8 @@ bun install
 
 3. **Configure Environment**
 ```bash
-export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+export DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
+export REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379"
 export DEBUG="false"
 ```
 
@@ -174,8 +174,8 @@ docker build -t benchmark/bun-elysia:latest .
 docker run -d \
   --name bun-elysia-app \
   -p 3000:3000 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/bun-elysia:latest
 
 # Logs
@@ -310,13 +310,13 @@ docker exec bun-elysia-app env | grep -E "DATABASE_URL|REDIS_URL"
 **3. Database Connection Errors**
 ```bash
 # Test database connectivity
-psql "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" -c "SELECT 1;"
+psql "postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" -c "SELECT 1;"
 ```
 
 **4. Redis Connection Errors**
 ```bash
 # Test Redis connectivity
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED> ping
 ```
 
 ### Health Check Endpoints

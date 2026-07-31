@@ -155,7 +155,7 @@ func setupRoutes(
 func initDatabase() (*pgx.Conn, error) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
 	conn, err := pgx.Connect(context.Background(), dbURL)
@@ -170,7 +170,7 @@ func initDatabase() (*pgx.Conn, error) {
 func initRedis() (*redis.Client, error) {
 	redisURL := os.Getenv("REDIS_URL")
 	if redisURL == "" {
-		redisURL = "redis://:Admin@123@redis.home.arpa:30379"
+		return nil, fmt.Errorf("REDIS_URL is required")
 	}
 
 	opt, err := redis.ParseURL(redisURL)

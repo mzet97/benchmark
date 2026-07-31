@@ -14,7 +14,7 @@ class DatabaseConfig {
         dataSource.setDriverClassName("org.postgresql.Driver")
         dataSource.url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://spsql.home.arpa:5432/benchmark_api"
         dataSource.username = System.getenv("DB_USER") ?: "app"
-        dataSource.password = System.getenv("DB_PASSWORD") ?: "Admin@123"
+        dataSource.password = System.getenv("DB_PASSWORD") ?: error("DB_PASSWORD is required")
         return dataSource
     }
 

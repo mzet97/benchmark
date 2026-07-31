@@ -9,7 +9,7 @@ use tonic::transport::Server;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let database_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://app:Admin@123@10.43.43.29:5432/benchmark_api".to_string());
+        env::var("DATABASE_URL").expect("DATABASE_URL is required");
     let redis_url =
         std::env::var("REDIS_URL").unwrap_or_else(|_| "redis://10.43.190.124:6379".to_string());
 

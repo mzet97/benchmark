@@ -85,10 +85,10 @@ cd src/kotlin/ktor
 
 # Run
 docker run -p 8080:8080 \
-  -e DATABASE_URL="jdbc:postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
+  -e DATABASE_URL="jdbc:postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
   -e DATABASE_USER="app" \
-  -e DATABASE_PASSWORD="Admin@123" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_PASSWORD="<REDACTED>" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/kotlin-ktor:latest
 ```
 
@@ -148,7 +148,7 @@ kubectl apply -f src/kotlin/ktor/k8s/service.yaml -n benchmark
 PORT: "8080"
 DATABASE_URL: jdbc:postgresql://app:***@spsql.home.arpa:5432/benchmark_api
 DATABASE_USER: app
-DATABASE_PASSWORD: Admin@123
+DATABASE_PASSWORD: <REDACTED>
 REDIS_URL: redis://:***@redis.home.arpa:30379
 ```
 

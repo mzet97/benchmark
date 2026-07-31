@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Fix and deploy the 2 remaining Rust implementations."""
+import os
 import paramiko
 import sys
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 
 def run_cmd(client, cmd, timeout=120):
     print(f"  >> {cmd}")

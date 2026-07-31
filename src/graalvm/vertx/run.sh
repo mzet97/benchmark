@@ -31,8 +31,8 @@ echo "Starting container..."
 docker run -d \
     --name ${CONTAINER_NAME} \
     -p 3000:3000 \
-    -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-    -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+    -e DATABASE_URL="${DATABASE_URL:?DATABASE_URL is required}" \
+    -e REDIS_URL="${REDIS_URL:?REDIS_URL is required}" \
     -e DEBUG="false" \
     -e LOG_LEVEL="info" \
     -e PORT="3000" \

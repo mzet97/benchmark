@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 Run benchmarks on ALL 23 REST implementations across ALL 5 scenarios.
-K3s server: 192.168.1.51 (user: k8s1, password: Admin@123)
+K3s server: 192.168.1.51 (user: k8s1, password: <from $K3S_SSH_PASSWORD>)
 """
 
+import os
 import paramiko
 import time
 import re
@@ -11,7 +12,7 @@ import sys
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 NAMESPACE = "benchmark"
 
 IMPLEMENTATIONS = [

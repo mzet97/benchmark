@@ -279,10 +279,10 @@ export JAVA_HOME=/path/to/graalvm
 ### Connection Errors
 ```bash
 # Check PostgreSQL
-psql "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+psql "postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
 
 # Check Redis
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 PING
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED> PING
 ```
 
 ### Port Already in Use

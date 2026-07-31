@@ -123,8 +123,8 @@ ansible-playbook playbooks/01-preflight.yml
 
 # 2. Create secrets
 ansible-playbook playbooks/02-create-secrets.yml \
-  -e "pg_password=Admin@123" \
-  -e "redis_password=Admin@123"
+  -e "pg_Password=${DB_PASSWORD}" \
+  -e "redis_Password=${DB_PASSWORD}"
 
 # 3. Label nodes
 ansible-playbook playbooks/03-label-nodes.yml

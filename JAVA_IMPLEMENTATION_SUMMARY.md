@@ -75,9 +75,9 @@ cd src/java/quarkus
 
 # Run
 docker run -p 8080:8080 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
   -e REDIS_HOST="redis.home.arpa:30379" \
-  -e REDIS_PASSWORD="Admin@123" \
+  -e REDIS_PASSWORD="<REDACTED>" \
   benchmark/java-quarkus:latest
 ```
 
@@ -155,7 +155,7 @@ kubectl apply -f src/java/quarkus/k8s/service.yaml -n benchmark
 ```yaml
 DATABASE_URL: postgresql://app:***@spsql.home.arpa:5432/benchmark_api
 REDIS_HOST: redis.home.arpa:30379
-REDIS_PASSWORD: Admin@123
+REDIS_PASSWORD: <REDACTED>
 QUARKUS_HTTP_PORT: 8080
 ```
 

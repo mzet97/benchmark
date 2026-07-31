@@ -9,8 +9,7 @@ class DatabaseService {
 
   async init() {
     try {
-      const connectionString = process.env.DATABASE_URL ||
-        'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api';
+      const connectionString = process.env.DATABASE_URL || (() => { throw new Error('DATABASE_URL is required'); })();
 
       this.pool = new Pool({
         connectionString,

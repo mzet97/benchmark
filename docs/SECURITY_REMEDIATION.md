@@ -133,7 +133,7 @@ The credentials exist in the Git history and must be purged.
 # https://rtyley.github.io/bfg-repo-cleaner/
 
 # Create a file with the passwords to remove
-echo "Admin@123" > passwords.txt
+echo "<OLD_PASSWORD>" > passwords.txt
 
 # Run BFG to remove the passwords from all history
 java -jar bfg.jar --replace-text passwords.txt
@@ -150,7 +150,7 @@ git push --force --tags
 pip install git-filter-repo
 
 # Replace the password string in all files
-git-filter-repo --replace-text <(echo "Admin@123==>REDACTED")
+git-filter-repo --replace-text <(echo "<OLD_PASSWORD>==>REDACTED")
 
 git push --force --all
 ```
@@ -182,7 +182,7 @@ done
 ### Check Git log for password strings
 
 ```bash
-git log --all -p -S "Admin@123" -- '*.yaml' '*.yml' '*.env' '*.sh'
+git log --all -p -S "<OLD_PASSWORD>" -- '*.yaml' '*.yml' '*.env' '*.sh'
 # Should return no results after cleanup
 ```
 
@@ -217,24 +217,54 @@ git secrets --install
 git secrets --register-aws  # Also catches generic patterns
 
 # Add custom patterns
-git secrets --add 'Admin@123'
+git secrets --add '<OLD_PASSWORD>'
 git secrets --add 'postgresql://[^:]+:[^@]+@'
 ```
 
 ## 8. Action Checklist
 
-- [ ] **Rotate PostgreSQL password** for user `app`
-- [ ] **Rotate Redis AUTH password**
-- [ ] **Create secret manually in K3s** (not via Git)
-- [ ] **Replace `kubernetes/secrets.yaml`** with `secrets.example.yaml`
-- [ ] **Add `kubernetes/secrets.yaml` to `.gitignore`**
-- [ ] **Purge credentials from Git history** (BFG or git-filter-repo)
-- [ ] **Force push and notify all collaborators**
-- [ ] **Verify no credentials remain** in any branch or tag
-- [ ] **Set up pre-commit hook** or `git-secrets`
-- [ ] **Document the new secret management process**
+### Done — working tree (2026-07-31)
+
+- [x] **Purge credentials from the working tree** — 135 files rewritten by
+      `scripts/purge-credentials.py`. Every credential now comes from the
+      environment and a missing variable aborts the process:
+      | Linguagem | Antes | Depois |
+      |---|---|---|
+      | Python | `os.getenv("X", "<creds>")` | `os.environ["X"]` |
+      | JS/TS | `process.env.X \|\| "<creds>"` | `... \|\| (() => { throw ... })()` |
+      | Rust | `.unwrap_or_else(\|_\| "<creds>")` | `.expect("X is required")` |
+      | Kotlin | `System.getenv("X") ?: "<creds>"` | `?: error("X is required")` |
+      | Go | literal inline | `mustEnv("X")` |
+      | Shell | `${X:-"<creds>"}` | `${X:?X is required}` |
+      | Spring/Micronaut | `${X:<creds>}` | `${X}` |
+- [x] **Untrack `kubernetes/secrets.yaml`** — `git rm --cached`; o arquivo
+      permanece em disco e ja estava no `.gitignore`.
+- [x] **Turn the credential scan into a real gate** — `credential-scan.yml`
+      agora usa `trufflehog --fail` (working tree **e** historico) e falha o
+      build quando encontra padroes. Antes era `|| true` + `::warning::`.
+- [x] **Stop excluding Markdown from the scan** — 29 dos arquivos vazados eram
+      README/summary; `*.md` estava na lista de exclusao.
+
+Verificacao: `grep -rn "<OLD_PASSWORD>" . | grep -v .git/` retorna apenas este
+documento e o proprio script de purga (ambos allowlisted por design).
+
+### Pending — requires infrastructure access (owner action)
+
+- [ ] **Rotate PostgreSQL password** for user `app` — secao 2 acima
+- [ ] **Rotate Redis AUTH password** — secao 2 acima
+- [ ] **Recreate the K3s secret** with the new values (secao 4, Opcao A)
+- [ ] **Purge credentials from Git history** (secao 5) — destrutivo e
+      irreversivel; exige `--force` push e re-clone por todos os colaboradores.
+      **Rotacionar ANTES**: enquanto a senha for valida, o historico publico
+      continua explorável mesmo depois da limpeza (caches do GitHub).
+- [ ] **Verify no credentials remain** in any branch or tag (secao 6)
+- [ ] **Install the pre-commit hook** (secao 7)
+
+> A limpeza da arvore de trabalho **nao** protege nada enquanto a senha nao for
+> rotacionada: o valor continua recuperavel em qualquer commit anterior a
+> 2026-07-31 no repositorio publico.
 
 ---
 
-**Last Updated**: 2026-07-28
-**Status**: REMEDIATION PLAN — NOT YET EXECUTED
+**Last Updated**: 2026-07-31
+**Status**: WORKING TREE REMEDIATED — ROTATION AND HISTORY PURGE PENDING

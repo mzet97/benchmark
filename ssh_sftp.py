@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Write content to a file on remote server via SFTP."""
+import os
 import sys
 import paramiko
 
@@ -17,4 +18,4 @@ def sftp_write(host, user, password, remote_path, content):
 if __name__ == '__main__':
     remote_path = sys.argv[1]
     content = sys.stdin.read()
-    sftp_write('192.168.1.51', 'k8s1', 'Admin@123', remote_path, content)
+    sftp_write('192.168.1.51', 'k8s1', os.environ["K3S_SSH_PASSWORD"], remote_path, content)

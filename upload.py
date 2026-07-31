@@ -13,7 +13,7 @@ def upload(local_path, remote_path):
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect('192.168.1.51', username='k8s1', password='Admin@123', timeout=15)
+    client.connect('192.168.1.51', username='k8s1', password=os.environ["K3S_SSH_PASSWORD"], timeout=15)
     sftp = client.open_sftp()
     sftp.put(local_path, remote_path)
     sftp.close()

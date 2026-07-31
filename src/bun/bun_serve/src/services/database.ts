@@ -7,7 +7,7 @@ class DatabaseService {
 
   constructor() {
     this.config = {
-      url: process.env.DATABASE_URL || 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api',
+      url: process.env.DATABASE_URL || (() => { throw new Error('DATABASE_URL is required'); })(),
       min: parseInt(process.env.DB_POOL_MIN || '5'),
       max: parseInt(process.env.DB_POOL_MAX || '25')
     };

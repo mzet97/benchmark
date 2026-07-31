@@ -160,8 +160,8 @@ cd src/graalvm/vertx && docker build -t benchmark/graalvm-vertx:latest .
 docker run -d \
   --name <language>-api \
   -p 8080:8080 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/<language>-<framework>:latest
 
 # Check logs
@@ -350,7 +350,7 @@ kubectl logs -l app=<language>-<framework> -n benchmark | grep -i "database\|con
 #### 2. Redis Connection Failed
 ```bash
 # Check Redis connectivity
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
+redis-cli -h redis.home.arpa -p 30379 -a <REDACTED> ping
 
 # View logs
 kubectl logs -l app=<language>-<framework> -n benchmark | grep -i "redis"
@@ -475,8 +475,8 @@ metadata:
   name: benchmark-secrets
 type: Opaque
 stringData:
-  database-password: "Admin@123"
-  redis-password: "Admin@123"
+  database-password: "<REDACTED>"
+  redis-password: "<REDACTED>"
 ```
 
 ## Backup and Recovery

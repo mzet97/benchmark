@@ -13,9 +13,8 @@ test_password
 mock_secret
 fake_token
 
-# Documentation
-README.md
-*.md
+# NOTE: Markdown is deliberately NOT excluded. The 2026-07 leak had credentials
+# in ~29 README/summary files; excluding *.md is what let them through.
 
 # Dependencies
 node_modules/

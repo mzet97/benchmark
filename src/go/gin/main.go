@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"gin/handlers"
@@ -10,21 +11,32 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// mustEnv returns the value of key, aborting if it is unset. Credentials are
+// never defaulted: a missing variable must fail loudly, not connect silently.
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		panic(key + " is required")
+	}
+	return v
+}
+
 func main() {
-	db, err := sql.Open("postgres", "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api")
+	db, err := sql.Open("postgres", mustEnv("DATABASE_URL"))
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
 
-	redis := redis.NewClient(&redis.Options{
-		Addr:     "redis.home.arpa:30379",
-		Password: "Admin@123",
-	})
-	defer redis.Close()
+	redisOpt, err := redis.ParseURL(mustEnv("REDIS_URL"))
+	if err != nil {
+		panic(err)
+	}
+	rdb := redis.NewClient(redisOpt)
+	defer rdb.Close()
 
 	dbService := services.NewDatabaseService(db)
-	cacheService := services.NewCacheService(redis)
+	cacheService := services.NewCacheService(rdb)
 
 	r := gin.Default()
 

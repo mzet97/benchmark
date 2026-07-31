@@ -7,7 +7,7 @@ export class CacheService {
   private password: string | undefined;
 
   constructor() {
-    const redisUrl = Deno.env.get("REDIS_URL") || "redis://:Admin@123@redis.home.arpa:30379";
+    const redisUrl = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
     // Parse redis://:password@host:port manually (handle @ in password)
     const afterScheme = redisUrl.split("://")[1] || "";
     const lastAt = afterScheme.lastIndexOf("@");

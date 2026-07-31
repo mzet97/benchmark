@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Rebuild and redeploy fixed Rust implementations."""
+import os
 import paramiko
 import time
 
 SERVER = "192.168.1.51"
 USER = "k8s1"
-PASSWORD = "Admin@123"
+PASSWORD = os.environ["K3S_SSH_PASSWORD"]
 
 def run_cmd(client, cmd, timeout=120):
     print(f"  >> {cmd}")

@@ -9,7 +9,7 @@ on:
         default: 'all'
 
 env:
-  PG_PASSWORD: ${{ secrets.PG_PASSWORD || 'Admin@123' }}
+  PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
   REDIS_URL: redis://redis:6379
 
 jobs:

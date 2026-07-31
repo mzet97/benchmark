@@ -12,7 +12,7 @@ class DatabaseService {
     private val dataSource: HikariDataSource
 
     init {
-        val databaseUrl = System.getenv("DATABASE_URL") ?: "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
+        val databaseUrl = System.getenv("DATABASE_URL") ?: error("DATABASE_URL is required")
 
         // Parse postgresql://user:password@host:port/database
         // Handle @ in password by splitting from last @

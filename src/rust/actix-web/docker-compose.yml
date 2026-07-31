@@ -8,8 +8,8 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - DATABASE_URL=postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api
-      - REDIS_URL=redis://:Admin@123@redis.home.arpa:30379
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
       - SERVER_BIND=0.0.0.0:8080
       - SERVER_WORKERS=4
     restart: unless-stopped
@@ -32,7 +32,7 @@ services:
   #   environment:
   #     POSTGRES_DB: benchmark_api
   #     POSTGRES_USER: app
-  #     POSTGRES_PASSWORD: Admin@123
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD}
   #   ports:
   #     - "5432:5432"
   #   volumes:
@@ -47,9 +47,9 @@ services:
   #   image: redis:7-alpine
   #   ports:
   #     - "6379:6379"
-  #   command: redis-server --requirepass Admin@123
+  #   command: redis-server --requirepass ${DB_PASSWORD}
   #   healthcheck:
-  #     test: ["CMD", "redis-cli", "-a", "Admin@123", "PING"]
+  #     test: ["CMD", "redis-cli", "-a", "${DB_PASSWORD}", "PING"]
   #     interval: 10s
   #     timeout: 5s
   #     retries: 5

@@ -15,7 +15,7 @@ class CacheService {
     init {
         var ok = false
         try {
-            val redisUrl = System.getenv("REDIS_URL") ?: "redis://:Admin@123@redis.home.arpa:30379"
+            val redisUrl = System.getenv("REDIS_URL") ?: error("REDIS_URL is required")
 
             // Parse redis://:password@host:port (handle @ in password)
             val afterScheme = redisUrl.substringAfter("://")

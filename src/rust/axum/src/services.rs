@@ -11,8 +11,7 @@ pub struct DatabaseService {
 
 impl DatabaseService {
     pub async fn new() -> Self {
-        let database_url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api".to_string());
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
 
         let pool = PgPool::connect(&database_url)
             .await
@@ -87,8 +86,7 @@ pub struct CacheService {
 
 impl CacheService {
     pub async fn new() -> Self {
-        let redis_url = env::var("REDIS_URL")
-            .unwrap_or_else(|_| "redis://:Admin@123@redis.home.arpa:30379".to_string());
+        let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
 
         let client = RedisClient::open(redis_url)
             .expect("Failed to connect to Redis");

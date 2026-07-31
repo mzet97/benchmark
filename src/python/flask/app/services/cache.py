@@ -9,7 +9,7 @@ import os
 
 logger = structlog.get_logger(__name__)
 
-REDIS_URL = os.getenv('REDIS_URL', 'redis://:Admin@123@redis.home.arpa:30379')
+REDIS_URL = os.environ["REDIS_URL"]
 
 
 class CacheService:

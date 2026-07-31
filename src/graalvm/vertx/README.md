@@ -144,8 +144,8 @@ mvn clean package
 
 4. **Configure Environment**
 ```bash
-export DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-export REDIS_URL="redis://:Admin@123@redis.home.arpa:30379"
+export DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
+export REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379"
 export DEBUG="false"
 ```
 
@@ -181,8 +181,8 @@ docker build -t benchmark/graalvm-vertx:latest .
 docker run -d \
   --name graalvm-vertx-app \
   -p 3000:3000 \
-  -e DATABASE_URL="postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api" \
-  -e REDIS_URL="redis://:Admin@123@redis.home.arpa:30379" \
+  -e DATABASE_URL="postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api" \
+  -e REDIS_URL="redis://:${REDIS_PASSWORD}@redis.home.arpa:30379" \
   benchmark/graalvm-vertx:latest
 
 # Logs

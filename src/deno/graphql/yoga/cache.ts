@@ -1,7 +1,6 @@
 import Redis from "ioredis";
 
-const REDIS_URL = Deno.env.get("REDIS_URL") ||
-  "redis://:Admin@123@redis.home.arpa:30379";
+const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
 
 const redis = new Redis(REDIS_URL);
 

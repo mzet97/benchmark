@@ -6,7 +6,7 @@ echo "Running Deno Hono Application"
 echo "=================================="
 
 export PORT=${PORT:-3000}
-export DATABASE_URL=${DATABASE_URL:-'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api'}
-export REDIS_URL=${REDIS_URL:-'redis://:Admin@123@redis.home.arpa:30379'}
+export DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
+export REDIS_URL=${REDIS_URL:?REDIS_URL is required}
 
 deno run --allow-net --allow-env --allow-read server.ts

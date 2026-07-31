@@ -8,7 +8,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api',
+      connectionString: process.env.DATABASE_URL || (() => { throw new Error('DATABASE_URL is required'); })(),
       min: 5,
       max: 25,
       idleTimeoutMillis: 30000,

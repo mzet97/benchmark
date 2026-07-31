@@ -6,8 +6,8 @@ metadata:
   labels:
     app: csharp-controllers
 data:
-  database.url: "Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=Admin@123;Maximum Pool Size=25;Connection Timeout=30;"
-  redis.url: "redis.home.arpa:30379,password=Admin@123,defaultDatabase=0,ssl=false"
+  database.url: "Host=spsql.home.arpa;Port=5432;Database=benchmark_api;Username=app;Password=${DB_PASSWORD};Maximum Pool Size=25;Connection Timeout=30;"
+  redis.url: "redis.home.arpa:30379,Password=${DB_PASSWORD},defaultDatabase=0,ssl=false"
 ---
 apiVersion: v1
 kind: Secret
@@ -18,7 +18,7 @@ metadata:
     app: csharp-controllers
 type: Opaque
 stringData:
-  database-url: "postgresql://app:Admin@123@spsql.home.arpa:5432/benchmark_api"
-  redis-url: "redis://:Admin@123@redis.home.arpa:30379"
-  database-password: "Admin@123"
-  redis-password: "Admin@123"
+  database-url: "postgresql://app:${DB_PASSWORD}@spsql.home.arpa:5432/benchmark_api"
+  redis-url: "redis://:${REDIS_PASSWORD}@redis.home.arpa:30379"
+  database-password: ${DB_PASSWORD}
+  redis-password: ${DB_PASSWORD}

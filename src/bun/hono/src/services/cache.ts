@@ -7,7 +7,7 @@ class CacheService {
 
   constructor() {
     this.config = {
-      url: process.env.REDIS_URL || 'redis://:Admin@123@redis.home.arpa:30379',
+      url: process.env.REDIS_URL || (() => { throw new Error('REDIS_URL is required'); })(),
       ttl: parseInt(process.env.CACHE_TTL || '300')
     };
   }
