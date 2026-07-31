@@ -1,5 +1,5 @@
 fn main() {
-    volo_build::Config::new("contracts/grpc/benchmark.proto")
+    volo_build::Config::new("proto/benchmark.proto")
         .compile()
         .expect("failed to compile proto");
 }

@@ -2,7 +2,7 @@ use std::env;
 use std::path::Path;
 
 fn main() {
-    let proto_root = Path::new("contracts/grpc");
+    let proto_root = Path::new("proto");
     let proto_file = proto_root.join("benchmark.proto");
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -26,5 +26,5 @@ fn main() {
     )
     .expect("grpcio codegen failed");
 
-    println!("cargo:rerun-if-changed=contracts/grpc/benchmark.proto");
+    println!("cargo:rerun-if-changed=proto/benchmark.proto");
 }

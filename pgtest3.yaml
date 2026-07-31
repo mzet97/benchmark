@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pgtest3
+  namespace: benchmark
+spec:
+  hostNetwork: true
+  restartPolicy: Never
+  activeDeadlineSeconds: 15
+  containers:
+  - name: pg
+    image: postgres:16-alpine
+    command:
+    - psql
+    - -h
+    - 192.168.1.52
+    - -U
+    - db_admin
+    - -d
+    - postgres
+    - -c
+    - SELECT current_user; SELECT count(*) FROM pg_catalog.pg_tables WHERE schemaname = 'public';
+    env:
+    - name: PGPASSWORD
+      value: Admin@123

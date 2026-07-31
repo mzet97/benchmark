@@ -7,18 +7,17 @@ RUN go install github.com/cloudwego/kitex/tool/cmd/kitex@latest
 
 WORKDIR /app
 
-# Copy proto contracts
-COPY contracts/grpc/ /app/contracts/grpc/
+# Copy proto file (local to this directory)
+COPY proto/ /app/proto/
 
 # Copy source code
-COPY src/go/grpc/kitex/ /app/
-
-# Generate go.sum if missing and download deps
-RUN go mod tidy && go mod download
+COPY . .
 
 # Generate Kitex code from proto
 RUN kitex -module benchmark-kitex -service benchmark -gen-path /app/kitex_gen \
-    /app/contracts/grpc/benchmark.proto
+    /app/proto/benchmark.proto
+
+RUN go mod tidy && go mod download
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server ./cmd/server/
 
@@ -28,7 +27,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 COPY --from=builder /app/server /usr/local/bin/server
 
-RUN groupadd --gid 1001 app && useradd --uid 1001 --gid 1001 --shell /bin/false --create-home app
+RUN groupadd -r app && useradd -r -g app -u 1001 app
 
 EXPOSE 50051
 

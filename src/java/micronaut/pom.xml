@@ -11,6 +11,7 @@
   <version>1.0.0</version>
   <properties>
     <java.version>21</java.version>
+    <maven.compiler.release>21</maven.compiler.release>
   </properties>
   <dependencies>
     <dependency>
@@ -35,4 +36,33 @@
       <artifactId>micronaut-redis-lettuce</artifactId>
     </dependency>
   </dependencies>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.micronaut.maven</groupId>
+        <artifactId>micronaut-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>com.benchmark.Application</mainClass>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>com.benchmark.Application</mainClass>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

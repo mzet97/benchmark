@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pgtest
+  namespace: benchmark
+spec:
+  hostNetwork: true
+  restartPolicy: Never
+  activeDeadlineSeconds: 15
+  containers:
+  - name: pg
+    image: postgres:16-alpine
+    command:
+    - psql
+    - -h
+    - 192.168.1.52
+    - -U
+    - db_admin
+    - -d
+    - benchmark_api
+    - -c
+    - SELECT count(*) as users FROM users;
+    env:
+    - name: PGPASSWORD
+      value: Admin@123

@@ -5,8 +5,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     tonic_build::configure()
         .file_descriptor_set_path(&descriptor_path)
         .compile_protos(
-            &["contracts/grpc/benchmark.proto"],
-            &["contracts/grpc"],
+            &["proto/benchmark.proto"],
+            &["proto"],
         )?;
 
     Ok(())

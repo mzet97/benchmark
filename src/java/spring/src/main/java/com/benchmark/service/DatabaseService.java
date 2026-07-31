@@ -24,11 +24,11 @@ public class DatabaseService {
 
     public Optional<User> getUserById(Integer id) {
         if (id == null) {
-            return }
+            return Optional.empty();
+        }
 
         try {
- Optional.empty();
-                   var userMap = jdbcTemplate.queryForMap(
+            var userMap = jdbcTemplate.queryForMap(
                 "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = ?",
                 id
             );
