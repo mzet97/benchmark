@@ -5,7 +5,7 @@ WORKDIR /app
 COPY build.gradle.kts settings.gradle.kts ./
 COPY src/ ./src/
 
-RUN gradle shadowJar --no-daemon || gradle jar --no-daemon
+RUN gradle jar --no-daemon
 
 FROM eclipse-temurin:17-jre-alpine
 
@@ -21,6 +21,6 @@ USER benchmark
 EXPOSE 50051
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD java -cp app.jar benchmark.HealthCheckKt || exit 1
+  CMD nc -z localhost 50051 || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

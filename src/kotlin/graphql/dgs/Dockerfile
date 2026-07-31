@@ -2,11 +2,9 @@ FROM gradle:8.5-jdk21 AS builder
 
 WORKDIR /app
 
-COPY build.gradle.kts .
-COPY gradle ./gradle
-COPY gradlew .
+COPY build.gradle.kts settings.gradle.kts ./
 
-RUN chmod +x gradlew && ./gradlew dependencies --no-daemon 2>/dev/null || true
+RUN gradle dependencies --no-daemon 2>/dev/null || true
 
 COPY src ./src
 

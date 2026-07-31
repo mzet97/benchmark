@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>BenchmarkHotChocolate</AssemblyName>
+    <RootNamespace>GraphqlHotChocolate</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

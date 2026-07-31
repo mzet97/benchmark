@@ -16,10 +16,10 @@ public class HealthType : ObjectGraphType<Health>
     public HealthType()
     {
         Name = "Health";
-        Field(h => h.Status).Type<NonNullGraphType<StringGraphType>>();
-        Field(h => h.Version).Type<NonNullGraphType<StringGraphType>>();
-        Field(h => h.Timestamp).Type<NonNullGraphType<StringGraphType>>();
-        Field(h => h.Database).Type<NonNullGraphType<StringGraphType>>();
-        Field(h => h.Cache).Type<NonNullGraphType<StringGraphType>>();
+        Field(h => h.Status).Type(new NonNullGraphType<StringGraphType>());
+        Field(h => h.Version).Type(new NonNullGraphType<StringGraphType>());
+        Field(h => h.Timestamp).Type(new NonNullGraphType<StringGraphType>());
+        Field(h => h.Database).Type(new NonNullGraphType<StringGraphType>());
+        Field(h => h.Cache).Type(new NonNullGraphType<StringGraphType>());
     }
 }

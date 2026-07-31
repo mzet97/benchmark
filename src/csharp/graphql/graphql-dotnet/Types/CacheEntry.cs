@@ -15,9 +15,9 @@ public class CacheEntryType : ObjectGraphType<CacheEntry>
     public CacheEntryType()
     {
         Name = "CacheEntry";
-        Field(c => c.Key).Type<NonNullGraphType<StringGraphType>>();
-        Field(c => c.Value).Type<NonNullGraphType<StringGraphType>>();
-        Field(c => c.Cached).Type<NonNullGraphType<BooleanGraphType>>();
-        Field(c => c.Ttl).Type<NonNullGraphType<IntGraphType>>();
+        Field(c => c.Key).Type(new NonNullGraphType<StringGraphType>());
+        Field(c => c.Value).Type(new NonNullGraphType<StringGraphType>());
+        Field(c => c.Cached).Type(new NonNullGraphType<BooleanGraphType>());
+        Field(c => c.Ttl).Type(new NonNullGraphType<IntGraphType>());
     }
 }

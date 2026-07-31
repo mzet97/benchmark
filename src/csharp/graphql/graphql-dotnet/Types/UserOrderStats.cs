@@ -16,11 +16,11 @@ public class UserOrderStatsType : ObjectGraphType<UserOrderStats>
     public UserOrderStatsType()
     {
         Name = "UserOrderStats";
-        Field(s => s.UserId).Type<NonNullGraphType<IntGraphType>>();
-        Field(s => s.UserName).Type<NonNullGraphType<StringGraphType>>();
-        Field(s => s.TotalOrders).Type<NonNullGraphType<IntGraphType>>();
-        Field(s => s.TotalValue).Type<NonNullGraphType<FloatGraphType>>();
-        Field(s => s.AverageOrderValue).Type<NonNullGraphType<FloatGraphType>>();
+        Field(s => s.UserId).Type(new NonNullGraphType<IntGraphType>());
+        Field(s => s.UserName).Type(new NonNullGraphType<StringGraphType>());
+        Field(s => s.TotalOrders).Type(new NonNullGraphType<IntGraphType>());
+        Field(s => s.TotalValue).Type(new NonNullGraphType<FloatGraphType>());
+        Field(s => s.AverageOrderValue).Type(new NonNullGraphType<FloatGraphType>());
     }
 }
 
@@ -36,8 +36,8 @@ public class ComplexOrdersResultType : ObjectGraphType<ComplexOrdersResult>
     public ComplexOrdersResultType()
     {
         Name = "ComplexOrdersResult";
-        Field(r => r.PeriodDays).Type<NonNullGraphType<IntGraphType>>();
-        Field(r => r.TotalUsers).Type<NonNullGraphType<IntGraphType>>();
-        Field(r => r.Data).Type<NonNullGraphType<ListGraphType<NonNullGraphType<UserOrderStatsType>>>>();
+        Field(r => r.PeriodDays).Type(new NonNullGraphType<IntGraphType>());
+        Field(r => r.TotalUsers).Type(new NonNullGraphType<IntGraphType>());
+        Field(r => r.Data).Type(new NonNullGraphType<ListGraphType<NonNullGraphType<UserOrderStatsType>>>());
     }
 }

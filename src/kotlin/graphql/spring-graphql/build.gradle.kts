@@ -22,6 +22,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.springframework.boot:spring-boot-starter-graphql")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.postgresql:postgresql")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

@@ -17,11 +17,11 @@ public class UserType : ObjectGraphType<User>
     public UserType()
     {
         Name = "User";
-        Field(u => u.Id).Type<NonNullGraphType<IntGraphType>>();
-        Field(u => u.Email).Type<NonNullGraphType<StringGraphType>>();
-        Field(u => u.FirstName).Type<NonNullGraphType<StringGraphType>>();
-        Field(u => u.LastName).Type<NonNullGraphType<StringGraphType>>();
-        Field(u => u.Age).Type<NonNullGraphType<IntGraphType>>();
-        Field(u => u.CreatedAt).Type<NonNullGraphType<StringGraphType>>();
+        Field(u => u.Id).Type(new NonNullGraphType<IntGraphType>());
+        Field(u => u.Email).Type(new NonNullGraphType<StringGraphType>());
+        Field(u => u.FirstName).Type(new NonNullGraphType<StringGraphType>());
+        Field(u => u.LastName).Type(new NonNullGraphType<StringGraphType>());
+        Field(u => u.Age).Type(new NonNullGraphType<IntGraphType>());
+        Field(u => u.CreatedAt).Type(new NonNullGraphType<StringGraphType>());
     }
 }

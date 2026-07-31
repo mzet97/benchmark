@@ -3,7 +3,7 @@ WORKDIR /app
 COPY build.gradle .
 RUN gradle dependencies --no-daemon
 COPY src ./src
-RUN ./gradlew build
+RUN gradle build --no-daemon
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

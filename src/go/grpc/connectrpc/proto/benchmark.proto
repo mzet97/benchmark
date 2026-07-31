@@ -14,7 +14,7 @@ syntax = "proto3";
 package benchmark;
 
 option java_package = "dev.benchmark.grpc";
-option go_package = "benchmark/generated";
+option go_package = "benchmark-connectrpc/gen/benchmark";
 
 // ============================================================================
 // Service Definition
