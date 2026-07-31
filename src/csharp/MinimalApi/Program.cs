@@ -1,7 +1,6 @@
 using BenchmarkApi.Handlers;
 using BenchmarkApi.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -39,10 +38,6 @@ if (redisUrl.StartsWith("redis://"))
 
 // Add services to the container
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new() { Title = "Benchmark API", Version = "v1" });
-});
 
 // Add logging
 builder.Services.AddLogging(config =>
@@ -64,18 +59,10 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 // Health checks (Kubernetes compatible)
 app.MapHealthChecks("/healthz", new HealthCheckOptions
 {
     Predicate = _ => true,
-    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
 });
 
 // Configure routes with minimal overhead
