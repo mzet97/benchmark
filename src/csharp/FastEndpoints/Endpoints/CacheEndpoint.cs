@@ -23,7 +23,6 @@ public class CacheEndpoint : Endpoint<CacheRequest>
     {
         Get("/cache");
         AllowAnonymous();
-        Params<CacheRequest>();
     }
 
     public override async Task HandleAsync(CacheRequest req, CancellationToken ct)

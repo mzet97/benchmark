@@ -1,0 +1,13 @@
+micronaut:
+  application:
+    name: benchmark-micronaut
+  server:
+    port: 8080
+datasources:
+  default:
+    url: ${DATASOURCES_DEFAULT_URL:`jdbc:postgresql://postgres:5432/benchmark`}
+    username: ${DATASOURCES_DEFAULT_USERNAME:benchmark}
+    password: ${DATASOURCES_DEFAULT_PASSWORD:Admin@123}
+    driver-class-name: org.postgresql.Driver
+redis:
+  uri: ${REDIS_URI:`redis://redis:6379`}

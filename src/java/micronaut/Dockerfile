@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
     CMD curl -sf http://localhost:8080/health || exit 1
 
 # Use classpath with all dependency jars
-CMD ["java", "-cp", "target/benchmark-micronaut-1.0.0.jar:target/dependency/*", "com.benchmark.Application"]
+CMD ["java", "-Dorg.slf4j.simpleLogger.defaultLogLevel=DEBUG", "-cp", "target/benchmark-micronaut-1.0.0.jar:target/dependency/*", "com.benchmark.Application"]

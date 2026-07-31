@@ -23,7 +23,6 @@ public class SimpleDbEndpoint : Endpoint<SimpleDbRequest>
     {
         Get("/db/simple");
         AllowAnonymous();
-        Params<SimpleDbRequest>();
     }
 
     public override async Task HandleAsync(SimpleDbRequest req, CancellationToken ct)

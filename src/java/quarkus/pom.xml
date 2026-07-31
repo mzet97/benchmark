@@ -70,12 +70,6 @@
             <artifactId>quarkus-redis-client</artifactId>
         </dependency>
 
-        <!-- Configuration -->
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-smallrye-config</artifactId>
-        </dependency>
-
         <!-- Logging -->
         <dependency>
             <groupId>io.quarkus</groupId>

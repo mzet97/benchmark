@@ -23,7 +23,6 @@ public class ComplexDbEndpoint : Endpoint<ComplexDbRequest>
     {
         Get("/db/complex");
         AllowAnonymous();
-        Params<ComplexDbRequest>();
     }
 
     public override async Task HandleAsync(ComplexDbRequest req, CancellationToken ct)

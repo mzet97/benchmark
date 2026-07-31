@@ -18,17 +18,41 @@ public class CacheService : ICacheService
     {
         var redisUrl = configuration.GetValue<string>("Redis:ConnectionString")
             ?? Environment.GetEnvironmentVariable("REDIS_URL")
-            ?? throw new InvalidOperationException("Redis connection string not found");
+            ?? "redis:6379";
 
-        // Parse redis://:password@host:port to StackExchange.Redis format
-        var lastAt = redisUrl.LastIndexOf('@');
-        var schemeEnd = redisUrl.IndexOf("://");
-        var password = redisUrl.Substring(schemeEnd + 4, lastAt - schemeEnd - 4); // skip ://:
-        var hostPort = redisUrl.Substring(lastAt + 1);
-        var host = hostPort.Split(':')[0];
-        var port = hostPort.Contains(':') ? hostPort.Split(':')[1] : "6379";
+        // Simple parsing: handle redis://host:port or just host:port
+        string host, port, password;
+        if (redisUrl.StartsWith("redis://"))
+        {
+            var afterScheme = redisUrl.Substring("redis://".Length);
+            var lastAt = afterScheme.LastIndexOf('@');
+            if (lastAt >= 0)
+            {
+                password = afterScheme.Substring(0, lastAt).TrimStart(':');
+                var hostPort = afterScheme.Substring(lastAt + 1);
+                var parts = hostPort.Split(':');
+                host = parts[0];
+                port = parts.Length > 1 ? parts[1] : "6379";
+            }
+            else
+            {
+                password = "";
+                var parts = afterScheme.Split(':');
+                host = parts[0];
+                port = parts.Length > 1 ? parts[1] : "6379";
+            }
+        }
+        else
+        {
+            password = "";
+            var parts = redisUrl.Split(':');
+            host = parts[0];
+            port = parts.Length > 1 ? parts[1] : "6379";
+        }
 
-        var redisConfig = $"{host}:{port},password={password},abortConnect=false";
+        var redisConfig = string.IsNullOrEmpty(password)
+            ? $"{host}:{port},abortConnect=false"
+            : $"{host}:{port},password={password},abortConnect=false";
         var connection = ConnectionMultiplexer.Connect(redisConfig);
         _database = connection.GetDatabase();
     }
