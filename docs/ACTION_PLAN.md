@@ -1,247 +1,289 @@
 # Plano de Ação — Benchmark REST/gRPC/GraphQL
 
-**Status atual**: 36/47 pods Running, 32 implementações com primeiro benchmark
-**Objetivo**: Benchmark completo com todos os cenários, métricas e rankings
+**Atualizado**: 2026-07-31
+**Objetivo**: tornar os resultados deste benchmark defensáveis — hoje eles não são.
+
+> Substitui o plano de 2026-07-29, que assumia que os resultados existentes
+> eram válidos e estimava 8-11 horas de trabalho. A auditoria abaixo mostra que
+> a premissa estava errada.
 
 ---
 
-## Fase 1 — Corrigir Implementações Not Ready (11 pods)
+## Diagnóstico que originou este plano
 
-### 1.1 REST CrashLoopBackOff (4)
-
-| Implementação | Problema | Ação |
-|---------------|---------|------|
-| bun-rest-hono | Port conflict | Verificar se fix do agente foi aplicado |
-| kotlin-rest-ktor | Redis crash | Verificar se fix do agente foi aplicado |
-| deno-deno-serve | Old deployment | Remover deployment duplicado |
-| bun-rest-bun-serve | ReferenceError | Verificar se fix do agente foi aplicado |
-
-**Comando**:
-```bash
-# Verificar status
-kubectl get pods -n benchmark | grep -E "CrashLoop|Error|Pending"
-
-# Logs de cada pod
-kubectl logs -l app=<impl> -n benchmark --tail=20
-
-# Remover deployment antigo duplicado
-kubectl delete deployment deno-deno-serve -n benchmark
-```
-
-### 1.2 gRPC CrashLoopBackOff (6)
-
-| Implementação | Problema | Ação |
-|---------------|---------|------|
-| bun-grpc-nice-grpc | TypeError in binding | Corrigir código fonte |
-| nodejs-grpc-nice-grpc | TypeError | Corrigir código fonte |
-| nodejs-grpc-connectrpc | Package rename | Corrigir import |
-| python-grpc-grpclib | ModuleNotFoundError | Corrigir path de import |
-| python-grpc-betterproto | Runtime crash | Corrigir dependências |
-| deno-grpc-nice-grpc | Runtime crash | Corrigir código |
-
-### 1.3 GraphQL CrashLoopBackOff (1)
-
-| Implementação | Problema | Ação |
-|---------------|---------|------|
-| python-graphql-ariadne | ImportError | Verificar se fix do agente foi aplicado |
-
-**Execução**: Agente paralelo para corrigir todos os 11 pods
+| Problema | Evidência |
+|---|---|
+| A metodologia documentada nunca foi executada | `docs/BENCHMARK_METHODOLOGY.md` promete 5×60s, warm-up de 30s e ordem randomizada; `run_all_benchmarks.py:94` executa **1×5s** com warm-up de 2s, ordem alfabética |
+| O gerador de carga era o gargalo | job wrk com `limits.cpu: 1`, no mesmo nó do SUT, cluster de 1 nó |
+| Implementações não são comparáveis | Go REST usa `pgx.Conn` (**sem pool**) e "vence" o teste de DB; outras usam pool de 10 ou 25 |
+| Workers desiguais | Flask/Django com gunicorn `4 workers × 2 threads`, FastAPI com uvicorn `1 worker` — origem do falso insight "Flask bate FastAPI" |
+| Payload `/json` divergente | Go: 154 B/item com 16 KB de CSPRNG por request; Node: 106 B/item sem aleatoriedade. **45% mais bytes no Go** |
+| Três perfis de recursos conflitantes | metodologia (1 CPU) × `deploy/k3s/base` (250m/2 CPU, 1 réplica) × `src/*/k8s` (100m/500m, 5 réplicas — **este foi o usado**) |
+| Tabelas de resultados inconsistentes | `/json`: FastAPI 110 em 7º acima de 871; `/cache`: Ktor 16.261 em 4º abaixo de 14.869; `/health`: 27.210 na tabela vs 19.562 no resumo |
+| Contagem irreal | README diz 101 impls; `config/implementations.yaml` tem 99, das quais 57 marcadas `planned` |
+| Credenciais em repositório público | 135 arquivos + histórico do Git |
 
 ---
 
-## Fase 2 — Benchmark Isolado (uma implementação por vez)
+## Topologia decidida
 
-### 2.1 Preparação
-
-```bash
-# Undeploy ALL implementations
-kubectl delete deployments --all -n benchmark
-
-# Confirmar limpeza
-kubectl get pods -n benchmark
+```
+Workstation Windows              VM .51 — K3s (SUT)          VM .52 — PostgreSQL
+  bombardier / oha / k6   ──>      8 vCPU / 16 GiB              8 vCPU / 16 GiB
+  ghz (gRPC)             NIC        ├ sistema ... 1 CPU
+                        1 GbE       └ pod SUT ... 7 CPU  ──>   Redis (externo)
 ```
 
-### 2.2 Protocolo por Implementação
+| Camada | CPU | Memória |
+|---|---:|---:|
+| VM `.51` total | 8 | 16 GiB |
+| K3s + SO (`--system-reserved` + `--kube-reserved`) | 1,0 | 2 GiB |
+| **Pod SUT** (`requests == limits`, QoS Guaranteed) | **7** | **12 GiB** |
 
-Para cada uma das 32 implementações benchmarkadas:
+`--cpu-manager-policy=static` + requests inteiros + Guaranteed → cores
+exclusivos, sem CFS throttling. É o que torna "100% do hardware" repetível.
 
-1. **Deploy** (1 réplica, modo single-pod)
-2. **Aguardar readiness** (60s)
-3. **Smoke test** (validar contrato)
-4. **Warm-up** (30s)
-5. **Medição** (5 repetições × 60s)
-6. **Coleta de métricas** (CPU, memória)
-7. **Undeploy**
-8. **Cool-down** (10s)
+### Consequência da rede de 1 GbE
 
-### 2.3 Cenários por Implementação
+Teto útil ≈ 941 Mbps ≈ 117,6 MB/s. Por cenário:
+
+| Cenário | Corpo | Teto de rede | Gargalo esperado | Veredito |
+|---|---:|---:|---|---|
+| `/health` | ~100 B | ~390k rps | **PPS/cliente** ~50-150k | ⚠️ topo comprimido |
+| `/json` n=1000 | 106-154 KB | **~750-1.100 rps** | **rede** | ❌ inviável p/ throughput |
+| `/db/simple` | ~130 B | ~356k rps | PostgreSQL | ✅ válido |
+| `/db/complex` | ~13 KB (`LIMIT 100`) | ~8.900 rps | PostgreSQL | ✅ válido |
+| `/cache` | ~150 B | ~336k rps | Redis / PPS | ✅ válido |
+
+Três dos cinco cenários sobrevivem intactos. Números a confirmar na Fase 0.
+
+---
+
+## Fase 0 — Congelar e medir os tetos `[~1,5 dia]`
+
+Nenhum resultado de framework tem significado antes destes números.
+
+1. Marcar `BENCHMARK_RESULTS_K3S.md` e `docs/*RESULTS*.md` como `INVALID`
+   (preservar, não apagar).
+2. Rodar `scripts/measure-ceilings.ps1` na workstation: `iperf3` (não assumir
+   1 GbE), teto de PPS com nginx, tamanho real de cada payload.
+3. Rodar `scripts/measure-ceilings-server.sh` no `.51`: inventário de hardware,
+   CPU steal do host Proxmox, `pgbench -S`, `redis-benchmark`.
+4. Preencher `docs/K3S_ENVIRONMENT.md` (hoje é template vazio).
+5. Descobrir onde está o Redis — `redis.home.arpa:30379` é porta de NodePort,
+   pode estar dentro de outro cluster e ser um confounder.
+
+**Saída**: `docs/BASELINE_CEILINGS.md`.
+**Critério**: o teto efetivo de cada cenário é conhecido e igual ao **menor**
+entre rede, PPS, PostgreSQL e Redis.
+
+---
+
+## Fase 1 — Segurança `[árvore de trabalho CONCLUÍDA]`
+
+- [x] 135 arquivos purgados por `scripts/purge-credentials.py` — credenciais
+      só vêm do ambiente, variável ausente aborta o processo
+- [x] `kubernetes/secrets.yaml` removido do rastreamento
+- [x] `credential-scan.yml` virou gate real (`trufflehog --fail`, árvore +
+      histórico); `*.md` saiu da lista de exclusão
+- [ ] **Rotacionar** senhas do PostgreSQL e Redis — *ação do responsável*
+- [ ] **Reescrever o histórico** do Git (`git filter-repo`) e `--force` push
+
+Runbook completo: `docs/SECURITY_REMEDIATION.md`.
+
+> A limpeza da árvore não protege nada enquanto a senha não for rotacionada:
+> o valor segue recuperável em qualquer commit anterior a 2026-07-31.
+
+---
+
+## Fase 2 — Topologia de teste `[~1 dia]`
+
+**No `.51`:**
+```
+--system-reserved=cpu=500m,memory=1Gi
+--kube-reserved=cpu=500m,memory=1Gi
+--cpu-manager-policy=static
+--disable traefik --disable servicelb
+```
+Governor `performance` no host Proxmox; sem ballooning; confirmar que os
+8 vCPU são dedicados (overcommit torna o "100%" fictício).
+
+**Na workstation (gerador de carga):**
+
+| Protocolo | Ferramenta | Motivo |
+|---|---|---|
+| REST throughput | `bombardier` | Go, nativo Windows, keep-alive por padrão |
+| REST latência a taxa fixa | `oha` | Rust, nativo, rate-limit sem coordinated omission |
+| GraphQL | `k6` | binário nativo |
+| gRPC | `ghz` | Go, nativo |
+
+`wrk`/`wrk2` não têm build nativo para Windows. WSL2 descartado: o NAT
+adiciona latência e variância à medição.
+
+```powershell
+netsh int ipv4 set dynamicport tcp start=10000 num=55000
+Set-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" TcpTimedWaitDelay 30
+powercfg /setactive SCHEME_MIN
+```
+Mais: exclusão do Defender para o processo gerador, Wi-Fi desligado (forçar
+cabo), sem VPN ativa, keep-alive sempre ligado. Caminho de rede: NodePort
+uniforme, sem Ingress.
+
+---
+
+## Fase 3 — Paridade entre implementações `[~5-8 dias — fase mais pesada]`
+
+### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
+
+| Runtime | Mecanismo | Nota |
+|---|---|---|
+| Go | `GOMAXPROCS` | **obrigatório** — Go lê CPUs do host, não a quota do cgroup |
+| Rust (tokio) | `worker_threads` | fixar explicitamente |
+| JVM / Kotlin | `-XX:ActiveProcessorCount` | + GC uniforme entre todos |
+| .NET | `DOTNET_PROCESSOR_COUNT` | + `ThreadPool.SetMinThreads` |
+| Node.js | `cluster` com N workers | hoje 1 thread — usa 1/7 do hardware |
+| Bun / Deno | N processos + `reusePort` | |
+| Python | `--workers N` | hoje: Flask 4×2, FastAPI 1 |
+
+Heap uniforme para JVM/Kotlin/GraalVM: `-Xms8g -Xmx8g`.
+
+### 3.2 Pool de conexões uniforme
+
+`DB_POOL_MAX` único, dimensionado ao teto do PG medido na Fase 0 (sugestão:
+32/pod, `max_connections` ≥ 200). Mesma regra para Redis. Corrigir o
+`pgx.Conn` sem pool do Go REST.
+
+### 3.3 Payload canônico `[BLOQUEANTE]`
+
+- Schema único por cenário definido em `contracts/`, idêntico em todas as
+  linguagens, **verificado por SHA-256 do corpo** no `make smoke`.
+- Sem PRNG por request (remover o `crypto/rand` do Go); timestamp só no
+  envelope, nunca dentro dos itens.
+- Corrigir `string(rune(id))` em `src/go/fiber/internal/models/*.go` — converte
+  o inteiro em code point Unicode, não no texto do número (deveria ser
+  `strconv.Itoa`). Afeta `json_item.go`, `user.go`, `complex_order_result.go`.
+- `/json` parametrizado por `?n=`, rodando em **n = 10, 100, 1000**.
+
+Mapeamento de cenários entre protocolos (contrato único):
 
 | # | Cenário | REST | gRPC | GraphQL |
-|---|---------|------|------|---------|
-| 1 | Health | /health | Health RPC | { health } |
-| 2 | JSON | /json | GetJsonItems | { jsonItems } |
-| 3 | DB Simple | /db/simple?id=1 | GetUser | { user(id:1) } |
-| 4 | DB Complex | /db/complex?days=30 | GetComplexOrders | { complexOrders } |
-| 5 | Cache Hit | /cache?key=bench | GetCacheValue | { cache } |
+|---|---|---|---|---|
+| 1 | Health | `/health` | `Health` | `{ health }` |
+| 2 | JSON | `/json?n=` | `GetJsonItems` | `{ jsonItems }` |
+| 3 | DB Simple | `/db/simple?id=1` | `GetUser` | `{ user(id:1) }` |
+| 4 | DB Complex | `/db/complex?days=30` | `GetComplexOrders` | `{ complexOrders }` |
+| 5 | Cache | `/cache?key=bench` | `GetCacheValue` | `{ cache }` |
 
-### 2.4 Concorrência
+### 3.4 Nivelamento de execução
 
-| Nível | REST (wrk) | gRPC (ghz) | GraphQL (wrk) |
-|-------|-----------|-----------|---------------|
-| 1 | -t1 -c1 | --concurrency 1 | -t1 -c1 |
-| 10 | -t2 -c10 | --concurrency 10 | -t2 -c10 |
-| 50 | -t4 -c50 | --concurrency 50 | -t4 -c50 |
-| 100 | -t4 -c100 | --concurrency 100 | -t4 -c100 |
-| 200 | -t4 -c200 | --concurrency 200 | -t4 -c200 |
+Porta 8080 em todos (Python sobe em 8000 contra `PORT: "8080"` do ConfigMap);
+`LOG_LEVEL` desligado; builds release/AOT verificados; mesma query SQL literal.
 
-**Total por implementação**: 5 cenários × 5 concorrências × 5 repetições = 125 medições
-**Total geral**: 32 implementações × 125 = 4.000 medições
+### 3.5 Tuning do PostgreSQL (8 vCPU / 16 GiB)
 
----
+`shared_buffers=4GB`, `effective_cache_size=12GB`, `max_connections=300`,
+`work_mem=16MB`, `random_page_cost=1.1`, huge pages.
 
-## Fase 3 — Coleta de Métricas
-
-### 3.1 Métricas por Execução
-
-```bash
-# Durante o benchmark, coletar a cada 5s:
-kubectl top pod <impl> -n benchmark --containers
-```
-
-### 3.2 Métricas Coletadas
-
-| Categoria | Métricas |
-|-----------|---------|
-| Throughput | req/s, ops/s |
-| Latência | p50, p90, p95, p99, p999, max |
-| CPU | mean cores, max cores, throttled |
-| Memória | RSS mean, RSS max, working set |
-| Rede | bytes received, bytes transmitted |
-| Erros | error rate, timeouts |
-| Kubernetes | pod restarts, OOM kills |
-
-### 3.3 Formato de Saída
-
-Cada execução gera JSON em `results/raw/<run-id>/<impl>/<scenario>/<mode>/c<concurrency>.json`
+**Critério de saída**: `scripts/validate-parity.sh` falha se qualquer
+implementação divergir em porta, pool, workers, log level ou hash de payload.
 
 ---
 
-## Fase 4 — Rankings Normalizados
+## Fase 4 — Unificar o deploy `[~1-2 dias]`
 
-### 4.1 Rankings Separados
-
-| Ranking | Critério |
-|---------|---------|
-| REST Health Single-Pod | req/s mediana (5 repetições) |
-| REST JSON Single-Pod | req/s mediana |
-| REST DB-Simple Single-Pod | req/s mediana |
-| REST DB-Complex Single-Pod | req/s mediana |
-| REST Cache Single-Pod | req/s mediana |
-| gRPC Health Single-Pod | ops/s mediana |
-| gRPC JSON Single-Pod | ops/s mediana |
-| GraphQL Health Single-Pod | req/s mediana |
-| GraphQL JSON Single-Pod | req/s mediana |
-
-### 4.2 Estatísticas
-
-Para cada ranking:
-- Mediana (principal)
-- Média
-- Desvio padrão
-- Mínimo / Máximo
-- Intervalo de confiança 95%
-
-### 4.3 Relatório Final
-
-```
-results/reports/
-  summary.json
-  rankings/
-    rest-health-single-pod.json
-    rest-json-single-pod.json
-    grpc-health-single-pod.json
-    graphql-health-single-pod.json
-    ...
-```
+1. **Eliminar `src/*/k8s/`** (101 diretórios) — conflitam com os 99 overlays
+   Kustomize e foram o que de fato rodou.
+2. Perfil Guaranteed: `requests == limits == 7 CPU / 12 GiB`.
+3. Modo A (ranking primário) = **1 réplica** com o nó inteiro. Modos B e C em
+   overlays separados, nunca misturados no ranking.
+4. Reconciliar `config/implementations.yaml` (99) com README (101) e com os
+   101 diretórios; `maturity` refletindo a realidade.
+5. `make inventory|build|deploy|smoke|benchmark` como único caminho —
+   aposentar `run_all_benchmarks.py`, `deploy_grpc.py`, `fix_*.py`.
 
 ---
 
-## Fase 5 — Correções Pendentes
+## Fase 5 — Runner que honra a metodologia `[~3-4 dias]`
 
-### 5.1 Implementações com Build Fail (precisam correção de código)
+| Item | Hoje | Alvo |
+|---|---|---|
+| Warm-up | 2s | 30s (60s para JVM/GraalVM) |
+| Medição | 5s | 60s |
+| Repetições | 1 | 5 → mediana + IC 95% |
+| Ordem | alfabética | randomizada |
+| Isolamento | 53 pods simultâneos | 1 implementação por vez |
+| Saída | Markdown manual | JSON conforme `docs/RESULTS_SCHEMA.md` |
 
-| Ambiente | Frameworks | Problema Típico |
-|----------|-----------|----------------|
-| Rust gRPC | volo, grpcio | API breaking changes |
-| Go gRPC | connectrpc, kitex | go.sum/genproto |
-| Java gRPC | armeria, quarkus | Proto class naming |
+**Métrica A — throughput máximo**: varredura de concorrência (1, 8, 32, 64,
+128, 256, 512) até o joelho da curva. Válido só se CPU do SUT ≥ 90%, rede
+< 80% do teto, DB < 70%.
+
+**Métrica B — custo de CPU por requisição** (primária onde há teto de infra):
+a taxa fixa abaixo do teto, medir `cpu_seconds_do_pod / requests × 1e6`.
+É independente da rede e do cliente, e sobrevive à topologia de 1 GbE.
+
+**Classificação automática**, calculada pelo runner, nunca escrita à mão:
+
+| Flag | Condição |
+|---|---|
+| `FRAMEWORK_BOUND` | CPU ≥ 90%, rede < 80%, DB < 70% → entra no ranking de throughput |
+| `NET_BOUND` | bytes/s ≥ 80% da banda medida |
+| `PPS_BOUND` | req/s ≥ 80% do teto de PPS |
+| `CLIENT_BOUND` | CPU da workstation ≥ 90% |
+| `DB_BOUND` | PostgreSQL ou Redis ≥ 85% |
+
+Rejeitar runs com erro > 0,1%, throttling > 0, ou desvio-padrão > 5%.
+Saída em `results/raw/<run-id>/<impl>/<scenario>/<mode>/c<conc>.json`.
+
+---
+
+## Fase 6 — Reconstrução e re-execução `[~4-6 dias]`
+
+### 6.1 As 46 implementações que não buildam
+
+| Ambiente | Frameworks | Problema típico |
+|---|---|---|
+| Rust gRPC | volo, grpcio | breaking changes de API |
+| Go gRPC | connectrpc, kitex | `go.sum` / genproto |
+| Java gRPC | armeria, quarkus | naming de classes do proto |
 | Kotlin gRPC | grpc-kotlin, spring, armeria | Gradle wrapper |
-| GraalVM gRPC | quarkus, micronaut, grpc-java | Maven/native build |
-| Dart gRPC | grpc-dart | Protobuf version |
-| Rust GraphQL | async-graphql, juniper | Cargo deps |
-| C# GraphQL | hotchocolate, graphql-dotnet | NuGet cycles |
-| Dart GraphQL | graphql-server2, angel3, leto | shelf_router version |
-| GraalVM GraphQL | smallrye, spring, micronaut | Maven/native |
+| GraalVM gRPC | quarkus, micronaut, grpc-java | build nativo Maven |
+| Dart gRPC | grpc-dart | versão do protobuf |
+| Rust GraphQL | async-graphql, juniper | deps do Cargo |
+| C# GraphQL | hotchocolate, graphql-dotnet | ciclos de NuGet |
+| Dart GraphQL | graphql-server2, angel3, leto | versão do shelf_router |
+| GraalVM GraphQL | smallrye, spring, micronaut | build nativo |
+| Go REST | gin, fiber | `go.sum` incompleto |
 
-**Ação**: Agente paralelo por categoria para corrigir e rebuildar
+Paralelizável por ambiente.
 
-### 5.2 Implementações Missing (não implementadas)
+### 6.2 Execução
 
-| Ambiente | Framework | Status |
-|----------|-----------|--------|
-| C# REST | FastEndpoints | Build fail (NuGet) |
-| Java GraphQL | SmallRye GraphQL | Não implementado |
-
----
-
-## Fase 6 — Automação Completa
-
-### 6.1 Script `run-all-benchmarks.sh`
-
-Já criado. Precisa de:
-- Pull no servidor
-- Testar execução completa
-- Ajustar parsing de resultados
-
-### 6.2 Ansible Playbook `06-run-all-benchmarks.yml`
-
-Já criado. Precisa de:
-- Testar com `--ask-pass`
-- Ajustar para single-node
-
-### 6.3 Makefile Targets
-
-```bash
-make benchmark-all PROTOCOL=rest SCENARIO=health MODE=single-pod
-make benchmark-all PROTOCOL=grpc SCENARIO=health MODE=single-pod
-make benchmark-all PROTOCOL=graphql SCENARIO=health MODE=single-pod
-```
+- Gate: `make smoke` com validação de contrato + hash de payload antes de a
+  implementação entrar na matriz.
+- Matriz: ~99 impls × 5 cenários × 5 repetições × 60s ≈ **~45h de máquina**.
+  Rodar por protocolo, com checkpoint e retomada.
 
 ---
 
-## Cronograma Estimado
+## Fase 7 — Publicação honesta `[~1 dia]`
 
-| Fase | Descrição | Tempo Estimado |
-|------|-----------|---------------|
-| 1 | Corrigir 11 pods Not Ready | 30 min |
-| 2 | Benchmark isolado (32 impls × 5 cenários) | 4-6 horas |
-| 3 | Coleta de métricas | (incluído na Fase 2) |
-| 4 | Rankings normalizados | 30 min |
-| 5 | Corrigir build fails restantes | 2-3 horas |
-| 6 | Automação completa | 1 hora |
-| **Total** | | **8-11 horas** |
+1. Um único `docs/RESULTS_<data>.md` **gerado** a partir dos JSONs.
+2. Cada linha com `% do teto de infra` e a flag de gargalo.
+3. Atualizar `docs/KNOWN_LIMITATIONS.md:37` — ainda afirma "no real benchmark
+   has been executed yet", contradizendo 5 documentos de resultados.
+4. Consolidar os 9 documentos de resultados sobrepostos e os ~15
+   `*_SUMMARY.md` / `*_README.md` da raiz.
 
 ---
 
-## Prioridade de Execução
+## Caminho crítico
 
 ```
-Fase 1 → Fase 2 (REST only) → Fase 4 (REST ranking) → Fase 2 (gRPC) → Fase 2 (GraphQL) → Fase 5 → Fase 6
+Fase 1 (segurança) ──────────────┐  árvore concluída; rotação pendente
+Fase 0 (tetos) → Fase 2 → Fase 3 → Fase 5 → Fase 6 → Fase 7
+                            └→ Fase 4 ──────┘
 ```
 
-**Justificativa**: Gerar resultados REST primeiro (mais implementações, mais dados), depois expandir para gRPC/GraphQL.
-
----
-
-**Criado**: 2026-07-29
-**Status**: PRONTO PARA EXECUÇÃO
+**Estimativa total**: ~3 semanas de trabalho focado. Fases 3 e 6 concentram
+cerca de 70% do esforço.
