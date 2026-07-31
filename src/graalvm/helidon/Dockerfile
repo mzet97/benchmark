@@ -22,7 +22,7 @@ RUN groupadd --gid 1001 appuser && \
     useradd --uid 1001 --gid 1001 --shell /bin/false --create-home appuser
 
 # Copy JAR from builder
-COPY --from=builder /build/target/benchmark-helidon-1.0.0.jar /app/app.jar
+COPY --from=builder /build/target/*.jar /app/app.jar
 
 # Set ownership
 RUN chown -R appuser:appuser /app
