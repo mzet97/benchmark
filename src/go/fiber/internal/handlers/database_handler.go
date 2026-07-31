@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/benchmark/go-fiber/internal/services"
 	"github.com/gofiber/fiber/v2"
@@ -52,12 +51,10 @@ func (dh *DatabaseHandler) HandleSimple(c *fiber.Ctx) error {
 		})
 	}
 
-	response := fiber.Map{
-		"user":      user,
-		"timestamp": time.Now().Format(time.RFC3339),
-	}
-
-	return c.JSON(response)
+	// Flat, mirroring UserResponse in the proto. The previous shape nested the
+	// user under a "user" key with an extra timestamp, which no other protocol
+	// returned. See contracts/rest/canonical-payloads.md.
+	return c.JSON(user)
 }
 
 // HandleComplex godoc
@@ -89,11 +86,11 @@ func (dh *DatabaseHandler) HandleComplex(c *fiber.Ctx) error {
 		})
 	}
 
+	// Mirrors ComplexOrdersResponse in the proto.
 	response := fiber.Map{
-		"orders":    results,
-		"count":     len(results),
-		"days":      days,
-		"timestamp": time.Now().Format(time.RFC3339),
+		"periodDays": days,
+		"totalUsers": len(results),
+		"data":       results,
 	}
 
 	return c.JSON(response)

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -16,7 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -28,6 +30,15 @@ func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log = zerolog.New(os.Stdout).With().Timestamp().Logger()
 
+	// Go reads the host's CPU count, not the cgroup quota, so inside a pod
+	// limited to N cores it would still start GOMAXPROCS threads for every
+	// core on the node. BENCH_CPUS comes from the same ConfigMap every
+	// implementation reads, so all runtimes get the same parallelism.
+	// See docs/ACTION_PLAN.md, Fase 3.1.
+	cpus := envInt("BENCH_CPUS", runtime.NumCPU())
+	runtime.GOMAXPROCS(cpus)
+	log.Info().Int("GOMAXPROCS", cpus).Msg("Runtime parallelism configured")
+
 	// Load environment variables
 	if err := loadEnv(); err != nil {
 		log.Fatal().Err(err).Msg("Failed to load environment variables")
@@ -38,7 +49,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to connect to database")
 	}
-	defer dbConn.Close(context.Background())
+	defer dbConn.Close()
 
 	// Initialize cache connection
 	redisClient, err := initRedis()
@@ -152,13 +163,23 @@ func setupRoutes(
 	app.Get("/cache", cacheHandler.HandleCache)
 }
 
-func initDatabase() (*pgx.Conn, error) {
+func initDatabase() (*pgxpool.Pool, error) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	conn, err := pgx.Connect(context.Background(), dbURL)
+	cfg, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse DATABASE_URL: %w", err)
+	}
+
+	// Pool size is part of the benchmark contract, not a per-implementation
+	// choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+	// the database access layer stops being a hidden variable in the ranking.
+	cfg.MaxConns = int32(envInt("DB_POOL_MAX", 32))
+
+	conn, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -192,4 +213,21 @@ func initRedis() (*redis.Client, error) {
 
 func loadEnv() error {
 	return nil // Using os.Getenv directly
+}
+
+// envInt reads an integer tuning knob from the environment, falling back to
+// def when unset or unparseable. Used for the contract-level knobs
+// (DB_POOL_MAX, BENCH_CPUS) that must be identical across implementations.
+func envInt(key string, def int) int {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return def
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v <= 0 {
+		log.Warn().Str("key", key).Str("value", raw).
+			Int("fallback", def).Msg("invalid integer, using fallback")
+		return def
+	}
+	return v
 }

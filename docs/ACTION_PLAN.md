@@ -131,7 +131,23 @@ uniforme, sem Ingress.
 
 ---
 
-## Fase 3 — Paridade entre implementações `[~5-8 dias — fase mais pesada]`
+## Fase 3 — Paridade entre implementações `[EM ANDAMENTO — ~5-8 dias]`
+
+**Fundação concluída** (contrato + gate + implementação de referência):
+
+- [x] `contracts/rest/canonical-payloads.md` — payload normativo, alinhado a
+      `benchmark.proto` e `schema.graphql`
+- [x] `scripts/validate-parity.py` — gate por SHA-256 de JSON normalizado
+- [x] `deploy/k3s/base/configmap.yaml` — `BENCH_CPUS`, `DB_POOL_MAX`,
+      `REDIS_POOL_MAX`, `LOG_LEVEL=error`
+- [x] `deploy/k3s/base/deployment.yaml` — perfil Guaranteed 7 CPU / 12 GiB
+- [x] **`src/go/fiber` como referência**: payload canônico, `?n=`, sem
+      `crypto/rand`, `GOMAXPROCS` de `BENCH_CPUS`, `pgxpool` com `DB_POOL_MAX`,
+      modelos e envelopes alinhados ao proto, teste de regressão do contrato
+
+**Pendente**: aplicar o mesmo padrão às ~35 demais implementações REST, depois
+gRPC e GraphQL. O gate falha até que todas passem.
+
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
 

@@ -1,35 +1,40 @@
 package models
 
-// ComplexOrderResult represents aggregated order statistics for a user
+import "fmt"
+
+// ComplexOrderResult mirrors UserOrderStats in contracts/grpc/benchmark.proto
+// and type UserOrderStats in contracts/graphql/schema.graphql, so /db/complex
+// returns the same shape over all three protocols.
+//
+// Field names are camelCase, matching the proto3 JSON mapping of the
+// snake_case proto fields. See contracts/rest/canonical-payloads.md.
 type ComplexOrderResult struct {
-	UserID              int     `json:"user_id"`
-	Email               string  `json:"email"`
-	OrderCount          int64   `json:"order_count"`
-	TotalAmount         float64 `json:"total_amount"`
-	AverageAmount       float64 `json:"avg_amount"`
-	DaysSinceFirstOrder int64   `json:"days_since_first_order"`
+	UserID            int     `json:"userId"`
+	UserName          string  `json:"userName"`
+	TotalOrders       int64   `json:"totalOrders"`
+	TotalValue        float64 `json:"totalValue"`
+	AverageOrderValue float64 `json:"averageOrderValue"`
 }
 
 // NewComplexOrderResult creates a new ComplexOrderResult instance
 func NewComplexOrderResult(
 	userID int,
-	email string,
-	orderCount int64,
-	totalAmount float64,
-	averageAmount float64,
-	daysSinceFirstOrder int64,
+	userName string,
+	totalOrders int64,
+	totalValue float64,
+	averageOrderValue float64,
 ) *ComplexOrderResult {
 	return &ComplexOrderResult{
-		UserID:              userID,
-		Email:               email,
-		OrderCount:          orderCount,
-		TotalAmount:         totalAmount,
-		AverageAmount:       averageAmount,
-		DaysSinceFirstOrder: daysSinceFirstOrder,
+		UserID:            userID,
+		UserName:          userName,
+		TotalOrders:       totalOrders,
+		TotalValue:        totalValue,
+		AverageOrderValue: averageOrderValue,
 	}
 }
 
 // String returns a string representation of the ComplexOrderResult
 func (cor *ComplexOrderResult) String() string {
-	return "ComplexOrderResult{UserID: " + string(rune(cor.UserID)) + ", Orders: " + string(rune(cor.OrderCount)) + "}"
+	return fmt.Sprintf("ComplexOrderResult{UserID: %d, Orders: %d}",
+		cor.UserID, cor.TotalOrders)
 }

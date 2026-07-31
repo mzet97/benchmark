@@ -50,13 +50,23 @@ spec:
             - secretRef:
                 name: benchmark-secrets
                 optional: true
+          # requests == limits => QoS Guaranteed. Combined with the kubelet's
+          # static CPU manager policy and integer CPU requests, this gives the
+          # pod exclusive whole cores: no CFS throttling and no thread
+          # migration between cores, which is what makes saturation
+          # measurements reproducible across the 5 repetitions.
+          #
+          # 7 of the node's 8 vCPUs; the remaining one is reserved for K3s and
+          # the OS via --system-reserved/--kube-reserved. BENCH_CPUS in the
+          # ConfigMap must match the CPU value here.
+          # See docs/ACTION_PLAN.md, Fase 2 and Fase 4.
           resources:
             requests:
-              cpu: "250m"
-              memory: "128Mi"
+              cpu: "7"
+              memory: "12Gi"
             limits:
-              cpu: "2"
-              memory: "1Gi"
+              cpu: "7"
+              memory: "12Gi"
           livenessProbe:
             tcpSocket:
               port: http

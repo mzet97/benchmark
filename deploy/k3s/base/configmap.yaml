@@ -11,5 +11,27 @@ metadata:
 data:
   PORT: "8080"
   HOST: "0.0.0.0"
-  LOG_LEVEL: "info"
+
+  # Logging off during measurement: per-request logging is a 2-3x difference
+  # between implementations and is not what this benchmark measures.
+  LOG_LEVEL: "error"
+
   CACHE_TTL: "300"
+
+  # ---------------------------------------------------------------------
+  # Contract-level tuning knobs (docs/ACTION_PLAN.md, Fase 3).
+  # These are identical for every implementation on purpose: parallelism and
+  # pool size were the two biggest hidden variables in the previous results.
+  # ---------------------------------------------------------------------
+
+  # Must match the pod's CPU limit. Runtimes that read the host CPU count
+  # instead of the cgroup quota (notably Go) need this to size their thread
+  # pool correctly; single-threaded runtimes (Node, Deno, Bun, Python) use it
+  # to fork that many workers.
+  BENCH_CPUS: "7"
+
+  # Previously: Go REST used a single connection with no pool, Go GraphQL used
+  # 10, Node/Kotlin/GraalVM used 25, Rust used the sqlx default. Sized against
+  # the PostgreSQL ceiling measured in Fase 0.
+  DB_POOL_MAX: "32"
+  REDIS_POOL_MAX: "32"

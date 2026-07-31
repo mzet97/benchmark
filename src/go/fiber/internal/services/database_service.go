@@ -8,18 +8,24 @@ import (
 
 	"github.com/benchmark/go-fiber/internal/models"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DatabaseService handles all database operations
+// DatabaseService handles all database operations.
+//
+// Backed by a pool, not a single connection. The previous version held one
+// *pgx.Conn, which serialises every query onto a single session -- a
+// different DB access model from every other implementation in this
+// benchmark, and therefore not comparable.
 type DatabaseService struct {
-	conn *pgx.Conn
+	pool *pgxpool.Pool
 	ctx  context.Context
 }
 
 // NewDatabaseService creates a new DatabaseService instance
-func NewDatabaseService(conn *pgx.Conn) *DatabaseService {
+func NewDatabaseService(pool *pgxpool.Pool) *DatabaseService {
 	return &DatabaseService{
-		conn: conn,
+		pool: pool,
 		ctx:  context.Background(),
 	}
 }
@@ -32,7 +38,7 @@ func (ds *DatabaseService) FindUserByID(id int) (*models.User, error) {
 		WHERE id = $1
 	`
 
-	row := ds.conn.QueryRow(ds.ctx, query, id)
+	row := ds.pool.QueryRow(ds.ctx, query, id)
 	var user models.User
 	var createdAt time.Time
 
@@ -58,23 +64,29 @@ func (ds *DatabaseService) FindUserByID(id int) (*models.User, error) {
 
 // FindComplexOrders retrieves aggregated order statistics
 func (ds *DatabaseService) FindComplexOrders(days int) ([]*models.ComplexOrderResult, error) {
+	// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. The LIMIT is
+	// part of the contract: changing it changes the payload size and therefore
+	// the network ceiling of this scenario.
+	//
+	// ORDER BY includes u.id to break ties deterministically -- without it,
+	// rows with equal order counts come back in arbitrary order and the
+	// response is not reproducible between runs.
 	query := `
 		SELECT
-			u.id as user_id,
-			u.email,
-			COUNT(o.id) as order_count,
-			SUM(o.total_amount) as total_amount,
-			AVG(o.total_amount) as avg_amount,
-			EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
+			u.id AS user_id,
+			u.first_name || ' ' || u.last_name AS user_name,
+			COUNT(o.id) AS total_orders,
+			COALESCE(SUM(o.total_amount), 0) AS total_value,
+			COALESCE(AVG(o.total_amount), 0) AS average_order_value
 		FROM users u
 		INNER JOIN orders o ON u.id = o.user_id
 			WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
-		GROUP BY u.id, u.email
-		ORDER BY order_count DESC
+		GROUP BY u.id, u.first_name, u.last_name
+		ORDER BY total_orders DESC, u.id
 		LIMIT 100
 	`
 
-	rows, err := ds.conn.Query(ds.ctx, query, days)
+	rows, err := ds.pool.Query(ds.ctx, query, days)
 	if err != nil {
 		log.Printf("Error querying complex orders: %v", err)
 		return nil, err
@@ -86,11 +98,10 @@ func (ds *DatabaseService) FindComplexOrders(days int) ([]*models.ComplexOrderRe
 		var result models.ComplexOrderResult
 		err := rows.Scan(
 			&result.UserID,
-			&result.Email,
-			&result.OrderCount,
-			&result.TotalAmount,
-			&result.AverageAmount,
-			&result.DaysSinceFirstOrder,
+			&result.UserName,
+			&result.TotalOrders,
+			&result.TotalValue,
+			&result.AverageOrderValue,
 		)
 		if err != nil {
 			log.Printf("Error scanning complex order result: %v", err)
@@ -106,7 +117,7 @@ func (ds *DatabaseService) FindComplexOrders(days int) ([]*models.ComplexOrderRe
 func (ds *DatabaseService) HealthCheck() bool {
 	query := "SELECT 1"
 	var result int
-	err := ds.conn.QueryRow(ds.ctx, query).Scan(&result)
+	err := ds.pool.QueryRow(ds.ctx, query).Scan(&result)
 	if err != nil {
 		log.Printf("Database health check failed: %v", err)
 		return false
@@ -116,7 +127,7 @@ func (ds *DatabaseService) HealthCheck() bool {
 
 // Close closes the database connection
 func (ds *DatabaseService) Close() {
-	if ds.conn != nil {
-		ds.conn.Close(ds.ctx)
+	if ds.pool != nil {
+		ds.pool.Close()
 	}
 }
