@@ -14,7 +14,7 @@ public class Application {
 
     void onStart(@Observes StartupEvent ev) {
         LOG.info("🚀 Benchmark Quarkus API starting...");
-        LOG.info("✅ Quarkus version: {}", io.quarkus.runtime.Version.getVersion());
+        LOG.info("Quarkus API starting...");
     }
 
     void onStop(@Observes ShutdownEvent ev) {

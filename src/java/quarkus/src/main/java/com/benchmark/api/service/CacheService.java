@@ -1,6 +1,7 @@
 package com.benchmark.api.service;
 
-import io.quarkus.redis.client.RedisClient;
+import io.quarkus.redis.datasource.RedisDataSource;
+import io.quarkus.redis.datasource.value.ValueCommands;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -15,41 +16,58 @@ public class CacheService {
     private static final Logger LOG = LoggerFactory.getLogger(CacheService.class);
 
     @Inject
-    RedisClient redisClient;
+    RedisDataSource redisDataSource;
+
+    private ValueCommands<String, String> valueCommands;
+
+    void init() {
+        valueCommands = redisDataSource.value(String.class);
+    }
 
     public Uni<String> get(String key) {
-        return redisClient.get(key)
-                .map(response -> response != null ? response.toString() : null)
-                .onFailure().recoverWithItem(t -> {
-                    LOG.error("Cache get error for key {}: {}", key, t.getMessage());
-                    return null;
-                });
+        return Uni.createFrom().item(() -> {
+            try {
+                if (valueCommands == null) init();
+                return valueCommands.get(key);
+            } catch (Exception e) {
+                LOG.error("Cache get error: {}", e.getMessage());
+                return null;
+            }
+        });
     }
 
     public Uni<Void> set(String key, String value, Duration ttl) {
-        return redisClient.setex(key, (int) ttl.getSeconds(), value)
-                .map(response -> null)
-                .onFailure().recoverWithItem(t -> {
-                    LOG.error("Cache set error for key {}: {}", key, t.getMessage());
-                    return null;
-                });
+        return Uni.createFrom().item(() -> {
+            try {
+                if (valueCommands == null) init();
+                valueCommands.setex(key, ttl.getSeconds(), value);
+            } catch (Exception e) {
+                LOG.error("Cache set error: {}", e.getMessage());
+            }
+            return null;
+        }).replaceWithVoid();
     }
 
-    public Uni<String> getOrSet(String key, String newValue, Duration ttl) {
-        return get(key)
-                .onItem().ifNull().switchTo(() -> {
-                    LOG.info("Cache miss for key: {}", key);
-                    return set(key, newValue, ttl)
-                            .map(v -> newValue);
-                })
-                .onItem().ifNotNull().invoke(value -> {
-                    LOG.info("Cache hit for key: {}", key);
-                });
+    public Uni<String> getOrSet(String key, java.util.function.Supplier<String> factory, int ttlSeconds) {
+        return get(key).onItem().transformToUni(existing -> {
+            if (existing != null) {
+                return Uni.createFrom().item(existing);
+            }
+            String newValue = factory.get();
+            return set(key, newValue, Duration.ofSeconds(ttlSeconds)).onItem().transform(v -> newValue);
+        });
     }
 
     public Uni<Boolean> healthCheck() {
-        return redisClient.ping()
-                .map(response -> response != null)
-                .onFailure().recoverWithItem(false);
+        return Uni.createFrom().item(() -> {
+            try {
+                if (valueCommands == null) init();
+                valueCommands.get("__health_check__");
+                return true;
+            } catch (Exception e) {
+                LOG.error("Cache health check error: {}", e.getMessage());
+                return false;
+            }
+        });
     }
 }

@@ -4,7 +4,7 @@ WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN mvn package -DskipTests -B
+RUN mvn package -DskipTests -B -Dquarkus.package.jar.type=uber-jar
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

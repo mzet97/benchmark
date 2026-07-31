@@ -72,7 +72,7 @@ public class DatabaseService {
     public Uni<Boolean> healthCheck() {
         return client.query("SELECT 1")
                 .execute()
-                .map(rows -> !rows.isEmpty())
+                .map(rows -> rows.size() > 0)
                 .onFailure().recoverWithItem(false);
     }
 

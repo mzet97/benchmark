@@ -26,19 +26,17 @@ public class DatabaseResource {
 
     @Path("/simple")
     @GET
-    public Uni<Response> getSimple(@QueryParam("id") Integer id) {
-        if (id == null) {
-            id = 1;
-        }
+    public Uni<Response> getSimple(@QueryParam("id") Integer idParam) {
+        final int id = (idParam == null) ? 1 : idParam;
 
         return databaseService.findUserById(id)
-                .onItem().ifNull().continueWith(() -> {
-                    Map<String, Object> error = new HashMap<>();
-                    error.put("error", "User not found");
-                    error.put("id", id);
-                    return Response.status(404).entity(error).build();
-                })
-                .onItem().ifNotNull().transform(user -> {
+                .map(user -> {
+                    if (user == null) {
+                        Map<String, Object> error = new HashMap<>();
+                        error.put("error", "User not found");
+                        error.put("id", id);
+                        return Response.status(404).entity(error).build();
+                    }
                     Map<String, Object> response = new HashMap<>();
                     response.put("user", user);
                     response.put("timestamp", Instant.now().toString());
@@ -48,10 +46,8 @@ public class DatabaseResource {
 
     @Path("/complex")
     @GET
-    public Uni<Response> getComplex(@QueryParam("days") Integer days) {
-        if (days == null) {
-            days = 30;
-        }
+    public Uni<Response> getComplex(@QueryParam("days") Integer daysParam) {
+        final int days = (daysParam == null) ? 30 : daysParam;
 
         return databaseService.findComplexOrders(days)
                 .map(orders -> {

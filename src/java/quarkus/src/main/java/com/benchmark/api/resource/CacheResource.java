@@ -10,7 +10,6 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,14 +23,12 @@ public class CacheResource {
     CacheService cacheService;
 
     @GET
-    public Uni<Response> handle(@QueryParam("key") String key) {
-        if (key == null || key.isEmpty()) {
-            key = "test";
-        }
+    public Uni<Response> handle(@QueryParam("key") String keyParam) {
+        final String key = (keyParam == null || keyParam.isEmpty()) ? "test" : keyParam;
 
         String newValue = "cached-value-" + UUID.randomUUID();
 
-        return cacheService.getOrSet(key, newValue, Duration.ofSeconds(300))
+        return cacheService.getOrSet(key, () -> newValue, 300)
                 .map(value -> {
                     Map<String, Object> response = new HashMap<>();
                     response.put("key", key);
