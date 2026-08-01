@@ -31,33 +31,32 @@ export class DatabaseController {
       };
     }
 
-    return { user };
+    // The contract returns the user object itself, not an envelope, and the
+    // normative SQL already aliases the columns to the contract names.
+    return user;
   }
 
+  // The previous version answered {orders, summary: {...}} and took a userId
+  // query parameter no other implementation accepted, which also meant it was
+  // parsing an argument the others were not.
+  // See contracts/rest/canonical-payloads.md.
   @Get('complex')
-  async getComplex(
-    @Query('days') days: string = '30',
-    @Query('userId') userId: string = '1',
-  ) {
+  async getComplex(@Query('days') days: string = '30') {
     const parsedDays = parseInt(days);
-    const parsedUserId = parseInt(userId);
 
-    if (isNaN(parsedDays) || isNaN(parsedUserId)) {
+    if (isNaN(parsedDays) || parsedDays <= 0 || parsedDays > 365) {
       return {
         error: 'Bad Request',
-        message: 'days and userId must be numbers',
+        message: 'days must be between 1 and 365',
       };
     }
 
-    const orders = await this.databaseService.findComplexOrders(parsedDays);
+    const data = await this.databaseService.findComplexOrders(parsedDays);
 
     return {
-      orders,
-      summary: {
-        total_orders: orders.length,
-        user_id: parsedUserId,
-        days: parsedDays,
-      },
+      periodDays: parsedDays,
+      totalUsers: data.length,
+      data,
     };
   }
 }

@@ -11,7 +11,8 @@ class DatabaseService:
         """Get user by ID from database"""
         with connection.cursor() as cursor:
             cursor.execute(
-                "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = %s",
+                "SELECT id, email, first_name, last_name, age, created_at "
+                "FROM users WHERE id = %s",
                 [user_id]
             )
             row = cursor.fetchone()
@@ -19,41 +20,47 @@ class DatabaseService:
             if not row:
                 return None
 
+            # Wire names are camelCase; see contracts/rest/canonical-payloads.md.
             return {
                 'id': row[0],
                 'email': row[1],
-                'first_name': row[2],
-                'last_name': row[3],
+                'firstName': row[2],
+                'lastName': row[3],
                 'age': row[4],
-                'created_at': row[5]
+                'createdAt': row[5]
             }
 
     @staticmethod
     def get_complex_query(days: int) -> List[Dict[str, Any]]:
         """Execute complex query with aggregation"""
         with connection.cursor() as cursor:
-            cursor.execute(f"""
-                SELECT u.id as user_id, CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                       COUNT(DISTINCT o.id) as total_orders,
-                       COALESCE(SUM(o.total_amount), 0) as total_value,
-                       COALESCE(AVG(o.total_amount), 0) as average_value
+            # Normative SQL, see contracts/rest/canonical-payloads.md. The
+            # previous query interpolated `days` straight into the SQL with an
+            # f-string, and ordered only by total_value, so rows with equal
+            # values came back in arbitrary order.
+            cursor.execute("""
+                SELECT
+                    u.id AS user_id,
+                    u.first_name || ' ' || u.last_name AS user_name,
+                    COUNT(o.id) AS total_orders,
+                    COALESCE(SUM(o.total_amount), 0) AS total_value,
+                    COALESCE(AVG(o.total_amount), 0) AS average_order_value
                 FROM users u
-                LEFT JOIN orders o ON u.id = o.user_id
-                  AND o.created_at >= NOW() - INTERVAL '{days} days'
+                INNER JOIN orders o ON u.id = o.user_id
+                    WHERE o.created_at >= NOW() - INTERVAL '1 day' * %s
                 GROUP BY u.id, u.first_name, u.last_name
-                HAVING COUNT(DISTINCT o.id) > 0
-                ORDER BY total_value DESC
+                ORDER BY total_orders DESC, u.id
                 LIMIT 100
-            """)
+            """, [days])
             rows = cursor.fetchall()
 
             return [
                 {
-                    'user_id': row[0],
-                    'user_name': row[1],
-                    'total_orders': row[2],
-                    'total_value': float(row[3]),
-                    'average_value': float(row[4])
+                    'userId': row[0],
+                    'userName': row[1],
+                    'totalOrders': row[2],
+                    'totalValue': float(row[3]),
+                    'averageOrderValue': float(row[4])
                 }
                 for row in rows
             ]

@@ -53,8 +53,8 @@ def db_complex():
         data = db_service.get_user_stats(days)
 
         return jsonify({
-            'period_days': days,
-            'total_users': len(data),
+            'periodDays': days,
+            'totalUsers': len(data),
             'data': data,
             'timestamp': datetime.utcnow().isoformat()
         })

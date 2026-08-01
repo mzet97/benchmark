@@ -92,6 +92,20 @@ Mirrors `UserResponse` in the proto. Values come from the database.
 Not parity-hashed (content is data-dependent), but the **key set and casing**
 are checked.
 
+The SQL is normative too. An implementation that runs a different query is
+not measuring the same thing, however similar the response looks:
+
+```sql
+SELECT id, email, first_name AS "firstName", last_name AS "lastName",
+       age, created_at AS "createdAt"
+FROM users
+WHERE id = $1
+```
+
+The double-quoted aliases make Postgres return camelCase column names, so
+implementations that serialize a row straight to JSON — most of the dynamic
+ones do — need no per-field mapping layer.
+
 ## Scenario 4 — `GET /db/complex?days=<days>`
 
 Mirrors `ComplexOrdersResponse`. `LIMIT 100` is part of the contract — changing
@@ -100,6 +114,37 @@ it changes the payload size and therefore the network ceiling.
 ```json
 {"periodDays":30,"totalUsers":100,"data":[{"userId":1,"userName":"...","totalOrders":12,"totalValue":1234.56,"averageOrderValue":102.88}]}
 ```
+
+Normative SQL:
+
+```sql
+SELECT
+    u.id AS "userId",
+    u.first_name || ' ' || u.last_name AS "userName",
+    COUNT(o.id) AS "totalOrders",
+    COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+    COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
+FROM users u
+INNER JOIN orders o ON u.id = o.user_id
+    WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+GROUP BY u.id, u.first_name, u.last_name
+ORDER BY "totalOrders" DESC, u.id
+LIMIT 100
+```
+
+Three things this pins down, each of which was wrong somewhere:
+
+- **`ORDER BY` has a tiebreak.** Ordering by an aggregate alone leaves rows
+  with equal values in arbitrary order, so the response is not reproducible
+  between runs and cannot be compared at all.
+- **The interval is a bound parameter**, `INTERVAL '1 day' * $1`. Several
+  implementations wrote `INTERVAL '%s days'` or `INTERVAL '{days} days'`.
+  Inside the quotes there is no placeholder: Postgres reads the literal
+  string `%s days`. The `{days}` form is worse — it is string interpolation
+  straight into SQL.
+- **No join to `order_items`.** Aggregating `quantity * price` across a
+  second join is a materially heavier query than summing `o.total_amount`,
+  and implementations that did it were being timed on a different workload.
 
 ## Scenario 5 — `GET /cache?key=<key>`
 

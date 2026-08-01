@@ -45,8 +45,8 @@ func DatabaseComplexHandler(dbService *services.DatabaseService) echo.HandlerFun
 		}
 
 		result := map[string]interface{}{
-			"period_days": days,
-			"total_users": len(stats),
+			"periodDays": days,
+			"totalUsers": len(stats),
 			"data":        stats,
 		}
 

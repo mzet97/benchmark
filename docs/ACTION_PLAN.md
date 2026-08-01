@@ -145,7 +145,8 @@ uniforme, sem Ingress.
       `crypto/rand`, `GOMAXPROCS` de `BENCH_CPUS`, `pgxpool` com `DB_POOL_MAX`,
       modelos e envelopes alinhados ao proto, teste de regressão do contrato
 
-**Implementações convertidas** (36/36 REST).
+**Implementações convertidas** (37/37 REST — a contagem de 36 usada até aqui
+estava errada: `graalvm` tem 6 implementações REST, não 5).
 
 Cada linha registra o nível de evidência realmente obtido — não confundir
 "módulo canônico verificado" com "serviço verificado de ponta a ponta". O

@@ -1,5 +1,34 @@
-import { createUser } from '../models/User.js';
-import { createComplexOrderResult } from '../models/ComplexOrderResult.js';
+// Response schemas are not documentation here: fast-json-stringify emits only
+// the properties declared below, so a field missing from the schema is a field
+// missing from the wire. They must track
+// contracts/rest/canonical-payloads.md exactly.
+//
+// /db/simple used to answer {user: {...}, timestamp} with snake_case fields,
+// and /db/complex answered {orders, count, days, timestamp} -- neither matched
+// the contract envelope.
+
+const userSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'number' },
+    email: { type: 'string' },
+    firstName: { type: 'string' },
+    lastName: { type: 'string' },
+    age: { type: ['number', 'null'] },
+    createdAt: { type: 'string' }
+  }
+};
+
+const userStatsSchema = {
+  type: 'object',
+  properties: {
+    userId: { type: 'number' },
+    userName: { type: 'string' },
+    totalOrders: { type: 'number' },
+    totalValue: { type: 'number' },
+    averageOrderValue: { type: 'number' }
+  }
+};
 
 export default async function databaseRoutes(fastify, options) {
   // Simple database query
@@ -15,23 +44,7 @@ export default async function databaseRoutes(fastify, options) {
         }
       },
       response: {
-        200: {
-          type: 'object',
-          properties: {
-            user: {
-              type: 'object',
-              properties: {
-                id: { type: 'number' },
-                email: { type: 'string' },
-                first_name: { type: 'string' },
-                last_name: { type: 'string' },
-                age: { type: 'number' },
-                created_at: { type: 'string' }
-              }
-            },
-            timestamp: { type: 'string' }
-          }
-        },
+        200: userSchema,
         404: {
           type: 'object',
           properties: {
@@ -54,12 +67,9 @@ export default async function databaseRoutes(fastify, options) {
       };
     }
 
-    const user = createUser(row);
-
-    return {
-      user,
-      timestamp: new Date().toISOString()
-    };
+    // The normative SQL aliases its columns to the contract names, so the row
+    // is already the response body.
+    return row;
   });
 
   // Complex database query
@@ -78,23 +88,9 @@ export default async function databaseRoutes(fastify, options) {
         200: {
           type: 'object',
           properties: {
-            orders: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  user_id: { type: 'number' },
-                  email: { type: 'string' },
-                  order_count: { type: 'number' },
-                  total_amount: { type: 'number' },
-                  avg_amount: { type: 'number' },
-                  days_since_first_order: { type: 'number' }
-                }
-              }
-            },
-            count: { type: 'number' },
-            days: { type: 'number' },
-            timestamp: { type: 'string' }
+            periodDays: { type: 'number' },
+            totalUsers: { type: 'number' },
+            data: { type: 'array', items: userStatsSchema }
           }
         },
         500: {
@@ -108,14 +104,12 @@ export default async function databaseRoutes(fastify, options) {
   }, async (request, reply) => {
     const days = parseInt(request.query.days) || 30;
 
-    const rows = await fastify.dbService.findComplexOrders(days);
-    const orders = rows.map(createComplexOrderResult);
+    const data = await fastify.dbService.findComplexOrders(days);
 
     return {
-      orders,
-      count: orders.length,
-      days,
-      timestamp: new Date().toISOString()
+      periodDays: days,
+      totalUsers: data.length,
+      data
     };
   });
 }

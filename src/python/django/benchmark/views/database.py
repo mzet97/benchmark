@@ -38,8 +38,8 @@ def db_complex(request):
     try:
         data = DatabaseService.get_complex_query(days)
         return Response({
-            'period_days': days,
-            'total_users': len(data),
+            'periodDays': days,
+            'totalUsers': len(data),
             'data': data,
             'timestamp': datetime.utcnow().isoformat()
         })

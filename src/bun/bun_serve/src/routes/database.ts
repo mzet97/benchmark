@@ -87,8 +87,8 @@ export async function dbComplexHandler(request: Request): Promise<Response> {
     const results = await databaseService.getComplexQuery(days);
 
     return new Response(JSON.stringify({
-      period_days: days,
-      total_users: results.length,
+      periodDays: days,
+      totalUsers: results.length,
       data: results,
     }), {
       status: 200,

@@ -52,7 +52,8 @@ class DatabaseService:
             conn = self._get_conn()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT id, email, first_name, last_name, age, created_at
+                    SELECT id, email, first_name AS "firstName", last_name AS "lastName",
+                           age, created_at AS "createdAt"
                     FROM users
                     WHERE id = %s
                 """, (user_id,))
@@ -70,17 +71,20 @@ class DatabaseService:
             conn = self._get_conn()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute("""
-                    SELECT u.id as user_id,
-                           CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                           COUNT(DISTINCT o.id) as total_orders,
-                           COALESCE(SUM(o.total_amount), 0) as total_value,
-                           COALESCE(AVG(o.total_amount), 0) as average_value
+                    # Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+                    # query wrote INTERVAL '%s days': inside the quotes there is no
+                    # placeholder, so Postgres read the literal string "%s days".
+                    SELECT
+                        u.id AS "userId",
+                        u.first_name || ' ' || u.last_name AS "userName",
+                        COUNT(o.id) AS "totalOrders",
+                        COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                        COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
                     FROM users u
-                    LEFT JOIN orders o ON u.id = o.user_id
-                      AND o.created_at >= NOW() - INTERVAL '%s days'
+                    INNER JOIN orders o ON u.id = o.user_id
+                        WHERE o.created_at >= NOW() - INTERVAL '1 day' * %s
                     GROUP BY u.id, u.first_name, u.last_name
-                    HAVING COUNT(DISTINCT o.id) > 0
-                    ORDER BY total_value DESC
+                    ORDER BY "totalOrders" DESC, u.id
                     LIMIT 100
                 """, (days,))
                 rows = cur.fetchall()

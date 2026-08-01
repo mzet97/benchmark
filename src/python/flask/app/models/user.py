@@ -2,21 +2,27 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+
+# Wire names are camelCase, matching the proto3 JSON mapping of the snake_case
+# proto fields. See contracts/rest/canonical-payloads.md. The route serializes
+# the database row directly -- the normative SQL already aliases its columns to
+# these names -- so this class exists to keep one definition of the shape
+# rather than a second, divergent one.
 @dataclass
 class User:
     id: int
     email: str
-    first_name: str
-    last_name: str
+    firstName: str
+    lastName: str
     age: Optional[int] = None
-    created_at: Optional[datetime] = None
+    createdAt: Optional[datetime] = None
 
     def to_dict(self):
         return {
             'id': self.id,
             'email': self.email,
-            'first_name': self.first_name,
-            'last_name': self.last_name,
+            'firstName': self.firstName,
+            'lastName': self.lastName,
             'age': self.age,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'createdAt': self.createdAt.isoformat() if self.createdAt else None
         }

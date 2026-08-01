@@ -38,22 +38,25 @@ func (s *DatabaseService) GetUserByID(id int) (*models.User, error) {
 }
 
 func (s *DatabaseService) GetComplexQuery(days int) ([]models.UserStats, error) {
+	// Identical to the reference implementation in src/go/fiber. The previous
+	// query joined order_items and aggregated quantity*price, which is a
+	// materially heavier query than the one other implementations ran, and
+	// ordered only by total_value -- without a tiebreak, rows with equal
+	// values come back in arbitrary order and the response is not
+	// reproducible between runs. The LIMIT is part of the contract: changing
+	// it changes the payload size and therefore the network ceiling.
 	rows, err := s.db.Query(`
 		SELECT
-			u.id as user_id,
-			u.first_name || ' ' || u.last_name as user_name,
-			COUNT(DISTINCT o.id) as total_orders,
-			COALESCE(SUM(oi.quantity * oi.price), 0) as total_value,
-			COALESCE(AVG(oi.quantity * oi.price), 0) as average_value
+			u.id AS user_id,
+			u.first_name || ' ' || u.last_name AS user_name,
+			COUNT(o.id) AS total_orders,
+			COALESCE(SUM(o.total_amount), 0) AS total_value,
+			COALESCE(AVG(o.total_amount), 0) AS average_order_value
 		FROM users u
-		LEFT JOIN orders o ON u.id = o.user_id
-			AND o.created_at >= NOW() - INTERVAL '1 days' * $1
-			AND o.status = 'completed'
-		LEFT JOIN order_items oi ON o.id = oi.order_id
-		WHERE o.id IS NULL OR (o.created_at >= NOW() - INTERVAL '1 days' * $1 AND o.status = 'completed')
+		INNER JOIN orders o ON u.id = o.user_id
+			WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
 		GROUP BY u.id, u.first_name, u.last_name
-		HAVING COUNT(DISTINCT o.id) > 0
-		ORDER BY total_value DESC
+		ORDER BY total_orders DESC, u.id
 		LIMIT 100
 	`, days)
 	if err != nil {
@@ -70,7 +73,7 @@ func (s *DatabaseService) GetComplexQuery(days int) ([]models.UserStats, error) 
 			&stat.UserName,
 			&stat.TotalOrders,
 			&stat.TotalValue,
-			&stat.AverageValue,
+			&stat.AverageOrderValue,
 		)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)

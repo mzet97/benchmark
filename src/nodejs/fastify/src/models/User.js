@@ -1,32 +1,26 @@
 import { z } from 'zod';
 
-// User model schema
+// Mirrors UserResponse in contracts/grpc/benchmark.proto. Wire names are
+// camelCase. See contracts/rest/canonical-payloads.md.
 export const UserSchema = z.object({
   id: z.number(),
   email: z.string().email(),
-  first_name: z.string(),
-  last_name: z.string(),
-  age: z.number(),
-  created_at: z.string()
+  firstName: z.string(),
+  lastName: z.string(),
+  age: z.number().nullable(),
+  createdAt: z.string()
 });
 
-// Create User from database row
 export function createUser(row) {
   return {
     id: row.id,
     email: row.email,
-    first_name: row.first_name,
-    last_name: row.last_name,
+    firstName: row.firstName,
+    lastName: row.lastName,
     age: row.age,
-    created_at: row.created_at
+    createdAt: row.createdAt
   };
 }
-
-// User response type
-export const UserResponseSchema = z.object({
-  user: UserSchema,
-  timestamp: z.string()
-});
 
 export function validateUser(data) {
   return UserSchema.parse(data);

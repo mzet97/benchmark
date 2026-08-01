@@ -54,23 +54,16 @@ class DatabaseService {
     try {
       if (!this.client) throw new Error('Database not initialized');
 
+      // The normative SQL aliases the columns to the contract names, so the
+      // row is the response body. The previous version reshaped it into
+      // {id, email, name, age, created_at}, concatenating the names.
       const result = await this.client.query(
-        'SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1',
+        'SELECT id, email, first_name AS "firstName", last_name AS "lastName", ' +
+        'age, created_at AS "createdAt" FROM users WHERE id = $1',
         [id]
       );
 
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      const user = result.rows[0];
-      return {
-        id: user.id,
-        email: user.email,
-        name: `${user.first_name} ${user.last_name}`,
-        age: user.age,
-        created_at: user.created_at
-      };
+      return result.rows[0] || null;
     } catch (error) {
       console.error('Error fetching user:', error);
       throw error;
@@ -81,28 +74,31 @@ class DatabaseService {
     try {
       if (!this.client) throw new Error('Database not initialized');
 
+      // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+      // query interpolated `days` straight into the SQL, selected a
+      // user_email/days_since_first_order shape nothing else used, and ordered
+      // without a tiebreak.
       const result = await this.client.query(`
-        SELECT u.id as user_id, u.email as user_email,
-               COUNT(DISTINCT o.id) as total_orders,
-               COALESCE(SUM(o.total_amount), 0) as total_value,
-               COALESCE(AVG(o.total_amount), 0) as average_value,
-               EXTRACT(DAY FROM NOW() - MIN(o.created_at)) as days_since_first_order
+        SELECT
+          u.id AS "userId",
+          u.first_name || ' ' || u.last_name AS "userName",
+          COUNT(o.id) AS "totalOrders",
+          COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+          COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
         FROM users u
-        LEFT JOIN orders o ON u.id = o.user_id
-          AND o.created_at >= NOW() - INTERVAL '${days} days'
-        GROUP BY u.id, u.email
-        HAVING COUNT(DISTINCT o.id) > 0
-        ORDER BY total_value DESC
+        INNER JOIN orders o ON u.id = o.user_id
+          WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+        GROUP BY u.id, u.first_name, u.last_name
+        ORDER BY "totalOrders" DESC, u.id
         LIMIT 100
-      `);
+      `, [days]);
 
-      return result.rows.map(row => ({
-        user_id: row.user_id,
-        user_email: row.user_email,
-        total_orders: parseInt(row.total_orders),
-        total_value: parseFloat(row.total_value),
-        average_value: parseFloat(row.average_value),
-        days_since_first_order: parseInt(row.days_since_first_order || '0')
+      return result.rows.map((row: any) => ({
+        userId: parseInt(row.userId),
+        userName: row.userName,
+        totalOrders: parseInt(row.totalOrders),
+        totalValue: parseFloat(row.totalValue),
+        averageOrderValue: parseFloat(row.averageOrderValue)
       }));
     } catch (error) {
       console.error('Error executing complex query:', error);

@@ -9,6 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// The TTL is part of the response contract; it must match the value written
+// to Redis below. See contracts/rest/canonical-payloads.md.
+const cacheTTLSeconds = 300
+
 // CacheHandler handles cache requests
 type CacheHandler struct {
 	cacheService *services.CacheService
@@ -40,24 +44,20 @@ func (ch *CacheHandler) HandleCache(c *fiber.Ctx) error {
 	newValue := "cached-value-" + uuid.New().String()
 
 	// Get or set value
-	val, err := ch.cacheService.GetOrSet(key, newValue, 300*time.Second)
+	val, err := ch.cacheService.GetOrSet(key, newValue, cacheTTLSeconds*time.Second)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Cache error: " + err.Error(),
 		})
 	}
 
-	source := "generated"
-	if val == newValue {
-		source = "generated"
-	} else {
-		source = "cache"
-	}
-
+	// The contract carries a boolean plus the TTL, not a free-form "source"
+	// string. See contracts/rest/canonical-payloads.md.
 	response := fiber.Map{
 		"key":       key,
 		"value":     val,
-		"source":    source,
+		"cached":    val != newValue,
+		"ttl":       cacheTTLSeconds,
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 

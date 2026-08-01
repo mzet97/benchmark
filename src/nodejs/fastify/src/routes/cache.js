@@ -1,3 +1,7 @@
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 export default async function cacheRoutes(fastify, options) {
   // Cache operations
   fastify.get('/cache', {
@@ -18,6 +22,7 @@ export default async function cacheRoutes(fastify, options) {
             key: { type: 'string' },
             value: { type: 'string' },
             cached: { type: 'boolean' },
+            ttl: { type: 'number' },
             timestamp: { type: 'string' }
           }
         }
@@ -34,6 +39,7 @@ export default async function cacheRoutes(fastify, options) {
         key,
         value: cachedValue,
         cached: true,
+        ttl: CACHE_TTL_SECONDS,
         timestamp: new Date().toISOString()
       };
     }
@@ -43,12 +49,13 @@ export default async function cacheRoutes(fastify, options) {
     const newValue = `Cached value for ${key} at ${new Date().toISOString()}`;
 
     // Store in cache
-    await fastify.cacheService.set(key, newValue, 300);
+    await fastify.cacheService.set(key, newValue, CACHE_TTL_SECONDS);
 
     return {
       key,
       value: newValue,
       cached: false,
+      ttl: CACHE_TTL_SECONDS,
       timestamp: new Date().toISOString()
     };
   });

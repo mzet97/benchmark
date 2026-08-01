@@ -48,26 +48,12 @@ export const databaseRoutes = new Elysia()
       );
     }
 
-    const orders = await databaseService.getComplexOrders(days);
-
-    // Calculate aggregates
-    const totalOrders = orders.length;
-    const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(order.total_amount), 0);
-    const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+    const data = await databaseService.getComplexOrders(days);
 
     const result: ComplexOrderResult = {
-      period_days: days,
-      total_orders: totalOrders,
-      total_revenue: parseFloat(totalRevenue.toFixed(2)),
-      average_order_value: parseFloat(averageOrderValue.toFixed(2)),
-      orders: orders.map(order => ({
-        order_id: parseInt(order.order_id),
-        user_id: parseInt(order.user_id),
-        user_email: order.user_email,
-        total_amount: parseFloat(order.total_amount),
-        items_count: parseInt(order.items_count),
-        created_at: order.created_at
-      }))
+      periodDays: days,
+      totalUsers: data.length,
+      data
     };
 
     return new Response(JSON.stringify(result), {

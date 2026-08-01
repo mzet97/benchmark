@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, status, Query
-from app.models.cache import CacheResponse
+from app.models.cache import CACHE_TTL_SECONDS, CacheResponse
 from datetime import datetime
 import structlog
 
@@ -19,7 +19,7 @@ async def cache_operations(key: str = Query(default="test", description="Cache k
     try:
         cache = get_cache_service()
         new_value = f"cached-value-{key}-{int(datetime.now().timestamp() * 1000)}"
-        value, source = await cache.get_or_set(key, new_value, ttl_seconds=300)
+        value, source = await cache.get_or_set(key, new_value, ttl_seconds=CACHE_TTL_SECONDS)
         cached = source == "cache"
         return CacheResponse.create(key, value, cached)
     except Exception as e:

@@ -63,8 +63,8 @@ export async function dbComplexHandler(req, res) {
     logger.info('Database complex query executed', { days });
 
     res.json({
-      period_days: days,
-      total_users: data.length,
+      periodDays: days,
+      totalUsers: data.length,
       data: data
     });
   } catch (error) {

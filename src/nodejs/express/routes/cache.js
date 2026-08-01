@@ -1,3 +1,7 @@
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 import pino from 'pino';
 
 const logger = pino({
@@ -26,6 +30,7 @@ export async function cacheHandler(req, res) {
       key: key,
       value: result.value,
       cached: result.cached,
+      ttl: CACHE_TTL_SECONDS,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

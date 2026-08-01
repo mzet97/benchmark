@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field
 from typing import Optional
 import uuid
 
+CACHE_TTL_SECONDS = 300
+
 
 class CacheRequest(BaseModel):
     """Cache request model"""
@@ -13,6 +15,9 @@ class CacheResponse(BaseModel):
     key: str
     value: str
     cached: bool = Field(..., description="Whether the value was retrieved from cache")
+    # The TTL is part of the response contract and must match what is written
+    # to Redis. See contracts/rest/canonical-payloads.md.
+    ttl: int = CACHE_TTL_SECONDS
     timestamp: str
 
     class Config:
@@ -26,5 +31,6 @@ class CacheResponse(BaseModel):
             key=key,
             value=value,
             cached=cached,
+            ttl=CACHE_TTL_SECONDS,
             timestamp=datetime.now().isoformat()
         )

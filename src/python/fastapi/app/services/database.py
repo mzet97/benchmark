@@ -46,7 +46,8 @@ class DatabaseService:
     async def find_user_by_id(self, user_id: int) -> Optional[User]:
         """Find user by ID"""
         query = """
-            SELECT id, email, first_name, last_name, age, created_at
+            SELECT id, email, first_name AS "firstName", last_name AS "lastName",
+                   age, created_at AS "createdAt"
             FROM users
             WHERE id = $1
         """
@@ -64,17 +65,17 @@ class DatabaseService:
     async def get_user_stats(self, days: int) -> List[UserStats]:
         """Get user statistics with aggregation"""
         query = """
-            SELECT u.id as user_id,
-                   CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                   COUNT(DISTINCT o.id) as total_orders,
-                   COALESCE(SUM(o.total_amount), 0) as total_value,
-                   COALESCE(AVG(o.total_amount), 0) as average_value
+            SELECT
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - INTERVAL '1 day' * $1
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
             GROUP BY u.id, u.first_name, u.last_name
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY total_value DESC
+            ORDER BY "totalOrders" DESC, u.id
             LIMIT 100
         """
 

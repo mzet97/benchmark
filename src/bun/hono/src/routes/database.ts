@@ -57,8 +57,8 @@ databaseRoutes.get('/db/complex', async (c) => {
     const results = await databaseService.getComplexQuery(days);
 
     return c.json({
-      period_days: days,
-      total_users: results.length,
+      periodDays: days,
+      totalUsers: results.length,
       data: results,
       timestamp: new Date().toISOString(),
     });

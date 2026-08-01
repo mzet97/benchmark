@@ -49,8 +49,8 @@ func DatabaseComplexHandler(dbService *services.DatabaseService) gin.HandlerFunc
 		}
 
 		result := gin.H{
-			"period_days": days,
-			"total_users": len(stats),
+			"periodDays": days,
+			"totalUsers": len(stats),
 			"data":        stats,
 		}
 

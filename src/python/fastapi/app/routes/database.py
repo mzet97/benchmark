@@ -35,7 +35,7 @@ async def get_user_stats(days: int = Query(default=30, ge=1, le=365, description
     try:
         db = get_db_service()
         data = await db.get_user_stats(days)
-        return UserStatsResponse(period_days=days, total_users=len(data), data=data, timestamp=datetime.now().isoformat())
+        return UserStatsResponse(periodDays=days, totalUsers=len(data), data=data, timestamp=datetime.now().isoformat())
     except Exception as e:
         logger.error("Error fetching user stats", days=days, error=str(e))
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail={"error": "Database error"})

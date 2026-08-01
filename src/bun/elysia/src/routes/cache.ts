@@ -2,6 +2,10 @@ import { Elysia } from 'elysia';
 import { cacheService } from '../services/cache';
 import { CacheResponse } from '../types';
 
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 export const cacheRoutes = new Elysia()
   .get('/cache', async ({ request }) => {
     const url = new URL(request.url);
@@ -14,8 +18,6 @@ export const cacheRoutes = new Elysia()
       );
     }
 
-    const ttl = parseInt(process.env.CACHE_TTL || '300');
-
     // Try to get from cache
     const cached = await cacheService.get(key);
 
@@ -24,7 +26,7 @@ export const cacheRoutes = new Elysia()
         key,
         value: cached,
         cached: true,
-        ttl
+        ttl: CACHE_TTL_SECONDS,
       };
 
       return new Response(JSON.stringify(response), {
@@ -37,13 +39,13 @@ export const cacheRoutes = new Elysia()
     const value = `cached_data_${key}_${Date.now()}`;
 
     // Store in cache
-    await cacheService.set(key, value, ttl);
+    await cacheService.set(key, value, CACHE_TTL_SECONDS);
 
     const response: CacheResponse = {
       key,
       value,
       cached: false,
-      ttl
+      ttl: CACHE_TTL_SECONDS,
     };
 
     return new Response(JSON.stringify(response), {

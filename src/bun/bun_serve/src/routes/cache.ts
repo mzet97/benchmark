@@ -1,12 +1,14 @@
 import { cacheService } from '../services/cache.ts';
 import type { CacheResponse } from '../types.ts';
 
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 export async function cacheHandler(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
     const key = url.searchParams.get('key') || 'test';
-    const ttl = parseInt(process.env.CACHE_TTL || '300');
-
     const cached = await cacheService.get(key);
 
     if (cached !== null) {
@@ -14,7 +16,7 @@ export async function cacheHandler(request: Request): Promise<Response> {
         key,
         value: cached,
         cached: true,
-        ttl,
+        ttl: CACHE_TTL_SECONDS,
       };
 
       return new Response(JSON.stringify(response), {
@@ -25,14 +27,14 @@ export async function cacheHandler(request: Request): Promise<Response> {
       });
     }
 
-    const value = `cached_data_${key}_${DateTime.now().millisecondsSinceEpoch}`;
-    await cacheService.set(key, value, ttl);
+    const value = `cached_data_${key}_${Date.now()}`;
+    await cacheService.set(key, value, CACHE_TTL_SECONDS);
 
     const response: CacheResponse = {
       key,
       value,
       cached: false,
-      ttl,
+      ttl: CACHE_TTL_SECONDS,
     };
 
     return new Response(JSON.stringify(response), {
