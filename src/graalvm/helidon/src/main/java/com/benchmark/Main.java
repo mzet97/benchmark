@@ -169,10 +169,10 @@ public class Main {
         res.send(toJson(Map.of(
             "id", user.getId(),
             "email", user.getEmail(),
-            "first_name", user.getFirstName(),
-            "last_name", user.getLastName(),
+            "firstName", user.getFirstName(),
+            "lastName", user.getLastName(),
             "age", user.getAge(),
-            "created_at", user.getCreatedAt().toString()
+            "createdAt", user.getCreatedAt().toString()
         )));
     }
 
@@ -198,17 +198,17 @@ public class Main {
         List<Map<String, Object>> data = new ArrayList<>();
         for (UserStats stat : stats) {
             data.add(Map.of(
-                "user_id", stat.getUserId(),
-                "user_name", stat.getUserName(),
-                "total_orders", stat.getTotalOrders(),
-                "total_value", stat.getTotalValue(),
-                "average_value", stat.getAverageValue()
+                "userId", stat.getUserId(),
+                "userName", stat.getUserName(),
+                "totalOrders", stat.getTotalOrders(),
+                "totalValue", stat.getTotalValue(),
+                "averageOrderValue", stat.getAverageOrderValue()
             ));
         }
 
         res.send(toJson(Map.of(
-            "period_days", days,
-            "total_users", data.size(),
+            "periodDays", days,
+            "totalUsers", data.size(),
             "data", data,
             "timestamp", Instant.now().toString()
         )));

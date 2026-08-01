@@ -17,16 +17,16 @@ public class User {
     @JsonProperty("email")
     private String email;
 
-    @JsonProperty("first_name")
+    @JsonProperty("firstName")
     private String firstName;
 
-    @JsonProperty("last_name")
+    @JsonProperty("lastName")
     private String lastName;
 
     @JsonProperty("age")
     private Integer age;
 
-    @JsonProperty("created_at")
+    @JsonProperty("createdAt")
     private LocalDateTime createdAt;
 
     public User() {}

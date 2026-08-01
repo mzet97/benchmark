@@ -61,7 +61,7 @@ public class DatabaseService : IDatabaseService
                 Email = reader.GetString(1),
                 FirstName = reader.GetString(2),
                 LastName = reader.GetString(3),
-                Age = reader.GetInt32(4),
+                Age = reader.IsDBNull(4) ? null : reader.GetInt32(4),
                 CreatedAt = reader.GetDateTime(5)
             };
         }
@@ -76,22 +76,23 @@ public class DatabaseService : IDatabaseService
 
         var results = new List<ComplexResult>();
 
+        // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+        // query joined order_items and aggregated quantity*price -- a
+        // materially heavier query than the one other implementations ran --
+        // and ordered only by TotalValue, so rows with equal values came back
+        // in arbitrary order and the response was not reproducible.
         using var cmd = new NpgsqlCommand(@"
             SELECT
-                u.id as UserId,
-                u.first_name || ' ' || u.last_name as UserName,
-                COUNT(DISTINCT o.id) as TotalOrders,
-                COALESCE(SUM(oi.quantity * oi.price), 0) as TotalValue,
-                COALESCE(AVG(oi.quantity * oi.price), 0) as AverageOrderValue
+                u.id AS UserId,
+                u.first_name || ' ' || u.last_name AS UserName,
+                COUNT(o.id) AS TotalOrders,
+                COALESCE(SUM(o.total_amount), 0) AS TotalValue,
+                COALESCE(AVG(o.total_amount), 0) AS AverageOrderValue
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-                AND o.created_at >= CURRENT_DATE - make_interval(days => @Days)
-                AND o.status = 'completed'
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.id IS NULL OR (o.created_at >= CURRENT_DATE - make_interval(days => @Days) AND o.status = 'completed')
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - make_interval(days => @Days)
             GROUP BY u.id, u.first_name, u.last_name
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY TotalValue DESC
+            ORDER BY TotalOrders DESC, u.id
             LIMIT 100", connection);
 
         cmd.Parameters.AddWithValue("Days", days);
@@ -103,7 +104,7 @@ public class DatabaseService : IDatabaseService
             {
                 UserId = reader.GetInt32(0),
                 UserName = reader.GetString(1),
-                TotalOrders = reader.GetInt32(2),
+                TotalOrders = reader.GetInt64(2),
                 TotalValue = reader.GetDecimal(3),
                 AverageOrderValue = reader.GetDecimal(4)
             });

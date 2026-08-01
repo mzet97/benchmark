@@ -1,18 +1,16 @@
 package com.benchmark.models
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import java.time.LocalDateTime
 
+// Mirrors UserResponse in contracts/grpc/benchmark.proto. The @SerialName
+// annotations used to pin snake_case wire names.
+// See contracts/rest/canonical-payloads.md.
 @Serializable
 data class User(
     val id: Int,
     val email: String,
-    @SerialName("first_name")
     val firstName: String,
-    @SerialName("last_name")
     val lastName: String,
-    val age: Int,
-    @SerialName("created_at")
+    val age: Int? = null,
     val createdAt: String
 )

@@ -71,8 +71,8 @@ public class DatabaseController {
         List<UserStats> stats = databaseService.getUserStats(days);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("period_days", days);
-        response.put("total_users", stats.size());
+        response.put("periodDays", days);
+        response.put("totalUsers", stats.size());
         response.put("data", stats);
         return response;
     }

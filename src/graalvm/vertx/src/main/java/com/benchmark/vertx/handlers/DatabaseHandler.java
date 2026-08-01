@@ -10,9 +10,6 @@ import io.vertx.sqlclient.RowSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 
 /**
  * Database endpoint handlers.
@@ -118,35 +115,23 @@ public class DatabaseHandler implements Handler<RoutingContext> {
         }
 
         databaseService.getComplexOrders(days)
-            .onSuccess(orders -> {
-                // Calculate aggregates
-                int totalOrders = orders.size();
-                double totalRevenue = orders.stream()
-                    .mapToDouble(row -> ((BigDecimal) row.getValue("total_amount")).doubleValue())
-                    .sum();
-                double averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0.0;
-
-                io.vertx.core.json.JsonObject result = new io.vertx.core.json.JsonObject();
-                result.put("period_days", days);
-                result.put("total_orders", totalOrders);
-                result.put("total_revenue", Math.round(totalRevenue * 100.0) / 100.0);
-                result.put("average_order_value", Math.round(averageOrderValue * 100.0) / 100.0);
-
-                io.vertx.core.json.JsonArray ordersArray = new io.vertx.core.json.JsonArray();
-                for (Row row : orders) {
-                    io.vertx.core.json.JsonObject order = new io.vertx.core.json.JsonObject();
-                    order.put("order_id", row.getInteger("order_id"));
-                    order.put("user_id", row.getInteger("user_id"));
-                    order.put("user_email", row.getString("user_email"));
-                    order.put("total_amount", ((BigDecimal) row.getValue("total_amount")).doubleValue());
-                    order.put("items_count", row.getInteger("items_count"));
-                    order.put("created_at", row.getLocalDateTime("created_at")
-                        .atZone(ZoneOffset.UTC)
-                        .toInstant()
-                        .toString());
-                    ordersArray.add(order);
+            .onSuccess(rows -> {
+                // The database does the aggregation now; this used to sum and
+                // average 100 order rows in Java on every request.
+                io.vertx.core.json.JsonArray data = new io.vertx.core.json.JsonArray();
+                for (Row row : rows) {
+                    data.add(new io.vertx.core.json.JsonObject()
+                        .put("userId", row.getInteger("userId"))
+                        .put("userName", row.getString("userName"))
+                        .put("totalOrders", row.getLong("totalOrders"))
+                        .put("totalValue", row.getDouble("totalValue"))
+                        .put("averageOrderValue", row.getDouble("averageOrderValue")));
                 }
-                result.put("orders", ordersArray);
+
+                io.vertx.core.json.JsonObject result = new io.vertx.core.json.JsonObject()
+                    .put("periodDays", days)
+                    .put("totalUsers", data.size())
+                    .put("data", data);
 
                 ctx.response()
                     .putHeader("Content-Type", "application/json")

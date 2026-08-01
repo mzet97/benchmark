@@ -14,6 +14,10 @@ import java.util.Map;
 
 @Controller
 public class CacheController {
+
+    // The TTL is part of the response contract and must match what is written
+    // to Redis. See contracts/rest/canonical-payloads.md.
+    private static final int CACHE_TTL_SECONDS = 300;
     private final CacheService cacheService;
     private static final DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
 
@@ -26,14 +30,18 @@ public class CacheController {
     public Map<String, Object> cache(@Nullable @QueryValue("key") String keyParam) {
         String key = keyParam != null ? keyParam : "test";
 
-        String value = cacheService.getOrSet(key);
-        boolean wasCached = cacheService.getOrSet(key).startsWith("cached-value-") &&
-                           !cacheService.getOrSet(key).contains(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME).split("T")[0]);
+        // This used to call getOrSet three times per request -- three Redis
+        // round trips -- and infer "cached" from the shape of the returned
+        // string. The service reports it directly now.
+        CacheService.CacheHit hit = cacheService.getOrSetWithSource(key);
+        String value = hit.value();
+        boolean wasCached = hit.cached();
 
         Map<String, Object> response = new HashMap<>();
         response.put("key", key);
         response.put("value", value);
         response.put("cached", wasCached);
+        response.put("ttl", CACHE_TTL_SECONDS);
         response.put("timestamp", LocalDateTime.now().format(formatter));
         return response;
     }

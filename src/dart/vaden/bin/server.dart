@@ -10,6 +10,10 @@ import 'package:benchmark_dart_vaden/services/cache_service.dart';
 import 'package:benchmark_dart_vaden/utils/logger.dart';
 import 'package:benchmark_dart_vaden/canonical.dart';
 
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const cacheTtlSeconds = 300;
+
 late DatabaseService databaseService;
 late CacheService cacheService;
 
@@ -255,8 +259,8 @@ Future<shelf.Response> _complexDbHandler(shelf.Request request) async {
 
   return shelf.Response.ok(
     jsonEncode({
-      'period_days': days,
-      'total_users': users.length,
+      'periodDays': days,
+      'totalUsers': users.length,
       'data': users,
     }),
     headers: {'content-type': 'application/json'},
@@ -272,7 +276,6 @@ Future<shelf.Response> _cacheHandler(shelf.Request request) async {
     );
   }
 
-  final ttl = int.parse(Platform.environment['CACHE_TTL'] ?? '300');
 
   // Check cache (hit)
   final cached = await cacheService.get(key);
@@ -282,7 +285,7 @@ Future<shelf.Response> _cacheHandler(shelf.Request request) async {
         'key': key,
         'value': cached,
         'cached': true,
-        'ttl': ttl,
+        'ttl': cacheTtlSeconds,
       }),
       headers: {'content-type': 'application/json'},
     );
@@ -290,14 +293,14 @@ Future<shelf.Response> _cacheHandler(shelf.Request request) async {
 
   // Cache miss — generate and store
   final value = 'benchmark_value_${key}_${DateTime.now().millisecondsSinceEpoch}';
-  await cacheService.set(key, value, ttl);
+  await cacheService.set(key, value, cacheTtlSeconds);
 
   return shelf.Response.ok(
     jsonEncode({
       'key': key,
       'value': value,
       'cached': false,
-      'ttl': ttl,
+      'ttl': cacheTtlSeconds,
     }),
     headers: {'content-type': 'application/json'},
   );

@@ -53,8 +53,8 @@ class DatabaseController(
         println("Database complex query executed for days: $days")
 
         return mapOf(
-            "period_days" to days,
-            "total_users" to results.size,
+            "periodDays" to days,
+            "totalUsers" to results.size,
             "data" to results
         )
     }

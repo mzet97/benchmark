@@ -12,6 +12,6 @@ data class OrderItem(
     val productName: String,
     val quantity: Int,
     val price: Double,
-    @SerialName("created_at")
+    @SerialName("createdAt")
     val createdAt: String
 )

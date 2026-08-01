@@ -45,18 +45,21 @@ public class DatabaseService {
 
     public Uni<List<ComplexOrderResult>> findComplexOrders(Integer days) {
         String query = """
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+            -- query joined order_items, aggregated quantity*price and ordered without
+            -- a tiebreak, so it ran a heavier query than the other implementations and
+            -- its rows came back in arbitrary order among equal values.
             SELECT
-                u.id as user_id,
-                u.email,
-                COUNT(o.id) as order_count,
-                SUM(o.total_amount) as total_amount,
-                AVG(o.total_amount) as avg_amount,
-                EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
             FROM users u
             INNER JOIN orders o ON u.id = o.user_id
-            WHERE o.created_at >= NOW() - ($1 || ' days')::INTERVAL
-            GROUP BY u.id, u.email
-            ORDER BY order_count DESC
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY "totalOrders" DESC, u.id
             LIMIT 100
             """;
 
@@ -91,7 +94,7 @@ public class DatabaseService {
         List<ComplexOrderResult> results = new ArrayList<>();
         for (Row row : rows) {
             results.add(new ComplexOrderResult(
-                    row.getInteger("user_id"),
+                    row.getInteger("userId"),
                     row.getString("email"),
                     row.getLong("order_count"),
                     row.getDouble("total_amount"),

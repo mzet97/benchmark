@@ -56,29 +56,39 @@ public class DatabaseService {
             throw new IllegalArgumentException("Days must be between 1 and 365");
         }
 
+        // A PreparedStatement, not Statement.executeQuery(String.format(...)):
+        // the interval is a bound parameter now, not text pasted into the SQL.
+        String sql = """
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+            -- query joined order_items, aggregated quantity*price and ordered without
+            -- a tiebreak, so it ran a heavier query than the other implementations and
+            -- its rows came back in arbitrary order among equal values.
+            SELECT
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
+            FROM users u
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY "totalOrders" DESC, u.id
+            LIMIT 100
+            """;
+
         try (Connection conn = dataSource.getConnection();
-             Statement stmt = conn.createStatement()) {
-            ResultSet rs = stmt.executeQuery(String.format("""
-                SELECT u.id as user_id, CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                       COUNT(DISTINCT o.id) as total_orders,
-                       COALESCE(SUM(o.total_amount), 0) as total_value,
-                       COALESCE(AVG(o.total_amount), 0) as average_value
-                FROM users u
-                LEFT JOIN orders o ON u.id = o.user_id
-                  AND o.created_at >= NOW() - INTERVAL '%d days'
-                GROUP BY u.id, u.first_name, u.last_name
-                HAVING COUNT(DISTINCT o.id) > 0
-                ORDER BY total_value DESC
-                LIMIT 100
-                """, days));
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, days);
+            ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
                 UserStats userStats = new UserStats();
-                userStats.setUserId(rs.getInt("user_id"));
-                userStats.setUserName(rs.getString("user_name"));
-                userStats.setTotalOrders(rs.getInt("total_orders"));
-                userStats.setTotalValue(rs.getDouble("total_value"));
-                userStats.setAverageValue(rs.getDouble("average_value"));
+                userStats.setUserId(rs.getInt("userId"));
+                userStats.setUserName(rs.getString("userName"));
+                userStats.setTotalOrders(rs.getInt("totalOrders"));
+                userStats.setTotalValue(rs.getDouble("totalValue"));
+                userStats.setAverageOrderValue(rs.getDouble("averageOrderValue"));
                 stats.add(userStats);
             }
         } catch (SQLException e) {

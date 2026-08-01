@@ -1,6 +1,6 @@
 package com.benchmark.services
 
-import com.benchmark.models.ComplexOrderResult
+import com.benchmark.models.UserOrderStats
 import com.benchmark.models.User
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
@@ -34,8 +34,11 @@ class DatabaseService {
             username = user
             this.password = password
             driverClassName = "org.postgresql.Driver"
-            maximumPoolSize = 25
-            minimumIdle = 5
+            // Pool size is part of the benchmark contract: every implementation
+            // reads DB_POOL_MAX from the same ConfigMap.
+            val poolMax = System.getenv("DB_POOL_MAX")?.toIntOrNull() ?: 32
+            maximumPoolSize = poolMax
+            minimumIdle = poolMax
             connectionTimeout = 5000
             idleTimeout = 600000
             maxLifetime = 1800000
@@ -56,7 +59,7 @@ class DatabaseService {
                             email = rs.getString("email"),
                             firstName = rs.getString("first_name"),
                             lastName = rs.getString("last_name"),
-                            age = rs.getInt("age"),
+                            age = rs.getInt("age").takeUnless { rs.wasNull() },
                             createdAt = rs.getTimestamp("created_at").toString()
                         )
                     } else null
@@ -65,34 +68,38 @@ class DatabaseService {
         }
     }
 
-    suspend fun findComplexOrders(days: Int): List<ComplexOrderResult> = withContext(Dispatchers.IO) {
+    suspend fun findComplexOrders(days: Int): List<UserOrderStats> = withContext(Dispatchers.IO) {
         val query = """
-            SELECT u.id as user_id, u.email,
-                   COUNT(o.id) as order_count,
-                   COALESCE(SUM(o.total_amount), 0) as total_amount,
-                   COALESCE(AVG(o.total_amount), 0) as avg_amount,
-                   EXTRACT(DAY FROM (NOW() - MIN(o.created_at))) as days_since_first_order
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+            -- query joined order_items, aggregated quantity*price and ordered without
+            -- a tiebreak, so it ran a heavier query than the other implementations and
+            -- its rows came back in arbitrary order among equal values.
+            SELECT
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
             FROM users u
             INNER JOIN orders o ON u.id = o.user_id
-            WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
-            GROUP BY u.id, u.email
-            ORDER BY order_count DESC
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY "totalOrders" DESC, u.id
             LIMIT 100
         """.trimIndent()
 
-        val results = mutableListOf<ComplexOrderResult>()
+        val results = mutableListOf<UserOrderStats>()
         dataSource.connection.use { conn ->
             conn.prepareStatement(query).use { stmt ->
                 stmt.setInt(1, days)
                 stmt.executeQuery().use { rs ->
                     while (rs.next()) {
-                        results.add(ComplexOrderResult(
-                            userId = rs.getInt("user_id"),
-                            email = rs.getString("email"),
-                            orderCount = rs.getLong("order_count"),
-                            totalAmount = rs.getDouble("total_amount"),
-                            averageAmount = rs.getDouble("avg_amount"),
-                            daysSinceFirstOrder = rs.getLong("days_since_first_order")
+                        results.add(UserOrderStats(
+                            userId = rs.getInt("userId"),
+                            userName = rs.getString("userName"),
+                            totalOrders = rs.getLong("totalOrders"),
+                            totalValue = rs.getDouble("totalValue"),
+                            averageOrderValue = rs.getDouble("averageOrderValue")
                         ))
                     }
                 }

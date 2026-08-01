@@ -18,27 +18,31 @@ class DatabaseService(
 
     fun getComplexQuery(days: Int): List<ComplexResult> {
         val sql = """
-            SELECT u.id as user_id, u.email as user_email,
-                   COUNT(DISTINCT o.id) as total_orders,
-                   COALESCE(SUM(o.total_amount), 0) as total_value,
-                   COALESCE(AVG(o.total_amount), 0) as average_value,
-                   EXTRACT(DAY FROM NOW() - MIN(o.created_at)) as days_since_first_order
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+            -- query joined order_items, aggregated quantity*price and ordered without
+            -- a tiebreak, so it ran a heavier query than the other implementations and
+            -- its rows came back in arbitrary order among equal values.
+            SELECT
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - INTERVAL '$days days'
-            GROUP BY u.id, u.email
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY total_value DESC
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY "totalOrders" DESC, u.id
             LIMIT 100
         """
 
         return jdbcTemplate.query(sql) { rs, _ ->
             ComplexResult(
-                userId = rs.getInt("user_id"),
+                userId = rs.getInt("userId"),
                 userEmail = rs.getString("user_email"),
-                totalOrders = rs.getLong("total_orders"),
-                totalValue = rs.getDouble("total_value"),
-                averageValue = rs.getDouble("average_value"),
+                totalOrders = rs.getLong("totalOrders"),
+                totalValue = rs.getDouble("totalValue"),
+                averageOrderValue = rs.getDouble("averageOrderValue"),
                 daysSinceFirstOrder = rs.getDouble("days_since_first_order")
             )
         }

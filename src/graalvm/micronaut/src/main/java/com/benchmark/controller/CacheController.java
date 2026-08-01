@@ -11,6 +11,10 @@ import java.util.Map;
 
 @Controller
 public class CacheController {
+
+    // The TTL is part of the response contract and must match what is written
+    // to Redis. See contracts/rest/canonical-payloads.md.
+    private static final int CACHE_TTL_SECONDS = 300;
     private final CacheService cacheService;
 
     @Inject
@@ -26,6 +30,7 @@ public class CacheController {
             "key", result.getKey(),
             "value", result.getValue(),
             "cached", result.isCached(),
+            "ttl", CACHE_TTL_SECONDS,
             "timestamp", Instant.now().toString()
         );
     }

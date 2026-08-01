@@ -6,6 +6,10 @@ namespace BenchmarkControllers.Controllers;
 [ApiController]
 public class CacheController : ControllerBase
 {
+    // The TTL is part of the response contract and must match the expiry the
+    // cache service writes. See contracts/rest/canonical-payloads.md.
+    private const int CacheTtlSeconds = 300;
+
     private readonly ICacheService _cacheService;
     private readonly ILogger<CacheController> _logger;
 
@@ -25,9 +29,8 @@ public class CacheController : ControllerBase
 
         _logger.LogInformation("Cache request for key: {Key}", key);
 
-        var value = await _cacheService.GetOrSetAsync(key, async () =>
+        var (value, cached) = await _cacheService.GetOrSetAsync(key, async () =>
         {
-            await Task.Delay(50); // Simulate some work
             return $"Cached value for {key} at {DateTime.UtcNow:O}";
         });
 
@@ -35,8 +38,8 @@ public class CacheController : ControllerBase
         {
             key,
             value,
-            cached = value.Contains("Cached value"),
-            ttl = 300,
+            cached,
+            ttl = CacheTtlSeconds,
             timestamp = DateTime.UtcNow
         });
     }

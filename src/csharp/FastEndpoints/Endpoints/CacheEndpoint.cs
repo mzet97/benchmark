@@ -10,6 +10,10 @@ public class CacheRequest
 
 public class CacheEndpoint : Endpoint<CacheRequest>
 {
+    // The TTL is part of the response contract and must match the expiry the
+    // cache service writes. See contracts/rest/canonical-payloads.md.
+    private const int CacheTtlSeconds = 300;
+
     private readonly ICacheService _cacheService;
     private readonly ILogger<CacheEndpoint> _logger;
 
@@ -35,9 +39,8 @@ public class CacheEndpoint : Endpoint<CacheRequest>
 
         _logger.LogInformation("Cache request for key: {Key}", req.Key);
 
-        var value = await _cacheService.GetOrSetAsync(req.Key, async () =>
+        var (value, cached) = await _cacheService.GetOrSetAsync(req.Key, async () =>
         {
-            await Task.Delay(50, ct); // Simulate some work
             return $"Cached value for {req.Key} at {DateTime.UtcNow:O}";
         });
 
@@ -45,8 +48,8 @@ public class CacheEndpoint : Endpoint<CacheRequest>
         {
             key = req.Key,
             value,
-            cached = value.Contains("Cached value"),
-            ttl = 300,
+            cached,
+            ttl = CacheTtlSeconds,
             timestamp = DateTime.UtcNow
         }, cancellation: ct);
     }

@@ -40,8 +40,8 @@ public class ComplexDbEndpoint : Endpoint<ComplexDbRequest>
 
         await SendAsync(new
         {
-            period_days = queryDays,
-            total_users = results.Length,
+            periodDays = queryDays,
+            totalUsers = results.Length,
             data = results
         }, cancellation: ct);
     }

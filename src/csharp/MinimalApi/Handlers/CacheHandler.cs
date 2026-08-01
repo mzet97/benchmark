@@ -4,6 +4,10 @@ namespace BenchmarkApi.Handlers;
 
 public static class CacheHandler
 {
+    // The TTL is part of the response contract and must match the expiry the
+    // cache service writes. See contracts/rest/canonical-payloads.md.
+    private const int CacheTtlSeconds = 300;
+
     public static async Task<IResult> GetCacheAsync(
         string? key,
         ICacheService cacheService,
@@ -16,9 +20,8 @@ public static class CacheHandler
 
         logger.LogInformation("Cache request for key: {Key}", key);
 
-        var value = await cacheService.GetOrSetAsync(key, async () =>
+        var (value, cached) = await cacheService.GetOrSetAsync(key, async () =>
         {
-            await Task.Delay(50); // Simulate some work
             return $"Cached value for {key} at {DateTime.UtcNow:O}";
         });
 
@@ -26,7 +29,8 @@ public static class CacheHandler
         {
             key,
             value,
-            cached = value.Contains("Cached value"),
+            cached,
+            ttl = CacheTtlSeconds,
             timestamp = DateTime.UtcNow
         });
     }

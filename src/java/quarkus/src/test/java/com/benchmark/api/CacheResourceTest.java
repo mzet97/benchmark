@@ -19,7 +19,8 @@ public class CacheResourceTest {
             .statusCode(200)
             .body("key", is(key))
             .body("value", is(notNullValue()))
-            .body("source", is("generated"))
+            .body("cached", is(false))
+            .body("ttl", is(300))
             .body("timestamp", is(notNullValue()));
     }
 

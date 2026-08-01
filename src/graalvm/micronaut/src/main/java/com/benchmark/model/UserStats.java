@@ -5,16 +5,16 @@ public class UserStats {
     private String userName;
     private Integer totalOrders;
     private Double totalValue;
-    private Double averageValue;
+    private Double averageOrderValue;
 
     public UserStats() {}
 
-    public UserStats(Integer userId, String userName, Integer totalOrders, Double totalValue, Double averageValue) {
+    public UserStats(Integer userId, String userName, Integer totalOrders, Double totalValue, Double averageOrderValue) {
         this.userId = userId;
         this.userName = userName;
         this.totalOrders = totalOrders;
         this.totalValue = totalValue;
-        this.averageValue = averageValue;
+        this.averageOrderValue = averageOrderValue;
     }
 
     public Integer getUserId() {
@@ -49,11 +49,11 @@ public class UserStats {
         this.totalValue = totalValue;
     }
 
-    public Double getAverageValue() {
-        return averageValue;
+    public Double getAverageOrderValue() {
+        return averageOrderValue;
     }
 
-    public void setAverageValue(Double averageValue) {
-        this.averageValue = averageValue;
+    public void setAverageOrderValue(Double averageOrderValue) {
+        this.averageOrderValue = averageOrderValue;
     }
 }

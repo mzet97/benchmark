@@ -3,6 +3,10 @@ using BenchmarkApi.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 
+// The TTL is part of the response contract and must match the expiry the
+// cache service writes. See contracts/rest/canonical-payloads.md.
+const int CacheTtlSeconds = 300;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Parse DATABASE_URL to Npgsql format
@@ -92,17 +96,11 @@ app.MapGet("/db/simple", async (
     {
         return Results.NotFound(new { error = $"User with id {id} not found" });
     }
-
-    var userDto = new
-    {
-        Id = user.Id,
-        Name = $"{user.FirstName} {user.LastName}",
-        Email = user.Email,
-        CreatedAt = user.CreatedAt,
-        IsActive = user.CreatedAt > DateTime.UtcNow.AddYears(-1)
-    };
-
-    return Results.Ok(userDto);
+        // The contract returns the user object itself. The previous DTO was
+        // {Id, Name, Email, CreatedAt, IsActive}: first and last name
+        // concatenated, no age, and an IsActive flag computed from the row
+        // age -- a shape no other implementation used.
+        return Results.Ok(user);
 })
 .WithName("GetSimpleDb")
 .WithDescription("Get user by ID from database");
@@ -125,8 +123,8 @@ app.MapGet("/db/complex", async (
 
     return Results.Ok(new
     {
-        period_days = queryDays,
-        total_users = results.Length,
+        periodDays = queryDays,
+        totalUsers = results.Length,
         data = results
     });
 })
@@ -146,9 +144,8 @@ app.MapGet("/cache", async (
 
     logger.LogInformation("Cache request for key: {Key}", key);
 
-    var value = await cacheService.GetOrSetAsync(key, async () =>
+    var (value, cached) = await cacheService.GetOrSetAsync(key, async () =>
     {
-        await Task.Delay(50); // Simulate some work
         return $"Cached value for {key} at {DateTime.UtcNow:O}";
     });
 
@@ -156,7 +153,8 @@ app.MapGet("/cache", async (
     {
         key,
         value,
-        cached = value.Contains("Cached value"),
+        cached,
+            ttl = CacheTtlSeconds,
         timestamp = DateTime.UtcNow
     });
 })

@@ -11,8 +11,8 @@ class ComplexQueryResult {
 
   Map<String, dynamic> toJson() {
     return {
-      'period_days': periodDays,
-      'total_users': totalUsers,
+      'periodDays': periodDays,
+      'totalUsers': totalUsers,
       'data': data.map((e) => e.toJson()).toList(),
     };
   }
@@ -23,23 +23,23 @@ class UserStats {
   final String userName;
   final int totalOrders;
   final double totalValue;
-  final double averageValue;
+  final double averageOrderValue;
 
   const UserStats({
     required this.userId,
     required this.userName,
     required this.totalOrders,
     required this.totalValue,
-    required this.averageValue,
+    required this.averageOrderValue,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'user_id': userId,
-      'user_name': userName,
-      'total_orders': totalOrders,
-      'total_value': totalValue,
-      'average_value': averageValue,
+      'userId': userId,
+      'userName': userName,
+      'totalOrders': totalOrders,
+      'totalValue': totalValue,
+      'averageOrderValue': averageOrderValue,
     };
   }
 }

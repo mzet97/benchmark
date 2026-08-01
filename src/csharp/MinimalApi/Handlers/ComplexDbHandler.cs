@@ -22,8 +22,8 @@ public static class ComplexDbHandler
 
         return Results.Ok(new
         {
-            period_days = queryDays,
-            total_users = results.Length,
+            periodDays = queryDays,
+            totalUsers = results.Length,
             data = results
         });
     }

@@ -5,7 +5,7 @@ data class ComplexResult(
     val userEmail: String,
     val totalOrders: Long,
     val totalValue: Double,
-    val averageValue: Double,
+    val averageOrderValue: Double,
     val daysSinceFirstOrder: Double
 )
 

@@ -19,6 +19,10 @@ import java.util.UUID;
 @Produces(MediaType.APPLICATION_JSON)
 public class CacheResource {
 
+    // The TTL is part of the response contract and must match what is written
+    // to Redis. See contracts/rest/canonical-payloads.md.
+    private static final int CACHE_TTL_SECONDS = 300;
+
     @Inject
     CacheService cacheService;
 
@@ -28,12 +32,15 @@ public class CacheResource {
 
         String newValue = "cached-value-" + UUID.randomUUID();
 
-        return cacheService.getOrSet(key, () -> newValue, 300)
+        return cacheService.getOrSet(key, () -> newValue, CACHE_TTL_SECONDS)
                 .map(value -> {
                     Map<String, Object> response = new HashMap<>();
                     response.put("key", key);
                     response.put("value", value);
-                    response.put("source", value.equals(newValue) ? "generated" : "cache");
+                    // The contract carries a boolean plus the TTL, not a
+                    // free-form "source" string.
+                    response.put("cached", !value.equals(newValue));
+                    response.put("ttl", CACHE_TTL_SECONDS);
                     response.put("timestamp", Instant.now().toString());
                     return Response.ok(response).build();
                 })

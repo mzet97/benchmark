@@ -42,15 +42,10 @@ public class SimpleDbEndpoint : Endpoint<SimpleDbRequest>
             return;
         }
 
-        var userDto = new
-        {
-            Id = user.Id,
-            Name = $"{user.FirstName} {user.LastName}",
-            Email = user.Email,
-            CreatedAt = user.CreatedAt,
-            IsActive = user.CreatedAt > DateTime.UtcNow.AddYears(-1)
-        };
-
-        await SendAsync(userDto, cancellation: ct);
+        // The contract returns the user object itself. The previous DTO was
+        // {Id, Name, Email, CreatedAt, IsActive}: first and last name
+        // concatenated, no age, and an IsActive flag computed from the row
+        // age -- a shape no other implementation used.
+        await SendAsync(user, cancellation: ct);
     }
 }

@@ -22,15 +22,27 @@ public class CacheService {
         this.commands = connection.sync();
     }
 
+    // The TTL is part of the response contract and must match what the
+    // endpoint reports. See contracts/rest/canonical-payloads.md.
+    public static final int CACHE_TTL_SECONDS = 300;
+
+    /** The value plus whether it came from Redis. */
+    public record CacheHit(String value, boolean cached) {
+    }
+
     public String getOrSet(String key) {
+        return getOrSetWithSource(key).value();
+    }
+
+    public CacheHit getOrSetWithSource(String key) {
         String value = commands.get(key);
         if (value != null) {
-            return value;
+            return new CacheHit(value, true);
         }
 
         String newValue = "cached-value-" + key + "-" + LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        commands.setex(key, 300, newValue);
-        return newValue;
+        commands.setex(key, CACHE_TTL_SECONDS, newValue);
+        return new CacheHit(newValue, false);
     }
 
     public boolean ping() {

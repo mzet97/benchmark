@@ -54,27 +54,32 @@ public class DatabaseService {
             throw new IllegalArgumentException("Days must be between 1 and 365");
         }
 
-        var results = jdbcTemplate.queryForList(String.format("""
-            SELECT u.id as user_id, CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                   COUNT(DISTINCT o.id) as total_orders,
-                   COALESCE(SUM(o.total_amount), 0) as total_value,
-                   COALESCE(AVG(o.total_amount), 0) as average_value
+        var results = jdbcTemplate.queryForList("""
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+            -- query joined order_items, aggregated quantity*price and ordered without
+            -- a tiebreak, so it ran a heavier query than the other implementations and
+            -- its rows came back in arbitrary order among equal values.
+            SELECT
+                u.id AS "userId",
+                u.first_name || ' ' || u.last_name AS "userName",
+                COUNT(o.id) AS "totalOrders",
+                COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - INTERVAL '%d days'
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
             GROUP BY u.id, u.first_name, u.last_name
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY total_value DESC
+            ORDER BY "totalOrders" DESC, u.id
             LIMIT 100
-            """, days));
+            """, days);
 
         for (var row : results) {
             UserStats userStats = new UserStats();
-            userStats.setUserId((Integer) row.get("user_id"));
-            userStats.setUserName((String) row.get("user_name"));
-            userStats.setTotalOrders(((Number) row.get("total_orders")).intValue());
-            userStats.setTotalValue(((Number) row.get("total_value")).doubleValue());
-            userStats.setAverageValue(((Number) row.get("average_value")).doubleValue());
+            userStats.setUserId((Integer) row.get("userId"));
+            userStats.setUserName((String) row.get("userName"));
+            userStats.setTotalOrders(((Number) row.get("totalOrders")).intValue());
+            userStats.setTotalValue(((Number) row.get("totalValue")).doubleValue());
+            userStats.setAverageOrderValue(((Number) row.get("averageOrderValue")).doubleValue());
             stats.add(userStats);
         }
 

@@ -30,7 +30,7 @@ public class ComplexQueryResult
 {
     public int UserId { get; set; }
     public string UserName { get; set; } = string.Empty;
-    public int TotalOrders { get; set; }
+    public long TotalOrders { get; set; }
     public decimal TotalValue { get; set; }
     public decimal AverageOrderValue { get; set; }
 }

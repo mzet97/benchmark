@@ -6,11 +6,11 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class Order(
     val id: Int,
-    @SerialName("user_id")
+    @SerialName("userId")
     val userId: Int,
     @SerialName("total_amount")
     val totalAmount: Double,
     val status: String,
-    @SerialName("created_at")
+    @SerialName("createdAt")
     val createdAt: String
 )

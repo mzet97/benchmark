@@ -6,6 +6,10 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 
+// The TTL is part of the response contract and must match what is written to
+// Redis. See contracts/rest/canonical-payloads.md.
+private const val CACHE_TTL_SECONDS = 300
+
 @RestController
 class CacheController(
     private val cacheService: CacheService
@@ -23,6 +27,7 @@ class CacheController(
             "key" to key,
             "value" to value,
             "cached" to cached,
+            "ttl" to CACHE_TTL_SECONDS,
             "timestamp" to Instant.now().toString()
         )
     }

@@ -53,21 +53,21 @@ public class DatabaseService {
         try (Connection conn = dataSource.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                  """
+                 -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+                 -- query joined order_items, aggregated quantity*price and ordered without
+                 -- a tiebreak, so it ran a heavier query than the other implementations and
+                 -- its rows came back in arbitrary order among equal values.
                  SELECT
-                     u.id as user_id,
-                     CONCAT(u.first_name, ' ', u.last_name) as user_name,
-                     COUNT(DISTINCT o.id) as total_orders,
-                     COALESCE(SUM(oi.quantity * oi.price), 0) as total_value,
-                     COALESCE(AVG(oi.quantity * oi.price), 0) as average_value
+                     u.id AS "userId",
+                     u.first_name || ' ' || u.last_name AS "userName",
+                     COUNT(o.id) AS "totalOrders",
+                     COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+                     COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
                  FROM users u
-                 LEFT JOIN orders o ON u.id = o.user_id
-                     AND o.created_at >= NOW() - (INTERVAL '1 day' * ?)
-                     AND o.status = 'completed'
-                 LEFT JOIN order_items oi ON o.id = oi.order_id
-                 WHERE o.id IS NULL OR (o.created_at >= NOW() - (INTERVAL '1 day' * ?) AND o.status = 'completed')
+                 INNER JOIN orders o ON u.id = o.user_id
+                     WHERE o.created_at >= NOW() - INTERVAL '1 day' * ?
                  GROUP BY u.id, u.first_name, u.last_name
-                 HAVING COUNT(DISTINCT o.id) > 0
-                 ORDER BY total_value DESC
+                 ORDER BY "totalOrders" DESC, u.id
                  LIMIT 100
                  """)) {
             stmt.setInt(1, days);
@@ -76,11 +76,11 @@ public class DatabaseService {
 
             while (rs.next()) {
                 UserStats stat = new UserStats(
-                    rs.getInt("user_id"),
-                    rs.getString("user_name"),
-                    rs.getInt("total_orders"),
-                    rs.getDouble("total_value"),
-                    rs.getDouble("average_value")
+                    rs.getInt("userId"),
+                    rs.getString("userName"),
+                    rs.getInt("totalOrders"),
+                    rs.getDouble("totalValue"),
+                    rs.getDouble("averageOrderValue")
                 );
                 stats.add(stat);
             }

@@ -6,7 +6,11 @@ public interface ICacheService
 {
     Task<string?> GetAsync(string key);
     Task SetAsync(string key, string value, TimeSpan expiry);
-    Task<string> GetOrSetAsync(string key, Func<Task<string>> factory);
+    // Returns the value and whether it came from Redis. The endpoints used to
+    // infer that with value.Contains("Cached value"), which is true exactly
+    // when the value was just generated -- the flag reported the opposite of
+    // what happened.
+    Task<(string Value, bool Cached)> GetOrSetAsync(string key, Func<Task<string>> factory);
 }
 
 public class CacheService : ICacheService
@@ -67,16 +71,16 @@ public class CacheService : ICacheService
         await _database.StringSetAsync(key, value, expiry);
     }
 
-    public async Task<string> GetOrSetAsync(string key, Func<Task<string>> factory)
+    public async Task<(string Value, bool Cached)> GetOrSetAsync(string key, Func<Task<string>> factory)
     {
         var cachedValue = await GetAsync(key);
         if (cachedValue != null)
         {
-            return cachedValue;
+            return (cachedValue, true);
         }
 
         var value = await factory();
         await SetAsync(key, value, _defaultExpiry);
-        return value;
+        return (value, false);
     }
 }
