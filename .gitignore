@@ -103,3 +103,10 @@ kubernetes/secrets.yaml
 # Python bytecode (can embed constant-folded secrets)
 __pycache__/
 *.pyc
+
+# Rust build output
+target/
+**/target/
+
+# OMC scratch logs
+.omc/

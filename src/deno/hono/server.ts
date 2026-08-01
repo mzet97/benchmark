@@ -6,6 +6,7 @@
 import { Hono } from "https://deno.land/x/hono@v4.3.0/mod.ts";
 import { Client } from "postgres";
 import { Redis } from "redis";
+import { buildItems, itemCount } from "./canonical.ts";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
 const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
@@ -139,16 +140,15 @@ app.get("/", (c) => c.json({
 
 // JSON serialization
 app.get("/json", (c) => {
-  const timestamp = new Date().toISOString();
-  const items = Array.from({ length: 1000 }, (_, i) => ({
-    id: i + 1,
-    uuid: crypto.randomUUID(),
-    name: `Item ${i + 1}`,
-    description: `This is item number ${i + 1}`,
-    timestamp,
-    random: `data-${crypto.randomUUID()}`,
-  }));
-  return c.json({ items, count: 1000, timestamp });
+  const n = itemCount(c.req.query("n"));
+
+  // The envelope timestamp is the only clock-dependent field and is excluded
+  // from the parity hash.
+  return c.json({
+    items: buildItems(n),
+    count: n,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Simple DB query

@@ -1,20 +1,14 @@
-import type { JsonItem } from '../types.ts';
+import { buildItems, itemCount } from '../canonical.ts';
 
 export async function jsonHandler(request: Request): Promise<Response> {
-  const items: JsonItem[] = [];
+  const n = itemCount(new URL(request.url).searchParams.get('n'));
 
-  for (let i = 0; i < 1000; i++) {
-    items.push({
-      id: i + 1,
-      name: `Item ${i + 1}`,
-      value: `Value ${i + 1}`,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
+  // The envelope timestamp is the only clock-dependent field and is excluded
+  // from the parity hash.
   return new Response(JSON.stringify({
-    items,
-    count: items.length,
+    items: buildItems(n),
+    count: n,
+    timestamp: new Date().toISOString(),
   }), {
     status: 200,
     headers: {

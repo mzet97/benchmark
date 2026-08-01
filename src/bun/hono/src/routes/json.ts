@@ -1,23 +1,16 @@
 import { Hono } from 'hono';
-import type { JsonItem } from '../types.ts';
+import { buildItems, itemCount } from '../canonical.ts';
 
 export const jsonRoutes = new Hono();
 
-// JSON endpoint
 jsonRoutes.get('/json', (c) => {
-  const items: JsonItem[] = [];
+  const n = itemCount(c.req.query('n'));
 
-  for (let i = 0; i < 1000; i++) {
-    items.push({
-      id: i + 1,
-      name: `Item ${i + 1}`,
-      value: `Value ${i + 1}`,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
+  // The envelope timestamp is the only clock-dependent field and is excluded
+  // from the parity hash.
   return c.json({
-    items,
-    count: items.length,
+    items: buildItems(n),
+    count: n,
+    timestamp: new Date().toISOString(),
   });
 });

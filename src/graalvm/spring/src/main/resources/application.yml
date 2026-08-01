@@ -1,17 +1,28 @@
+# Ports, pool sizes and log level come from the shared ConfigMap
+# (deploy/k3s/base/configmap.yaml) so they stop being per-implementation
+# variables in the ranking. See docs/ACTION_PLAN.md, Fase 3.
 server:
-  port: 3000
-  host: 0.0.0.0
+  port: ${PORT:8080}
+  address: 0.0.0.0
 
 spring:
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/benchmark_api}
-    username: ${DB_USERNAME:app}
-    password: ${DB_PASSWORD:}
+    # No default: a missing DATABASE_URL must abort startup, not silently
+    # point the benchmark at localhost.
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
-  redis:
-    host: ${REDIS_HOST:localhost}
-    port: ${REDIS_PORT:6379}
-    password: ${REDIS_PASSWORD:}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:32}
+      minimum-idle: ${DB_POOL_MAX:32}
+  data:
+    redis:
+      url: ${REDIS_URL}
+      lettuce:
+        pool:
+          max-active: ${REDIS_POOL_MAX:32}
+          max-idle: ${REDIS_POOL_MAX:32}
   jpa:
     hibernate:
       ddl-auto: none
@@ -22,4 +33,4 @@ spring:
 
 logging:
   level:
-    root: INFO
+    root: ${LOG_LEVEL:ERROR}

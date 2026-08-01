@@ -2,6 +2,19 @@ use sqlx::PgPool;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
+/// Pool size is part of the benchmark contract, not a per-implementation
+/// choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+/// the database access layer stops being a hidden variable in the ranking.
+/// sqlx defaults to 10, which differed from every other implementation.
+fn db_pool_max() -> u32 {
+    std::env::var("DB_POOL_MAX")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(32)
+}
+
+
 #[derive(Debug)]
 pub struct Database {
     pool: PgPool,
@@ -9,7 +22,9 @@ pub struct Database {
 
 impl Database {
     pub async fn new(database_url: &str) -> Self {
-        let pool = PgPool::connect(database_url)
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(db_pool_max())
+            .connect(database_url)
             .await
             .expect("Failed to connect to database");
 

@@ -10,13 +10,16 @@ import { databaseRoutes } from './routes/database';
 import { cacheRoutes } from './routes/cache';
 
 // Configure logger
-const logger = pino({
-  transport: {
-    target: 'pino-pretty',
-    options: { colorize: true }
-  },
-  level: process.env.LOG_LEVEL || 'info'
-});
+// pino-pretty spawns a worker thread and formats every line. It is a
+// development aid, not something to run during measurement, so it is only
+// wired up at debug/trace. LOG_LEVEL comes from the shared ConfigMap and
+// defaults to error. See docs/ACTION_PLAN.md, Fase 3.4.
+const logLevel = process.env.LOG_LEVEL || 'error';
+const logger = pino(
+  logLevel === 'debug' || logLevel === 'trace'
+    ? { level: logLevel, transport: { target: 'pino-pretty', options: { colorize: true } } }
+    : { level: logLevel }
+);
 
 // Create Elysia app
 const app = new Elysia()
@@ -93,7 +96,7 @@ const app = new Elysia()
   });
 
 // Server configuration
-const PORT = parseInt(process.env.PORT || '3000');
+const PORT = parseInt(process.env.PORT || '8080');
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Graceful shutdown
@@ -126,7 +129,10 @@ const start = async () => {
 
     app.listen({
       port: PORT,
-      hostname: HOST
+      hostname: HOST,
+      // Several worker processes bind the same port; the kernel balances
+      // accepted connections across them. See src/index.ts.
+      reusePort: true
     });
 
     logger.info(`Server listening on http://${HOST}:${PORT}`);

@@ -12,6 +12,7 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use chrono::Utc;
 
+mod canonical;
 mod handlers;
 mod services;
 mod models;
@@ -59,7 +60,7 @@ async fn main() {
     let addr = SocketAddr::from((
         [0, 0, 0, 0],
         std::env::var("PORT")
-            .unwrap_or_else(|_| "3000".to_string())
+            .unwrap_or_else(|_| "8080".to_string())
             .parse::<u16>()
             .unwrap(),
     ));

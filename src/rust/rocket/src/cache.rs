@@ -25,11 +25,12 @@ impl Cache {
     pub async fn get_or_set(&self, key: &str, value: &str, ttl_seconds: usize) -> Result<(String, String)> {
         let mut conn = self.client.get_async_connection().await?;
 
-        if let Some(existing_value): Option<String> = redis::cmd("GET")
+        let existing: Option<String> = redis::cmd("GET")
             .arg(key)
             .query_async(&mut conn)
-            .await?
-        {
+            .await?;
+
+        if let Some(existing_value) = existing {
             Ok((existing_value, "cache".to_string()))
         } else {
             redis::cmd("SETEX")

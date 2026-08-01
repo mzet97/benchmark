@@ -1,23 +1,18 @@
 import { Elysia } from 'elysia';
-import { JsonItem } from '../types';
+import { buildItems, itemCount } from '../canonical';
 
-function generateJsonItems(): JsonItem[] {
-  const items: JsonItem[] = [];
-  const now = new Date().toISOString();
-
-  for (let i = 0; i < 1000; i++) {
-    items.push({
-      id: i + 1,
-      name: `Item ${i + 1}`,
-      value: `Value ${i + 1}`,
-      timestamp: now
-    });
-  }
-
-  return items;
-}
-
+// The previous route returned a bare array with no envelope at all, while
+// every other implementation returned {items,count,timestamp}. See
+// contracts/rest/canonical-payloads.md.
 export const jsonRoutes = new Elysia()
-  .get('/json', () => {
-    return generateJsonItems();
+  .get('/json', ({ query }) => {
+    const n = itemCount(query.n as string | undefined);
+
+    // The envelope timestamp is the only clock-dependent field and is
+    // excluded from the parity hash.
+    return {
+      items: buildItems(n),
+      count: n,
+      timestamp: new Date().toISOString(),
+    };
   });

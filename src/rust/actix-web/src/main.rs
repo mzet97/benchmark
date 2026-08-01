@@ -1,3 +1,5 @@
+mod canonical;
+
 use actix_web::{web, App, HttpServer, HttpResponse};
 use serde_json::json;
 use std::sync::Arc;
@@ -132,10 +134,16 @@ async fn health(data: web::Data<AppState>) -> HttpResponse {
         .json(json!({"status": status, "database": if db_ok {"connected"} else {"disconnected"}, "cache": if cache_ok {"connected"} else {"disconnected"}, "timestamp": chrono::Utc::now().to_rfc3339()}))
 }
 
-async fn json_endpoint() -> HttpResponse {
-    let ts = chrono::Utc::now().to_rfc3339();
-    let items: Vec<_> = (0..1000).map(|i| json!({"id": i, "uuid": uuid::Uuid::new_v4().to_string(), "name": format!("Item {}", i), "description": format!("This is item number {}", i), "timestamp": ts, "random": format!("data-{}", uuid::Uuid::new_v4())})).collect();
-    HttpResponse::Ok().json(json!({"items": items, "count": 1000, "timestamp": ts}))
+async fn json_endpoint(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
+    let n = canonical::item_count(query.get("n").map(String::as_str));
+
+    // The envelope timestamp is the only clock-dependent field and is
+    // excluded from the parity hash.
+    HttpResponse::Ok().json(json!({
+        "items": canonical::build_items(n),
+        "count": n,
+        "timestamp": chrono::Utc::now().to_rfc3339()
+    }))
 }
 
 async fn db_simple(data: web::Data<AppState>, query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
@@ -165,8 +173,8 @@ async fn cache_handler(data: web::Data<AppState>, query: web::Query<std::collect
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     env_logger::init();
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
-    let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
     let port: u16 = std::env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8080);
 
     println!("Connecting to PostgreSQL...");

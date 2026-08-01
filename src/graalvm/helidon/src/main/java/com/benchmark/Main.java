@@ -23,14 +23,36 @@ public class Main {
     private static DatabaseService databaseService;
     private static CacheService cacheService;
 
-    public static void main(String[] args) {
-        // Read database configuration from environment variables
-        String databaseUrl = System.getenv().getOrDefault("DATABASE_URL", "jdbc:postgresql://localhost:5432/benchmark_api");
-        String dbUsername = System.getenv().getOrDefault("DB_USERNAME", "app");
-        String dbPassword = System.getenv().getOrDefault("DB_PASSWORD", "");
+    private static String requireEnv(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalStateException(name + " is required");
+        }
+        return value;
+    }
 
-        // Read Redis configuration from environment variable (format: host:port:password)
-        String redisUrl = System.getenv().getOrDefault("REDIS_URL", "localhost:6379:");
+    private static int envInt(String name, int fallback) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
+    public static void main(String[] args) {
+        // A missing variable aborts startup: silently falling back to
+        // localhost would have the benchmark measure a connection failure
+        // instead of a database.
+        String databaseUrl = requireEnv("DATABASE_URL");
+        String dbUsername = requireEnv("DB_USERNAME");
+        String dbPassword = requireEnv("DB_PASSWORD");
+
+        // Redis configuration (format: host:port:password)
+        String redisUrl = requireEnv("REDIS_URL");
         String[] redisParts = redisUrl.split(":");
         String redisHost = redisParts.length > 0 ? redisParts[0] : "localhost";
         int redisPort = redisParts.length > 1 ? Integer.parseInt(redisParts[1]) : 6379;
@@ -41,13 +63,17 @@ public class Main {
         hikariConfig.setJdbcUrl(databaseUrl);
         hikariConfig.setUsername(dbUsername);
         hikariConfig.setPassword(dbPassword);
-        hikariConfig.setMaximumPoolSize(25);
-        hikariConfig.setMinimumIdle(5);
+        // Pool size is part of the benchmark contract, not a per-implementation
+        // choice: every implementation reads DB_POOL_MAX from the same
+        // ConfigMap so the data access layer stops being a hidden variable.
+        int dbPoolMax = envInt("DB_POOL_MAX", 32);
+        hikariConfig.setMaximumPoolSize(dbPoolMax);
+        hikariConfig.setMinimumIdle(dbPoolMax);
         dataSource = new HikariDataSource(hikariConfig);
 
         // Initialize Redis connection pool
         JedisPoolConfig poolConfig = new JedisPoolConfig();
-        poolConfig.setMaxTotal(25);
+        poolConfig.setMaxTotal(envInt("REDIS_POOL_MAX", 32));
         jedisPool = new JedisPool(poolConfig, redisHost, redisPort, 2000, redisPassword.isEmpty() ? null : redisPassword);
 
         // Initialize services
@@ -55,7 +81,7 @@ public class Main {
         cacheService = new CacheService(jedisPool);
 
         WebServer server = WebServer.builder()
-            .port(3000)
+            .port(envInt("PORT", 8080))
             .routing(HttpRouting.builder()
                 .get("/", Main::root)
                 .get("/health", Main::health)
@@ -68,7 +94,7 @@ public class Main {
             .build();
 
         server.start();
-        System.out.println("Server started on http://0.0.0.0:3000");
+        System.out.println("Server started on http://0.0.0.0:" + server.port());
     }
 
     private static void root(ServerRequest req, ServerResponse res) {
@@ -109,17 +135,13 @@ public class Main {
         res.send(toJson(Map.of("status", "ok")));
     }
 
+    /**
+     * The previous implementation emitted {id,name,email,timestamp} with a
+     * fresh Instant.now() per item -- 1000 clock reads per request -- and
+     * ignored ?n=, so the n=10/n=100 scenarios all returned 1000 items.
+     */
     private static void json(ServerRequest req, ServerResponse res) {
-        var items = new ArrayList<Map<String, Object>>();
-        for (int i = 0; i < 1000; i++) {
-            items.add(Map.of(
-                "id", i,
-                "name", "User " + i,
-                "email", "user" + i + "@example.com",
-                "timestamp", Instant.now().toString()
-            ));
-        }
-        res.send(toJson(Map.of("items", items, "count", items.size(), "timestamp", Instant.now().toString())));
+        res.send(toJson(Canonical.response(req.query().first("n").orElse(null))));
     }
 
     private static void dbSimple(ServerRequest req, ServerResponse res) {

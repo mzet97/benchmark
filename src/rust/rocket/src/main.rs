@@ -10,6 +10,7 @@ use rocket::{
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 
+mod canonical;
 mod db;
 mod cache;
 mod handlers;
@@ -61,23 +62,15 @@ fn healthz() -> Json<serde_json::Value> {
     Json(serde_json::json!({ "status": "ok" }))
 }
 
-#[get("/json")]
-fn json_endpoint() -> Json<serde_json::Value> {
-    let mut items = Vec::new();
-    for i in 0..1000 {
-        items.push(serde_json::json!({
-            "id": i,
-            "uuid": uuid::Uuid::new_v4().to_string(),
-            "name": format!("User {}", i),
-            "email": format!("user{}@example.com", i),
-            "createdAt": Utc::now().to_rfc3339(),
-            "isActive": true
-        }));
-    }
+#[get("/json?<n>")]
+fn json_endpoint(n: Option<usize>) -> Json<serde_json::Value> {
+    let n = n.map_or(canonical::DEFAULT_JSON_ITEMS, |v| v.min(canonical::MAX_JSON_ITEMS));
 
+    // The envelope timestamp is the only clock-dependent field and is
+    // excluded from the parity hash.
     Json(serde_json::json!({
-        "items": items,
-        "count": items.len(),
+        "items": canonical::build_items(n),
+        "count": n,
         "timestamp": Utc::now().to_rfc3339()
     }))
 }
@@ -86,10 +79,8 @@ fn json_endpoint() -> Json<serde_json::Value> {
 async fn db_simple(db: &State<Database>, id: Option<i32>) -> Result<Json<serde_json::Value>, Status> {
     let id = id.unwrap_or(1);
     match db.get_user(id).await {
-        Ok(Some(user)) => Ok(Json(serde_json::json!({
-            "user": user,
-            "timestamp": Utc::now().to_rfc3339()
-        }))),
+        // The contract returns the user object itself, not an envelope.
+        Ok(Some(user)) => Ok(Json(serde_json::json!(user))),
         Ok(None) => Err(Status::NotFound),
         Err(_) => Err(Status::InternalServerError),
     }
@@ -105,8 +96,8 @@ async fn db_complex(db: &State<Database>, days: Option<i32>) -> Result<Json<serd
     match db.get_complex_query(days).await {
         Ok(results) => {
             Ok(Json(serde_json::json!({
-                "period_days": days,
-                "total_users": results.len(),
+                "periodDays": days,
+                "totalUsers": results.len(),
                 "data": results
             })))
         },
@@ -123,7 +114,8 @@ async fn cache_endpoint(cache: &State<Cache>, key: Option<String>) -> Result<Jso
         Ok((value, source)) => Ok(Json(serde_json::json!({
             "key": key,
             "value": value,
-            "source": source,
+            "cached": source == "cache",
+            "ttl": 300,
             "timestamp": Utc::now().to_rfc3339()
         }))),
         Err(_) => Err(Status::InternalServerError),
@@ -134,14 +126,14 @@ async fn cache_endpoint(cache: &State<Cache>, key: Option<String>) -> Result<Jso
 async fn rocket() -> _ {
     dotenvy::dotenv().ok();
     
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
-    let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
 
     let database = Database::new(&database_url).await;
     let cache = Cache::new(&redis_url).await;
 
     rocket::build()
-        .attach(rocket::Shield::new())
+        .attach(rocket::shield::Shield::new())
         .manage(database)
         .manage(cache)
         .mount("/", routes![

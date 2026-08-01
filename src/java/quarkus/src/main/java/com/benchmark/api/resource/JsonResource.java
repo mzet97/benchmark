@@ -1,33 +1,27 @@
 package com.benchmark.api.resource;
 
-import com.benchmark.api.model.JsonItem;
+import com.benchmark.api.Canonical;
+
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Path("/json")
 @Produces(MediaType.APPLICATION_JSON)
 public class JsonResource {
 
+    /**
+     * The previous implementation built a JsonItem carrying
+     * {id,name,description,timestamp,random} with a fresh Instant.now() and a
+     * UUID.randomUUID() per item -- 1000 clock reads and 1000 random UUIDs per
+     * request -- and ignored ?n=.
+     */
     @GET
-    public Map<String, Object> get() {
-        List<JsonItem> items = new ArrayList<>(1000);
-        for (int i = 0; i < 1000; i++) {
-            items.add(new JsonItem(i));
-        }
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("items", items);
-        response.put("count", items.size());
-        response.put("timestamp", Instant.now().toString());
-
-        return response;
+    public Map<String, Object> get(@QueryParam("n") String n) {
+        return Canonical.response(n);
     }
 }

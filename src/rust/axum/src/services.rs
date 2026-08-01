@@ -4,6 +4,19 @@ use anyhow::{Result, Context};
 use std::env;
 use serde::Serialize;
 
+/// Pool size is part of the benchmark contract, not a per-implementation
+/// choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+/// the database access layer stops being a hidden variable in the ranking.
+/// sqlx defaults to 10, which differed from every other implementation.
+fn db_pool_max() -> u32 {
+    std::env::var("DB_POOL_MAX")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(32)
+}
+
+
 #[derive(Debug, Clone)]
 pub struct DatabaseService {
     pool: PgPool,
@@ -13,7 +26,9 @@ impl DatabaseService {
     pub async fn new() -> Self {
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
 
-        let pool = PgPool::connect(&database_url)
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(db_pool_max())
+            .connect(&database_url)
             .await
             .expect("Failed to connect to database");
 
@@ -28,54 +43,50 @@ impl DatabaseService {
             .context("Database health check failed")
     }
 
+    // sqlx::query! and query_as! are compile-time-checked macros: they need a
+    // live DATABASE_URL or a committed .sqlx offline cache at *build* time,
+    // which neither this repo nor the Dockerfile provides -- the crate could
+    // never be compiled. The runtime API takes the same SQL without that
+    // build-time dependency.
     pub async fn get_user(&self, id: i32) -> Result<Option<User>> {
-        let user = sqlx::query_as!(
-            User,
-            "SELECT id, email, first_name, last_name, age, created_at 
+        let user = sqlx::query_as::<_, User>(
+            "SELECT id, email, first_name, last_name, age, created_at
              FROM users WHERE id = $1",
-            id
         )
+        .bind(id)
         .fetch_optional(&self.pool)
         .await?;
 
         Ok(user)
     }
 
+    /// Mirrors the reference implementation in src/go/fiber. The previous SQL
+    /// used a C-style `INTERVAL '%s days'` placeholder, which Postgres reads
+    /// as the literal string "%s days", and ordered only by total_value, so
+    /// ties came back in arbitrary order and the response was not
+    /// reproducible between runs.
     pub async fn get_complex_query(&self, days: i32) -> Result<Vec<ComplexUserStats>> {
-        let users = sqlx::query!(
+        let rows = sqlx::query_as::<_, ComplexUserStats>(
             r#"
-            SELECT u.id as user_id,
-                   u.email as user_email,
-                   COUNT(DISTINCT o.id) as total_orders,
-                   COALESCE(SUM(o.total_amount), 0) as total_value,
-                   COALESCE(AVG(o.total_amount), 0) as average_value,
-                   EXTRACT(DAY FROM NOW() - MIN(o.created_at)) as days_since_first_order
+            SELECT
+                u.id AS user_id,
+                u.first_name || ' ' || u.last_name AS user_name,
+                COUNT(o.id) AS total_orders,
+                COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - INTERVAL '%s days'
-            GROUP BY u.id, u.email
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY total_value DESC
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY total_orders DESC, u.id
             LIMIT 100
             "#,
-            days
         )
+        .bind(days)
         .fetch_all(&self.pool)
         .await?;
 
-        let result: Vec<ComplexUserStats> = users
-            .into_iter()
-            .map(|row| ComplexUserStats {
-                user_id: row.user_id,
-                user_email: row.user_email,
-                total_orders: row.total_orders,
-                total_value: row.total_value,
-                average_value: row.average_value,
-                days_since_first_order: row.days_since_first_order,
-            })
-            .collect();
-
-        Ok(result)
+        Ok(rows)
     }
 }
 
@@ -105,11 +116,12 @@ impl CacheService {
     pub async fn get_or_set(&self, key: &str, value: &str, ttl_seconds: usize) -> Result<(String, String)> {
         let mut conn = self.client.get_async_connection().await?;
 
-        if let Some(existing_value): Option<String> = redis::cmd("GET")
+        let existing: Option<String> = redis::cmd("GET")
             .arg(key)
             .query_async(&mut conn)
-            .await?
-        {
+            .await?;
+
+        if let Some(existing_value) = existing {
             Ok((existing_value, "cache".to_string()))
         } else {
             redis::cmd("SETEX")
@@ -124,6 +136,7 @@ impl CacheService {
 }
 
 #[derive(sqlx::FromRow, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: i32,
     pub email: String,
@@ -133,12 +146,18 @@ pub struct User {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+/// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. The wire names
+/// are camelCase, matching the proto3 JSON mapping of the snake_case proto
+/// fields. See contracts/rest/canonical-payloads.md.
+#[derive(sqlx::FromRow, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ComplexUserStats {
     pub user_id: i32,
-    pub user_email: String,
+    pub user_name: String,
     pub total_orders: i64,
+    // Cast to float8 in SQL rather than mapping Postgres NUMERIC: the
+    // reference implementation carries these as float64 and sqlx would
+    // otherwise need the bigdecimal feature to decode NUMERIC at all.
     pub total_value: f64,
-    pub average_value: f64,
-    pub days_since_first_order: f64,
+    pub average_order_value: f64,
 }

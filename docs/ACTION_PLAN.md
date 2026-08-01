@@ -145,13 +145,35 @@ uniforme, sem Ingress.
       `crypto/rand`, `GOMAXPROCS` de `BENCH_CPUS`, `pgxpool` com `DB_POOL_MAX`,
       modelos e envelopes alinhados ao proto, teste de regressão do contrato
 
-**Implementações convertidas e verificadas contra a referência** (10/36 REST):
+**Implementações convertidas** (36/36 REST).
 
-| Ambiente | Implementações | Verificação |
+Cada linha registra o nível de evidência realmente obtido — não confundir
+"módulo canônico verificado" com "serviço verificado de ponta a ponta". O
+gate `scripts/validate-parity.py --url` contra o serviço rodando ainda não
+foi executado para nenhuma: isso é a Fase 6, depois do rebuild.
+
+| Ambiente | Implementações | Evidência obtida |
 |---|---|---|
-| Go | fiber, chi, echo, gin | `go build`, `go vet`, `go test` + cross-check |
-| Python | flask, fastapi, django | função extraída por AST + cross-check |
-| Node.js | express, fastify, nestjs | executada com Node + cross-check |
+| Go | fiber, chi, echo, gin | `go build` + `go vet` + `go test` e cross-check contra a referência Python |
+| Python | flask, fastapi, django | função extraída por AST e executada; cross-check |
+| Node.js | express, fastify, nestjs | executada com Node; cross-check |
+| Bun | bun_serve, elysia, hono | executada com Bun; cross-check |
+| Rust | axum, actix-web, rocket, warp | `cargo check` limpo nos 4 crates + `cargo test` do módulo `canonical`; vetores do teste conferidos contra a referência Python |
+| Deno | deno_serve, fresh, hono, oak | módulo `canonical.ts` executado (via Bun — **não há runtime Deno nesta máquina**); cross-check. O servidor em si não foi executado |
+| C# | Controllers, FastEndpoints, MinimalApi | `dotnet build` limpo nos 3 projetos + `Canonical` executado e cross-check |
+| Java | spring, micronaut, quarkus | `Canonical.java` compilado com `javac`, executado e cross-check. **Sem Maven/Gradle nesta máquina — os projetos não foram compilados inteiros** |
+| Kotlin | spring, ktor, http4k | **nenhuma — não há `kotlinc` nesta máquina**. Código espelha o `Canonical.java` já verificado |
+| GraalVM | spring, gspring, micronaut, gmicronaut, helidon, vertx | mesmo `Canonical.java` verificado; projetos não compilados (sem Maven/Gradle) |
+| Dart | vaden | **nenhuma — não há SDK Dart nesta máquina** |
+
+Os 4 crates Rust não compilavam antes desta passada. Além do payload, foi
+preciso corrigir: `Cargo.toml` do axum com `profile-rustflags` instável
+(quebrava o parse do manifesto inteiro), `StatusCode`/`Deserialize` sem
+import, `EnvFilter` sem a feature `env-filter`, `if let Some(x): T = ...`
+(sintaxe inválida) em axum e rocket, `rocket::Shield` (movido para
+`rocket::shield::Shield`) e os macros `sqlx::query!`/`query_as!`, que exigem
+`DATABASE_URL` **em tempo de build** — algo que nem o repositório nem o
+Dockerfile fornecem.
 
 Divergências encontradas ao converter — cada uma invalidava o ranking `/json`:
 
@@ -163,11 +185,62 @@ Divergências encontradas ao converter — cada uma invalidava o ranking `/json`
 | `python/django` | `utcnow()` dentro do laço |
 | `nodejs/fastify` | `uuidv4()` por item; schema de resposta filtrava campos |
 | `nodejs/nestjs` | ids a partir de 1; envelope sem `timestamp`; **rotas sob `/api`** enquanto o runner batia na raiz; porta 3000 |
+| `bun/*` (todas) | ids a partir de 1; `pino-pretty` ligado por request |
+| `bun/elysia` | **retornava um array cru, sem envelope algum** |
+| `bun/bun_serve` | porta padrão 3000, não 8080 |
+| `rust/actix-web` | **dois `uuid::Uuid::new_v4()` por item** = 2000 UUIDs/req |
+| `rust/axum,rocket,warp` | 1 UUID v4 + 1 `Utc::now().to_rfc3339()` por item |
+| `deno/*` | dois `crypto.randomUUID()` por item = 2000 UUIDs/req |
+| `csharp/*` (todas) | **1000 itens pré-construídos num construtor estático** e servidos de um array cacheado: mediam só a serialização, enquanto todas as outras também construíam os itens — e `?n=` era ignorado, então n=10/n=100/n=1000 devolviam sempre 1000 |
+| `csharp/MinimalApi` | envelope só com `items`, sem `count` nem `timestamp` |
+| `java,graalvm/{spring,micronaut}` | `{id,name,email,timestamp}`; `Map.of` tem ordem de iteração não especificada, então duas execuções da mesma implementação geravam bytes diferentes |
+| `java/quarkus` | `{id,name,description,timestamp,random}` com `Instant.now()` e `UUID.randomUUID()` por item |
+| `graalvm/helidon` | `Instant.now()` dentro do laço = 1000 leituras de relógio/req |
+| `graalvm/vertx` | **array cru, sem envelope**; ids a partir de 1; `{id,name,value,timestamp}` |
+| `kotlin/spring` | `{id,name,email,active,tags}` — com uma lista de 3 strings por item, inflando o payload |
+| `kotlin/ktor` | JSON concatenado à mão num `StringBuilder` — media construção de string, não o serializador pelo qual todas as outras eram medidas — mais um `UUID.randomUUID()` por item |
+| `kotlin/http4k` | interpolava um `Map` do Kotlin numa string: saía `{id=0, name=User 0}`, **que não é JSON** |
+| `dart/vaden` | ids a partir de 1; `uuid-0001-…` (não é um UUID); `DateTime.now()` em `createdAt`; `isActive` era `i % 10 != 0` |
 | Python (todas) | workers desiguais (Flask 4×2, FastAPI 1); porta 8000 |
-| Node (todas) | single-thread — usariam 1 dos 7 cores |
+| Node/Bun (todas) | single-thread — usariam 1 dos 7 cores |
+| Rust (sqlx) | pool no default 10 do sqlx, não `DB_POOL_MAX` |
+| JVM (7 configs) | porta 3000 em vez de 8080; host do Postgres **fixo no código** (`spsql.home.arpa`) em quarkus e kotlin/spring; pool 25/5 ou não configurado; log em INFO |
 
-**Pendente**: ~26 implementações REST (Bun, Deno, Rust, C#, Java, Kotlin,
-GraalVM, Dart), depois gRPC e GraphQL. O gate falha até que todas passem.
+### `kotlin/http4k` não é uma implementação — é um stub
+
+`/db/simple` devolvia 200 com um usuário inventado, `/db/complex` devolvia
+`{"orders":[]}` e `/cache` devolvia um acerto de cache fabricado. O projeto
+**não declara nenhuma dependência de PostgreSQL ou Redis** e não tem como
+falar com nenhum dos dois. Aqueles números não mediam coisa alguma e, ao lado
+de implementações que de fato executam a query, apareceriam como vitória.
+
+Nesta passada os três endpoints passaram a responder **501 Not Implemented**,
+para que o runner registre "não implementado" em vez de um resultado
+fabricado. Implementar a camada de dados do http4k continua pendente.
+
+### Divergência conhecida ainda aberta
+
+`src/rust/actix-web` usa um **único client `tokio_postgres`**, sem pool — a
+mesma classe de problema do `pgx.Conn` do Go fiber. Corrigir exige trocar o
+driver (sqlx ou deadpool-postgres) e reescrever todos os pontos de query, o
+que não cabe na mesma passada da conversão de payload. Enquanto isso, os
+resultados de `/db/*` do actix-web não são comparáveis.
+
+### `/db/*` e `/cache` ainda não têm paridade de envelope
+
+O contrato exige `/db/simple` → objeto do usuário achatado em camelCase,
+`/db/complex` → `{periodDays, totalUsers, data}` e `/cache` →
+`{key, value, cached, ttl, timestamp}`. Nesta passada isso foi alinhado só
+onde o arquivo já estava aberto (axum e rocket, que também tiveram a SQL
+corrigida: o `INTERVAL '%s days'` era um placeholder no estilo C que o
+Postgres lê como a string literal `"%s days"`, e o `ORDER BY` sem desempate
+tornava a resposta irreprodutível). As demais ainda emitem `period_days` /
+`total_users` / `source`, ou snake_case nos campos do usuário — helidon é um
+exemplo. Alinhar as 30 restantes é o próximo item da Fase 3.
+
+**Pendente na Fase 3**: envelopes de `/db/*` e `/cache` nas 30 implementações
+restantes; camada de dados do `kotlin/http4k`; pool do `rust/actix-web`;
+depois gRPC (31) e GraphQL (32). O gate falha até que todas passem.
 
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap

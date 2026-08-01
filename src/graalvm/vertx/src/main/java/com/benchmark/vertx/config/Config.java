@@ -32,19 +32,32 @@ public class Config {
         this.cacheTtl = builder.cacheTtl;
     }
 
+    private static String requireEnv(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isEmpty()) {
+            throw new IllegalStateException(name + " is required");
+        }
+        return value;
+    }
+
     public static Config load() {
         Builder builder = new Builder();
 
         // Load from environment variables
         builder.host(System.getenv().getOrDefault("HOST", "0.0.0.0"));
-        builder.port(Integer.parseInt(System.getenv().getOrDefault("PORT", "3000")));
+        builder.port(Integer.parseInt(System.getenv().getOrDefault("PORT", "8080")));
         builder.environment(System.getenv().getOrDefault("ENVIRONMENT", "production"));
-        builder.databaseUrl(System.getenv().getOrDefault("DATABASE_URL", ""));
-        builder.redisUrl(System.getenv().getOrDefault("REDIS_URL", ""));
+        // No default: an empty URL would have the benchmark measure a
+        // connection failure instead of a database.
+        builder.databaseUrl(requireEnv("DATABASE_URL"));
+        builder.redisUrl(requireEnv("REDIS_URL"));
         builder.debug(Boolean.parseBoolean(System.getenv().getOrDefault("DEBUG", "false")));
-        builder.logLevel(System.getenv().getOrDefault("LOG_LEVEL", "info"));
-        builder.dbPoolMin(Integer.parseInt(System.getenv().getOrDefault("DB_POOL_MIN", "5")));
-        builder.dbPoolMax(Integer.parseInt(System.getenv().getOrDefault("DB_POOL_MAX", "25")));
+        builder.logLevel(System.getenv().getOrDefault("LOG_LEVEL", "error"));
+        // Pool size is part of the benchmark contract: every
+        // implementation reads DB_POOL_MAX from the same ConfigMap.
+        int dbPoolMax = Integer.parseInt(System.getenv().getOrDefault("DB_POOL_MAX", "32"));
+        builder.dbPoolMin(dbPoolMax);
+        builder.dbPoolMax(dbPoolMax);
         builder.cacheTtl(Integer.parseInt(System.getenv().getOrDefault("CACHE_TTL", "300")));
 
         return builder.build();
@@ -54,14 +67,14 @@ public class Config {
         Builder builder = new Builder();
 
         builder.host(json.getString("host", "0.0.0.0"));
-        builder.port(json.getInteger("port", 3000));
+        builder.port(json.getInteger("port", 8080));
         builder.environment(json.getString("environment", "production"));
         builder.databaseUrl(json.getString("databaseUrl", ""));
         builder.redisUrl(json.getString("redisUrl", ""));
         builder.debug(json.getBoolean("debug", false));
-        builder.logLevel(json.getString("logLevel", "info"));
-        builder.dbPoolMin(json.getInteger("dbPoolMin", 5));
-        builder.dbPoolMax(json.getInteger("dbPoolMax", 25));
+        builder.logLevel(json.getString("logLevel", "error"));
+        builder.dbPoolMin(json.getInteger("dbPoolMin", 32));
+        builder.dbPoolMax(json.getInteger("dbPoolMax", 32));
         builder.cacheTtl(json.getInteger("cacheTtl", 300));
 
         return builder.build();

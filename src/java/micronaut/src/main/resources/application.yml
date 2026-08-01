@@ -1,13 +1,34 @@
+# Ports, pool sizes and log level come from the shared ConfigMap
+# (deploy/k3s/base/configmap.yaml) so they stop being per-implementation
+# variables in the ranking. See docs/ACTION_PLAN.md, Fase 3.
 micronaut:
   application:
     name: benchmark-micronaut
   server:
-    port: 8080
+    port: ${PORT:8080}
+    host: 0.0.0.0
+
 datasources:
   default:
-    url: ${DATASOURCES_DEFAULT_URL:`jdbc:postgresql://postgres:5432/benchmark`}
-    username: ${DATASOURCES_DEFAULT_USERNAME:benchmark}
-    password: ${DATASOURCES_DEFAULT_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    # No default: a missing DATABASE_URL must abort startup, not silently
+    # point the benchmark at localhost.
+    url: ${DATABASE_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    maximum-pool-size: ${DB_POOL_MAX:32}
+    minimum-idle: ${DB_POOL_MAX:32}
+
 redis:
-  uri: ${REDIS_URI:`redis://redis:6379`}
+  uri: ${REDIS_URL}
+  pool:
+    enabled: true
+    max-total: ${REDIS_POOL_MAX:32}
+
+jackson:
+  serialization:
+    writeDatesAsTimestamps: false
+
+logger:
+  levels:
+    root: ${LOG_LEVEL:ERROR}

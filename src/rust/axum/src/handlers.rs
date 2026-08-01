@@ -1,7 +1,9 @@
 use axum::{
     extract::{Query, State},
+    http::StatusCode,
     response::Json,
 };
+use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 
@@ -47,22 +49,14 @@ pub async fn healthz() -> Json<Value> {
     Json(serde_json::json!({ "status": "ok" }))
 }
 
-pub async fn json_endpoint() -> Json<Value> {
-    let mut items = Vec::new();
-    for i in 0..1000 {
-        items.push(serde_json::json!({
-            "id": i,
-            "uuid": uuid::Uuid::new_v4().to_string(),
-            "name": format!("User {}", i),
-            "email": format!("user{}@example.com", i),
-            "createdAt": chrono::Utc::now().to_rfc3339(),
-            "isActive": true
-        }));
-    }
+pub async fn json_endpoint(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
+    let n = crate::canonical::item_count(params.get("n").map(String::as_str));
 
+    // The envelope timestamp is the only clock-dependent field and is
+    // excluded from the parity hash.
     Json(serde_json::json!({
-        "items": items,
-        "count": items.len(),
+        "items": crate::canonical::build_items(n),
+        "count": n,
         "timestamp": chrono::Utc::now().to_rfc3339()
     }))
 }
@@ -74,10 +68,8 @@ pub async fn db_simple(
     let id = query.id.unwrap_or(1);
     
     match state.database.get_user(id).await {
-        Ok(Some(user)) => Ok(Json(serde_json::json!({
-            "user": user,
-            "timestamp": chrono::Utc::now().to_rfc3339()
-        }))),
+        // The contract returns the user object itself, not an envelope.
+        Ok(Some(user)) => Ok(Json(serde_json::json!(user))),
         Ok(None) => Err(StatusCode::NOT_FOUND),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
     }
@@ -96,8 +88,8 @@ pub async fn db_complex(
     match state.database.get_complex_query(days).await {
         Ok(results) => {
             Ok(Json(serde_json::json!({
-                "period_days": days,
-                "total_users": results.len(),
+                "periodDays": days,
+                "totalUsers": results.len(),
                 "data": results
             })))
         },
@@ -116,7 +108,8 @@ pub async fn cache_endpoint(
         Ok((value, source)) => Ok(Json(serde_json::json!({
             "key": key,
             "value": value,
-            "source": source,
+            "cached": source == "cache",
+            "ttl": 300,
             "timestamp": chrono::Utc::now().to_rfc3339()
         }))),
         Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),

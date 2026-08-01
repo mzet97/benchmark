@@ -3,6 +3,7 @@ use serde_json::json;
 use std::sync::Arc;
 use chrono::Utc;
 
+mod canonical;
 mod db;
 mod cache;
 
@@ -11,8 +12,8 @@ use cache::Cache;
 
 #[tokio::main]
 async fn main() {
-    let database_url = env::var("DATABASE_URL").expect("DATABASE_URL is required");
-    let redis_url = env::var("REDIS_URL").expect("REDIS_URL is required");
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
 
     let database = Arc::new(Database::new(&database_url).await);
     let cache = Arc::new(Cache::new(&redis_url).await);
@@ -29,6 +30,7 @@ async fn main() {
 
     let json = warp::path!("json")
         .and(warp::get())
+        .and(warp::query::<std::collections::HashMap<String, String>>())
         .map(json_handler);
 
     let db_simple = warp::path!("db" / "simple")
@@ -93,21 +95,14 @@ async fn health_handler(db: Arc<Database>, cache: Arc<Cache>) -> Result<impl Rep
     Ok(warp::reply::json(&response))
 }
 
-fn json_handler() -> impl Reply {
-    let mut items = Vec::new();
-    for i in 0..1000 {
-        items.push(json!({
-            "id": i,
-            "uuid": uuid::Uuid::new_v4().to_string(),
-            "name": format!("User {}", i),
-            "email": format!("user{}@example.com", i),
-            "createdAt": Utc::now().to_rfc3339(),
-            "isActive": true
-        }));
-    }
+fn json_handler(params: std::collections::HashMap<String, String>) -> impl Reply {
+    let n = canonical::item_count(params.get("n").map(String::as_str));
+
+    // The envelope timestamp is the only clock-dependent field and is
+    // excluded from the parity hash.
     warp::reply::json(&json!({
-        "items": items,
-        "count": items.len(),
+        "items": canonical::build_items(n),
+        "count": n,
         "timestamp": Utc::now().to_rfc3339()
     }))
 }

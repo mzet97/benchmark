@@ -1,19 +1,19 @@
 import { Router, Context } from "../deps.ts";
+import { buildItems, itemCount } from "../canonical.ts";
 
 const router = new Router();
 
 router.get("/json", (ctx: Context) => {
-  const timestamp = new Date().toISOString();
-  const items = Array.from({ length: 1000 }, (_, i) => ({
-    id: i + 1,
-    uuid: crypto.randomUUID(),
-    name: `Item ${i + 1}`,
-    description: `This is item number ${i + 1}`,
-    timestamp,
-    random: `data-${crypto.randomUUID()}`,
-  }));
+  const n = itemCount(ctx.request.url.searchParams.get("n"));
+
   ctx.response.headers.set("Content-Type", "application/json");
-  ctx.response.body = JSON.stringify({ items, count: 1000, timestamp });
+  // The envelope timestamp is the only clock-dependent field and is excluded
+  // from the parity hash.
+  ctx.response.body = JSON.stringify({
+    items: buildItems(n),
+    count: n,
+    timestamp: new Date().toISOString(),
+  });
 });
 
 export { router as jsonRouter };

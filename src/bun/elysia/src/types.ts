@@ -40,12 +40,8 @@ export interface ComplexOrderResult {
   }>;
 }
 
-export interface JsonItem {
-  id: number;
-  name: string;
-  value: string;
-  timestamp: string;
-}
+// JsonItem is defined by the payload contract; see ./canonical.ts
+export type { JsonItem } from './canonical';
 
 export interface HealthStatus {
   status: string;

@@ -1,16 +1,17 @@
 package com.benchmark.vertx.handlers;
 
-import io.vertx.core.Handler;
-import io.vertx.ext.web.RoutingContext;
-import io.vertx.core.json.JsonArray;
-import io.vertx.core.json.JsonObject;
+import com.benchmark.vertx.Canonical;
 
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
+import io.vertx.core.Handler;
+import io.vertx.core.json.JsonObject;
+import io.vertx.ext.web.RoutingContext;
 
 /**
  * JSON response endpoint handler.
+ *
+ * <p>The previous implementation returned a bare array with no envelope,
+ * numbered items from 1, emitted {id,name,value,timestamp}, and ignored ?n=.
+ * See contracts/rest/canonical-payloads.md.
  */
 public class JsonHandler implements Handler<RoutingContext> {
     private JsonHandler() {}
@@ -21,21 +22,10 @@ public class JsonHandler implements Handler<RoutingContext> {
 
     @Override
     public void handle(RoutingContext ctx) {
-        JsonArray items = new JsonArray();
-
-        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-
-        for (int i = 0; i < 1000; i++) {
-            JsonObject item = new JsonObject();
-            item.put("id", i + 1);
-            item.put("name", "Item " + (i + 1));
-            item.put("value", "Value " + (i + 1));
-            item.put("timestamp", now.toInstant().toString());
-            items.add(item);
-        }
+        JsonObject response = new JsonObject(Canonical.response(ctx.request().getParam("n")));
 
         ctx.response()
             .putHeader("Content-Type", "application/json")
-            .end(items.encode());
+            .end(response.encode());
     }
 }

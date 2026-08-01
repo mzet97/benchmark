@@ -8,6 +8,7 @@ import 'package:shelf/shelf.dart' show Pipeline;
 import 'package:benchmark_dart_vaden/services/database_service.dart';
 import 'package:benchmark_dart_vaden/services/cache_service.dart';
 import 'package:benchmark_dart_vaden/utils/logger.dart';
+import 'package:benchmark_dart_vaden/canonical.dart';
 
 late DatabaseService databaseService;
 late CacheService cacheService;
@@ -15,7 +16,7 @@ late CacheService cacheService;
 Future<void> main(List<String> args) async {
   setupLogger();
 
-  final port = int.parse(Platform.environment['PORT'] ?? '3000');
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
   final host = Platform.environment['HOST'] ?? '0.0.0.0';
 
   // Initialize services
@@ -194,18 +195,16 @@ Future<shelf.Response> _readyzHandler(shelf.Request request) async {
 }
 
 shelf.Response _jsonHandler(shelf.Request request) {
-  final now = DateTime.now().toUtc().toIso8601String();
-  final items = List.generate(1000, (i) => {
-    'id': i + 1,
-    'uuid': 'uuid-${(i + 1).toString().padLeft(4, '0')}-0000-0000-000000000000',
-    'name': 'User ${i + 1}',
-    'email': 'user${i + 1}@benchmark.local',
-    'createdAt': now,
-    'isActive': i % 10 != 0,
-  });
+  final n = itemCount(request.url.queryParameters['n']);
 
+  // The envelope timestamp is the only clock-dependent field and is excluded
+  // from the parity hash.
   return shelf.Response.ok(
-    jsonEncode({'items': items, 'count': 1000, 'timestamp': now}),
+    jsonEncode({
+      'items': buildItems(n),
+      'count': n,
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
+    }),
     headers: {'content-type': 'application/json'},
   );
 }
