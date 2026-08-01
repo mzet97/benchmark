@@ -219,29 +219,61 @@ Nesta passada os três endpoints passaram a responder **501 Not Implemented**,
 para que o runner registre "não implementado" em vez de um resultado
 fabricado. Implementar a camada de dados do http4k continua pendente.
 
-### Divergência conhecida ainda aberta
+### Pool do `rust/actix-web` — fechada
 
-`src/rust/actix-web` usa um **único client `tokio_postgres`**, sem pool — a
-mesma classe de problema do `pgx.Conn` do Go fiber. Corrigir exige trocar o
-driver (sqlx ou deadpool-postgres) e reescrever todos os pontos de query, o
-que não cabe na mesma passada da conversão de payload. Enquanto isso, os
-resultados de `/db/*` do actix-web não são comparáveis.
+`src/rust/actix-web` mantinha um **único client `tokio_postgres` atrás de um
+`Arc<Mutex<_>>`**: com 7 cores e centenas de conexões simultâneas, todo request
+de `/db/*` entrava em fila atrás de um mutex, enquanto todas as outras
+implementações usavam pool. Aqueles números mediam contenção de lock, não o
+framework. Agora usa `deadpool-postgres` dimensionado por `DB_POOL_MAX`.
 
-### `/db/*` e `/cache` ainda não têm paridade de envelope
+### `/db/*` e `/cache`: 37/37 REST no contrato
 
-O contrato exige `/db/simple` → objeto do usuário achatado em camelCase,
-`/db/complex` → `{periodDays, totalUsers, data}` e `/cache` →
-`{key, value, cached, ttl, timestamp}`. Nesta passada isso foi alinhado só
-onde o arquivo já estava aberto (axum e rocket, que também tiveram a SQL
-corrigida: o `INTERVAL '%s days'` era um placeholder no estilo C que o
-Postgres lê como a string literal `"%s days"`, e o `ORDER BY` sem desempate
-tornava a resposta irreprodutível). As demais ainda emitem `period_days` /
-`total_users` / `source`, ou snake_case nos campos do usuário — helidon é um
-exemplo. Alinhar as 30 restantes é o próximo item da Fase 3.
+Todas as implementações REST respondem `/db/simple` com o objeto do usuário
+achatado em camelCase, `/db/complex` com `{periodDays, totalUsers, data}` e
+`/cache` com `{key, value, cached, ttl, timestamp}`. O contrato agora fixa
+também **a SQL** — uma implementação que roda outra query não está medindo a
+mesma coisa, por mais parecido que o JSON seja.
 
-**Pendente na Fase 3**: envelopes de `/db/*` e `/cache` nas 30 implementações
-restantes; camada de dados do `kotlin/http4k`; pool do `rust/actix-web`;
-depois gRPC (31) e GraphQL (32). O gate falha até que todas passem.
+Três erros de SQL recorrentes, corrigidos em todas:
+
+| Erro | Onde |
+|---|---|
+| `ORDER BY` sem desempate — linhas com agregados iguais voltavam em ordem arbitrária, resposta irreprodutível entre execuções | praticamente todas |
+| Intervalo não parametrizado: `INTERVAL '%s days'` (o `%s` está **dentro** das aspas, o Postgres lê a string literal), `INTERVAL '${days} days'`, f-string, `String.format` | flask, django, express, fastify, bun ×3, deno ×4, java/spring, java/micronaut, kotlin/spring, dart, vertx |
+| JOIN em `order_items` agregando `quantity * price` — query materialmente mais pesada que somar `o.total_amount` | chi, echo, gin, csharp ×3, graalvm ×4, dart |
+
+### Duas implementações que não implementavam nada
+
+`kotlin/http4k` respondia 200 em `/db/simple`, `/db/complex` e `/cache` com
+literais fixos, sem declarar dependência de PostgreSQL ou Redis. Agora
+respondem **501**, para o runner registrar "não implementado" em vez de uma
+vitória fabricada. A camada de dados continua pendente.
+
+`graalvm/vertx` **não rodava Vert.x**. O `pom.xml` aponta `main.class` para
+`com.benchmark.vertx.Main`, que era um segundo servidor em
+`com.sun.net.httpserver.HttpServer`: `/health` dizia "connected" sem tocar em
+nada, `/db/simple` devolvia um usuário inventado, `/db/complex` devolvia
+`data: []` e `/cache` um valor fabricado. O servidor Vert.x real ao lado
+— `VertxServer`, router, handlers e services — nunca era iniciado. O `Main`
+agora é um launcher dele.
+
+### Trabalho no caminho medido que não devia estar lá
+
+| Implementação | O quê |
+|---|---|
+| `csharp` (3) | `await Task.Delay(50)` em todo miss de `/cache` — teto de ~20 req/s por conexão |
+| `graalvm/gmicronaut` | três chamadas a `getOrSet` por request (três idas ao Redis) para inferir um booleano |
+| `kotlin/ktor` | `/db/simple` e `/db/complex` concatenavam JSON à mão, contornando o serializador pelo qual todas as outras eram medidas |
+| `graalvm/vertx` | puxava 100 linhas de pedido e somava/mediava em Java; agora o banco agrega |
+
+E dois endpoints que reportavam o oposto do que acontecia: em C# `cached` era
+`value.Contains("Cached value")` — verdadeiro exatamente quando o valor
+**acabara de ser gerado**; em `graalvm/gspring`, inferido por conter a data de
+hoje.
+
+**Pendente na Fase 3**: camada de dados do `kotlin/http4k`; depois gRPC (32) e
+GraphQL (32). O gate falha até que todas passem.
 
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
