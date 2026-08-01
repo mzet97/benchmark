@@ -8,6 +8,10 @@ import { Client } from "postgres";
 import { Redis } from "redis";
 import { buildItems, itemCount } from "./canonical.ts";
 
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
 const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
 
@@ -38,7 +42,8 @@ class DatabaseService {
   async getUser(userId: number) {
     if (!this.client) throw new Error("Database not initialized");
     const result = await this.client.queryObject(
-      "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
+      'SELECT id, email, first_name AS "firstName", last_name AS "lastName", '
+      + 'age, created_at AS "createdAt" FROM users WHERE id = $1',
       [userId]
     );
     return result.rows[0] || null;
@@ -47,21 +52,22 @@ class DatabaseService {
   async getComplexQuery(days: number) {
     if (!this.client) throw new Error("Database not initialized");
     const result = await this.client.queryObject(`
+      -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+      -- query interpolated \`days\` straight into the SQL, joined order_items
+      -- for no selected column, and ordered without a tiebreak.
       SELECT
-        u.id as user_id,
-        CONCAT(u.first_name, ' ', u.last_name) as user_name,
-        COUNT(DISTINCT o.id) as total_orders,
-        COALESCE(SUM(o.total_amount), 0) as total_value,
-        COALESCE(AVG(o.total_amount), 0) as average_order_value
+        u.id AS "userId",
+        u.first_name || ' ' || u.last_name AS "userName",
+        COUNT(o.id) AS "totalOrders",
+        COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+        COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
       FROM users u
-      LEFT JOIN orders o ON u.id = o.user_id
-        AND o.created_at >= NOW() - INTERVAL '${days} days'
-        AND o.status = 'completed'
-      LEFT JOIN order_items oi ON o.id = oi.order_id
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
       GROUP BY u.id, u.first_name, u.last_name
-      ORDER BY total_value DESC
+      ORDER BY "totalOrders" DESC, u.id
       LIMIT 100
-    `);
+    `, [days]);
     return result.rows;
   }
 }
@@ -168,8 +174,8 @@ app.get("/db/complex", async (c) => {
   if (isNaN(days) || days <= 0 || days > 365) return c.json({ error: "Days must be between 1 and 365" }, 400);
   const results = await db.getComplexQuery(days);
   return c.json({
-    period_days: days,
-    total_users: results.length,
+    periodDays: days,
+    totalUsers: results.length,
     data: results,
     timestamp: new Date().toISOString(),
   });
@@ -181,11 +187,11 @@ app.get("/cache", async (c) => {
   if (!key) return c.json({ error: "Key parameter is required" }, 400);
   const cached = await cache.get(key);
   if (cached) {
-    return c.json({ key, value: cached, cached: true, timestamp: new Date().toISOString() });
+    return c.json({ key, value: cached, cached: true, ttl: CACHE_TTL_SECONDS, timestamp: new Date().toISOString() });
   }
   const value = `Cached value for ${key} at ${new Date().toISOString()}`;
-  await cache.set(key, value, 300);
-  return c.json({ key, value, cached: false, timestamp: new Date().toISOString() });
+  await cache.set(key, value, CACHE_TTL_SECONDS);
+  return c.json({ key, value, cached: false, ttl: CACHE_TTL_SECONDS, timestamp: new Date().toISOString() });
 });
 
 // Error handler
@@ -205,7 +211,7 @@ Deno.addSignalListener("SIGINT", shutdown);
 Deno.addSignalListener("SIGTERM", shutdown);
 
 // ==================== Start Server ====================
-const PORT = parseInt(Deno.env.get("PORT") || "3000");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
 console.log(`🚀 Deno Hono server starting on port ${PORT}`);
 
 Deno.serve({ port: PORT }, app.fetch);

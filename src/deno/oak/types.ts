@@ -1,11 +1,14 @@
 // Type definitions for the API
 
+// Mirrors UserResponse in contracts/grpc/benchmark.proto. Wire names are
+// camelCase. See contracts/rest/canonical-payloads.md.
 export interface User {
   id: number;
   email: string;
-  first_name: string;
-  last_name: string;
-  created_at: string;
+  firstName: string;
+  lastName: string;
+  age: number | null;
+  createdAt: string;
 }
 
 export interface Order {
@@ -25,27 +28,25 @@ export interface OrderItem {
   created_at: string;
 }
 
-export interface ComplexOrderResult {
-  period_days: number;
-  total_orders: number;
-  total_revenue: number;
-  average_order_value: number;
-  orders: Array<{
-    order_id: number;
-    user_id: number;
-    user_email: string;
-    total_amount: number;
-    items_count: number;
-    created_at: string;
-  }>;
+// Mirrors ComplexOrdersResponse and UserOrderStats in the proto.
+export interface UserOrderStats {
+  userId: number;
+  userName: string;
+  totalOrders: number;
+  totalValue: number;
+  averageOrderValue: number;
 }
 
-export interface JsonItem {
-  id: number;
-  name: string;
-  value: string;
-  timestamp: string;
+export interface ComplexOrderResult {
+  periodDays: number;
+  totalUsers: number;
+  data: UserOrderStats[];
 }
+
+// JsonItem is defined by the payload contract; see ./canonical.ts. The
+// interface declared here carried {id, name, value, timestamp}, a shape the
+// endpoint no longer returns.
+export type { JsonItem } from "./canonical.ts";
 
 export interface HealthStatus {
   status: string;

@@ -36,8 +36,12 @@ export class DatabaseService {
   async getUser(userId: number) {
     if (!this.client) throw new Error("Database not initialized");
 
+    // The normative SQL aliases the columns to the contract names, so the row
+    // is the response body. The previous version also omitted `age`.
+    // See contracts/rest/canonical-payloads.md.
     const query = `
-      SELECT id, email, first_name, last_name, created_at
+      SELECT id, email, first_name AS "firstName", last_name AS "lastName",
+             age, created_at AS "createdAt"
       FROM users
       WHERE id = $1
     `;
@@ -46,23 +50,29 @@ export class DatabaseService {
     return result.rows[0] || null;
   }
 
-  async getComplexOrders(days: number) {
+  // Renamed from getComplexOrders: routes/database.ts called
+  // getComplexQuery, which did not exist, so /db/complex threw a TypeError on
+  // every request.
+  //
+  // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+  // query returned individual order rows instead of per-user aggregates and
+  // wrote INTERVAL '%s days' -- the %s is inside the quotes and is therefore
+  // not a placeholder, so Postgres read the literal string "%s days".
+  async getComplexQuery(days: number) {
     if (!this.client) throw new Error("Database not initialized");
 
     const query = `
       SELECT
-        o.id as order_id,
-        o.user_id,
-        u.email as user_email,
-        o.total_amount,
-        o.created_at,
-        COUNT(oi.id) as items_count
-      FROM orders o
-      JOIN users u ON o.user_id = u.id
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.created_at >= NOW() - INTERVAL '%s days'
-      GROUP BY o.id, u.email
-      ORDER BY o.created_at DESC
+        u.id AS "userId",
+        u.first_name || ' ' || u.last_name AS "userName",
+        COUNT(o.id) AS "totalOrders",
+        COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+        COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
+      FROM users u
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+      GROUP BY u.id, u.first_name, u.last_name
+      ORDER BY "totalOrders" DESC, u.id
       LIMIT 100
     `;
 

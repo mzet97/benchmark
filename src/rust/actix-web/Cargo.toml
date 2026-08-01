@@ -6,7 +6,10 @@ edition = "2021"
 [dependencies]
 actix-web = "4"
 tokio = { version = "1", features = ["full"] }
-tokio-postgres = "0.7"
+tokio-postgres = { version = "0.7", features = ["with-chrono-0_4"] }
+# A pool, not a single client behind a mutex: the previous setup serialized
+# every database request in the process.
+deadpool-postgres = "0.14"
 redis = { version = "0.24", features = ["tokio-comp"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }

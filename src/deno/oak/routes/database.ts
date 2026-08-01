@@ -45,8 +45,8 @@ router.get("/db/complex", async (ctx: Context) => {
   ctx.response.status = 200;
   ctx.response.headers.set("Content-Type", "application/json");
   ctx.response.body = JSON.stringify({
-    period_days: days,
-    total_users: results.length,
+    periodDays: days,
+    totalUsers: results.length,
     data: results,
     timestamp: new Date().toISOString(),
   });

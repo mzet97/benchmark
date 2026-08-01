@@ -1,13 +1,31 @@
 mod canonical;
 
 use actix_web::{web, App, HttpServer, HttpResponse};
+use deadpool_postgres::{Manager, ManagerConfig, Pool, RecyclingMethod};
 use serde_json::json;
-use std::sync::Arc;
-use tokio::sync::Mutex;
 
-// Database service using direct tokio_postgres connection
+/// Pool size is part of the benchmark contract, not a per-implementation
+/// choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+/// the data access layer stops being a hidden variable in the ranking.
+fn db_pool_max() -> usize {
+    std::env::var("DB_POOL_MAX")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .filter(|n| *n > 0)
+        .unwrap_or(32)
+}
+
+/// The TTL is part of the response contract; it must match the value written
+/// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS: i32 = 300;
+
+/// This used to hold a single tokio_postgres::Client behind an Arc<Mutex<_>>,
+/// which serialized every database request in the process: with 7 cores and
+/// hundreds of concurrent connections, /db/simple and /db/complex queued one
+/// at a time behind the mutex while every other implementation ran a pool.
+/// Those numbers measured lock contention, not the framework.
 struct DbService {
-    client: Arc<Mutex<tokio_postgres::Client>>,
+    pool: Pool,
 }
 
 impl DbService {
@@ -27,59 +45,82 @@ impl DbService {
         let mut config = tokio_postgres::Config::new();
         config.user(user).password(password).host(host).port(port).dbname(database);
 
-        let (client, connection) = config.connect(tokio_postgres::NoTls).await
-            .expect("Failed to connect to PostgreSQL");
+        let manager = Manager::from_config(
+            config,
+            tokio_postgres::NoTls,
+            ManagerConfig { recycling_method: RecyclingMethod::Fast },
+        );
+        let pool = Pool::builder(manager)
+            .max_size(db_pool_max())
+            .build()
+            .expect("Failed to build PostgreSQL pool");
 
-        tokio::spawn(async move {
-            if let Err(e) = connection.await {
-                eprintln!("PG connection error: {}", e);
-            }
-        });
-
-        println!("PostgreSQL connected");
-        DbService { client: Arc::new(Mutex::new(client)) }
+        println!("PostgreSQL pool ready");
+        DbService { pool }
     }
 
+    /// The normative SQL aliases its columns to the contract names; see
+    /// contracts/rest/canonical-payloads.md. createdAt used to go out as epoch
+    /// seconds -- a number, where every other implementation sent an ISO 8601
+    /// string.
     async fn get_user(&self, id: i32) -> Option<serde_json::Value> {
-        let client = self.client.lock().await;
+        let client = self.pool.get().await.ok()?;
         match client.query_opt(
-            "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
+            "SELECT id, email, first_name, last_name, age, created_at
+             FROM users WHERE id = $1",
             &[&id],
         ).await {
             Ok(Some(row)) => Some(json!({
                 "id": row.get::<_, i32>(0),
                 "email": row.get::<_, String>(1),
-                "first_name": row.get::<_, String>(2),
-                "last_name": row.get::<_, String>(3),
-                "age": row.get::<_, i32>(4),
-                "created_at": row.get::<_, std::time::SystemTime>(5).duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()
+                "firstName": row.get::<_, String>(2),
+                "lastName": row.get::<_, String>(3),
+                "age": row.get::<_, Option<i32>>(4),
+                "createdAt": row.get::<_, chrono::DateTime<chrono::Utc>>(5).to_rfc3339()
             })),
             _ => None,
         }
     }
 
+    /// Normative SQL. The previous query grouped by u.email, selected only
+    /// four columns under names nothing else used, and ordered without a
+    /// tiebreak, so rows with equal totals came back in arbitrary order.
     async fn get_complex(&self, days: i32) -> Vec<serde_json::Value> {
-        let client = self.client.lock().await;
+        let client = match self.pool.get().await {
+            Ok(c) => c,
+            Err(_) => return vec![],
+        };
         match client.query(
-            "SELECT u.id, u.email, COUNT(o.id) as cnt, COALESCE(SUM(o.total_amount),0) as total
-             FROM users u JOIN orders o ON u.id=o.user_id
-             WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
-             GROUP BY u.id, u.email ORDER BY total DESC LIMIT 100",
+            "SELECT
+                 u.id AS user_id,
+                 u.first_name || ' ' || u.last_name AS user_name,
+                 COUNT(o.id) AS total_orders,
+                 COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                 COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
+             FROM users u
+             INNER JOIN orders o ON u.id = o.user_id
+                 WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+             GROUP BY u.id, u.first_name, u.last_name
+             ORDER BY total_orders DESC, u.id
+             LIMIT 100",
             &[&days],
         ).await {
             Ok(rows) => rows.iter().map(|r| json!({
-                "user_id": r.get::<_, i32>(0),
-                "email": r.get::<_, String>(1),
-                "order_count": r.get::<_, i64>(2),
-                "total_amount": r.get::<_, f64>(3),
+                "userId": r.get::<_, i32>(0),
+                "userName": r.get::<_, String>(1),
+                "totalOrders": r.get::<_, i64>(2),
+                "totalValue": r.get::<_, f64>(3),
+                "averageOrderValue": r.get::<_, f64>(4),
             })).collect(),
             Err(_) => vec![],
         }
     }
 
     async fn health_check(&self) -> bool {
-        let client = self.client.lock().await;
-        client.query_opt("SELECT 1", &[]).await.is_ok()
+        match self.pool.get().await {
+            Ok(client) => client.query_opt("SELECT 1", &[]).await.is_ok(),
+            Err(_) => false,
+        }
     }
 }
 
@@ -157,17 +198,17 @@ async fn db_simple(data: web::Data<AppState>, query: web::Query<std::collections
 async fn db_complex(data: web::Data<AppState>, query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let days: i32 = query.get("days").and_then(|s| s.parse().ok()).unwrap_or(30);
     let results = data.db.get_complex(days).await;
-    HttpResponse::Ok().json(json!({"period_days": days, "total_users": results.len(), "data": results, "timestamp": chrono::Utc::now().to_rfc3339()}))
+    HttpResponse::Ok().json(json!({"periodDays": days, "totalUsers": results.len(), "data": results, "timestamp": chrono::Utc::now().to_rfc3339()}))
 }
 
 async fn cache_handler(data: web::Data<AppState>, query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let key = query.get("key").cloned().unwrap_or_else(|| "test".to_string());
     if let Some(val) = data.cache.get(&key).await {
-        return HttpResponse::Ok().json(json!({"key": key, "value": val, "cached": true, "timestamp": chrono::Utc::now().to_rfc3339()}));
+        return HttpResponse::Ok().json(json!({"key": key, "value": val, "cached": true, "ttl": CACHE_TTL_SECONDS, "timestamp": chrono::Utc::now().to_rfc3339()}));
     }
     let val = format!("Cached value for {} at {}", key, chrono::Utc::now().to_rfc3339());
-    data.cache.set(&key, &val, 300).await;
-    HttpResponse::Ok().json(json!({"key": key, "value": val, "cached": false, "timestamp": chrono::Utc::now().to_rfc3339()}))
+    data.cache.set(&key, &val, CACHE_TTL_SECONDS).await;
+    HttpResponse::Ok().json(json!({"key": key, "value": val, "cached": false, "ttl": CACHE_TTL_SECONDS, "timestamp": chrono::Utc::now().to_rfc3339()}))
 }
 
 #[tokio::main]

@@ -10,6 +10,10 @@ mod cache;
 use db::Database;
 use cache::Cache;
 
+/// The TTL is part of the response contract; it must match the value written
+/// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS: usize = 300;
+
 #[tokio::main]
 async fn main() {
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
@@ -64,8 +68,12 @@ async fn main() {
 
     let routes = index.or(health).or(healthz).or(json).or(db_simple).or(db_complex).or(cache);
 
-    println!("Server starting on http://0.0.0.0:3000");
-    warp::serve(routes).run(([0, 0, 0, 0], 3000)).await;
+    let port: u16 = std::env::var("PORT")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(8080);
+    println!("Server starting on http://0.0.0.0:{}", port);
+    warp::serve(routes).run(([0, 0, 0, 0], port)).await;
 }
 
 fn with_db(db: Arc<Database>) -> impl Filter<Extract = (Arc<Database>,), Error = std::convert::Infallible> + Clone {
@@ -110,10 +118,8 @@ fn json_handler(params: std::collections::HashMap<String, String>) -> impl Reply
 async fn db_simple_handler(query: db::SimpleQuery, db: Arc<Database>) -> Result<impl Reply, Rejection> {
     let id = query.id.unwrap_or(1);
     match db.get_user(id).await {
-        Ok(Some(user)) => Ok(warp::reply::json(&json!({
-            "user": user,
-            "timestamp": Utc::now().to_rfc3339()
-        }))),
+        // The contract returns the user object itself, not an envelope.
+        Ok(Some(user)) => Ok(warp::reply::json(&json!(user))),
         Ok(None) => Err(warp::reject::not_found()),
         Err(_) => Err(warp::reject::custom(AppError::Internal)),
     }
@@ -128,8 +134,8 @@ async fn db_complex_handler(query: db::ComplexQuery, db: Arc<Database>) -> Resul
     match db.get_complex_query(days).await {
         Ok(results) => {
             Ok(warp::reply::json(&json!({
-                "period_days": days,
-                "total_users": results.len(),
+                "periodDays": days,
+                "totalUsers": results.len(),
                 "data": results
             })))
         },
@@ -141,11 +147,12 @@ async fn cache_handler(query: cache::CacheQuery, cache: Arc<Cache>) -> Result<im
     let key = query.key.unwrap_or_else(|| "test".to_string());
     let new_value = format!("cached-value-{}", uuid::Uuid::new_v4());
 
-    match cache.get_or_set(&key, &new_value, 300).await {
+    match cache.get_or_set(&key, &new_value, CACHE_TTL_SECONDS).await {
         Ok((value, source)) => Ok(warp::reply::json(&json!({
             "key": key,
             "value": value,
-            "source": source,
+            "cached": source == "cache",
+            "ttl": CACHE_TTL_SECONDS,
             "timestamp": Utc::now().to_rfc3339()
         }))),
         Err(_) => Err(warp::reject::custom(AppError::Internal)),

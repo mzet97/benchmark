@@ -7,7 +7,11 @@ import { buildItems, itemCount } from "./canonical.ts";
 import { Client } from "postgres";
 import { Redis } from "redis";
 
-const PORT = parseInt(Deno.env.get("PORT") || "3000");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
+// The TTL is part of the response contract and must match what is written
+// to Redis. See contracts/rest/canonical-payloads.md.
+const CACHE_TTL_SECONDS = 300;
+
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
 const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
 
@@ -40,7 +44,8 @@ class DatabaseService {
   async getUser(userId: number) {
     if (!this.client) throw new Error("Database not initialized");
     const result = await this.client.queryObject(
-      "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
+      'SELECT id, email, first_name AS "firstName", last_name AS "lastName", '
+      + 'age, created_at AS "createdAt" FROM users WHERE id = $1',
       [userId]
     );
     return result.rows[0] || null;
@@ -49,21 +54,22 @@ class DatabaseService {
   async getComplexQuery(days: number) {
     if (!this.client) throw new Error("Database not initialized");
     const result = await this.client.queryObject(`
+      -- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+      -- query interpolated \`days\` straight into the SQL, joined order_items
+      -- for no selected column, and ordered without a tiebreak.
       SELECT
-        u.id as user_id,
-        CONCAT(u.first_name, ' ', u.last_name) as user_name,
-        COUNT(DISTINCT o.id) as total_orders,
-        COALESCE(SUM(o.total_amount), 0) as total_value,
-        COALESCE(AVG(o.total_amount), 0) as average_order_value
+        u.id AS "userId",
+        u.first_name || ' ' || u.last_name AS "userName",
+        COUNT(o.id) AS "totalOrders",
+        COALESCE(SUM(o.total_amount), 0) AS "totalValue",
+        COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
       FROM users u
-      LEFT JOIN orders o ON u.id = o.user_id
-        AND o.created_at >= NOW() - INTERVAL '${days} days'
-        AND o.status = 'completed'
-      LEFT JOIN order_items oi ON o.id = oi.order_id
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
       GROUP BY u.id, u.first_name, u.last_name
-      ORDER BY total_value DESC
+      ORDER BY "totalOrders" DESC, u.id
       LIMIT 100
-    `);
+    `, [days]);
     return result.rows;
   }
 }
@@ -197,8 +203,8 @@ const handleRequest = async (req: Request): Promise<Response> => {
       }
       const results = await databaseService.getComplexQuery(days);
       return new Response(JSON.stringify({
-        period_days: days,
-        total_users: results.length,
+        periodDays: days,
+        totalUsers: results.length,
         data: results,
         timestamp: new Date().toISOString(),
       }), { headers: jsonHeaders });
@@ -212,11 +218,11 @@ const handleRequest = async (req: Request): Promise<Response> => {
       }
       const cached = await cacheService.get(key);
       if (cached) {
-        return new Response(JSON.stringify({ key, value: cached, cached: true, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
+        return new Response(JSON.stringify({ key, value: cached, cached: true, ttl: CACHE_TTL_SECONDS, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
       }
       const value = `Cached value for ${key} at ${new Date().toISOString()}`;
       await cacheService.set(key, value, 300);
-      return new Response(JSON.stringify({ key, value, cached: false, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
+      return new Response(JSON.stringify({ key, value, cached: false, ttl: CACHE_TTL_SECONDS, timestamp: new Date().toISOString() }), { headers: jsonHeaders });
     }
 
     return new Response(JSON.stringify({ error: "Not Found" }), { status: 404, headers: jsonHeaders });

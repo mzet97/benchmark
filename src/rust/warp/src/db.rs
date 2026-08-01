@@ -53,18 +53,22 @@ impl Database {
 
     pub async fn get_complex_query(&self, days: i32) -> Result<Vec<ComplexUserStats>> {
         let rows = sqlx::query_as::<_, ComplexUserStats>(
-            r#"SELECT u.id as user_id,
-                   u.email as user_email,
-                   COUNT(DISTINCT o.id) as total_orders,
-                   COALESCE(SUM(o.total_amount), 0) as total_value,
-                   COALESCE(AVG(o.total_amount), 0) as average_value,
-                   EXTRACT(DAY FROM NOW() - MIN(o.created_at)) as days_since_first_order
+            // Normative SQL, see contracts/rest/canonical-payloads.md. The
+            // previous query selected a user_email/days_since_first_order
+            // shape nothing else used and ordered without a tiebreak, so rows
+            // with equal values came back in arbitrary order.
+            r#"
+            SELECT
+                u.id AS user_id,
+                u.first_name || ' ' || u.last_name AS user_name,
+                COUNT(o.id) AS total_orders,
+                COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
             FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-              AND o.created_at >= NOW() - ($1 || ' days')::INTERVAL
-            GROUP BY u.id, u.email
-            HAVING COUNT(DISTINCT o.id) > 0
-            ORDER BY total_value DESC
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+            GROUP BY u.id, u.first_name, u.last_name
+            ORDER BY total_orders DESC, u.id
             LIMIT 100"#
         )
         .bind(days)
@@ -76,6 +80,7 @@ impl Database {
 }
 
 #[derive(sqlx::FromRow, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct User {
     pub id: i32,
     pub email: String,
@@ -85,14 +90,20 @@ pub struct User {
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
+/// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. The wire names
+/// are camelCase, matching the proto3 JSON mapping of the snake_case proto
+/// fields. See contracts/rest/canonical-payloads.md.
 #[derive(sqlx::FromRow, Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ComplexUserStats {
     pub user_id: i32,
-    pub user_email: String,
+    pub user_name: String,
     pub total_orders: i64,
+    // Cast to float8 in SQL rather than mapping Postgres NUMERIC: the
+    // reference implementation carries these as float64 and sqlx would
+    // otherwise need the bigdecimal feature to decode NUMERIC at all.
     pub total_value: f64,
-    pub average_value: f64,
-    pub days_since_first_order: f64,
+    pub average_order_value: f64,
 }
 
 #[derive(Debug, Deserialize)]
