@@ -1,5 +1,9 @@
 plugins {
     kotlin("jvm") version "1.9.22"
+    // The allOpen { } block below configures this plugin. Without it applied,
+    // `allOpen` is an unresolved reference and the build script itself fails to
+    // compile -- so this project never built.
+    kotlin("plugin.allopen") version "1.9.22"
     id("com.google.protobuf") version "0.9.4"
     application
 }

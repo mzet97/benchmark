@@ -1,6 +1,8 @@
 FROM gradle:8.5-jdk21 AS builder
 WORKDIR /app
-COPY build.gradle .
+# settings.gradle was not copied, so the dependency-warming build ran against a
+# different project definition than the real one.
+COPY build.gradle settings.gradle ./
 RUN gradle dependencies --no-daemon
 COPY src ./src
 RUN gradle build --no-daemon

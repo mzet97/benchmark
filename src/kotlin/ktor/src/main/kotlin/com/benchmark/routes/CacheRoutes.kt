@@ -26,7 +26,7 @@ fun Route.cacheRoutes(cacheService: CacheService) {
     get("/cache") {
         val key = call.request.queryParameters["key"] ?: "test"
         val newValue = "cached-value-${UUID.randomUUID()}"
-        val value = cacheService.getOrSet(key, newValue, CACHE_TTL_SECONDS)
+        val value = cacheService.getOrSet(key, newValue, CACHE_TTL_SECONDS.toLong())
         // The contract carries a boolean plus the TTL, not a free-form
         // "source" string.
         call.respond(

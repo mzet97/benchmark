@@ -131,7 +131,7 @@ uniforme, sem Ingress.
 
 ---
 
-## Fase 3 — Paridade entre implementações `[CONCLUÍDA, exceto http4k]`
+## Fase 3 — Paridade entre implementações `[CONCLUÍDA]`
 
 **Fundação concluída** (contrato + gate + implementação de referência):
 
@@ -162,10 +162,45 @@ foi executado para nenhuma: isso é a Fase 6, depois do rebuild.
 | Rust | axum, actix-web, rocket, warp | `cargo check` limpo nos 4 crates + `cargo test` do módulo `canonical`; vetores do teste conferidos contra a referência Python |
 | Deno | deno_serve, fresh, hono, oak | módulo `canonical.ts` executado (via Bun — **não há runtime Deno nesta máquina**); cross-check. O servidor em si não foi executado |
 | C# | Controllers, FastEndpoints, MinimalApi | `dotnet build` limpo nos 3 projetos + `Canonical` executado e cross-check |
-| Java | spring, micronaut, quarkus | `Canonical.java` compilado com `javac`, executado e cross-check. **Sem Maven/Gradle nesta máquina — os projetos não foram compilados inteiros** |
-| Kotlin | spring, ktor, http4k | **nenhuma — não há `kotlinc` nesta máquina**. Código espelha o `Canonical.java` já verificado |
-| GraalVM | spring, gspring, micronaut, gmicronaut, helidon, vertx | mesmo `Canonical.java` verificado; projetos não compilados (sem Maven/Gradle) |
+| Java | spring, micronaut, quarkus | `mvn package` limpo em spring e micronaut; quarkus inconclusivo (ver "Compilar de fato"). `spring` não compilava |
+| Kotlin | spring, ktor, http4k | **`gradle build` limpo nos 3** — ver "Compilar de fato" abaixo. `ktor` e `http4k` não compilavam |
+| GraalVM | spring, gspring, micronaut, gmicronaut, helidon, vertx | `mvn compile` limpo em spring, gspring, micronaut e helidon. `vertx` **não compilava**: o POM não declarava nenhuma dependência |
 | Dart | vaden | **nenhuma — não há SDK Dart nesta máquina**. Ver "Dart: o ambiente que nunca foi executado" |
+
+### Compilar de fato
+
+Até aqui a evidência da JVM era `javac` sobre um arquivo solto: não havia
+Maven, Gradle nem `kotlinc` nesta máquina, e o plano registrava isso. Gradle
+8.5, Maven 3.9.9 e JDKs 21 e 17 foram instalados **no diretório temporário da
+sessão** (nada no repositório, nada em `~`) e os projetos foram construídos.
+
+O resultado desmente a suposição de que "converter o payload" era o suficiente:
+**quatro projetos não compilavam**, três deles por defeitos introduzidos ou
+deixados pelas passadas anteriores.
+
+| Projeto | Estado | O quê |
+|---|---|---|
+| `kotlin/http4k` | **corrigido** | `val JSON = CONTENT_TYPE of APPLICATION_JSON` sem anotação de tipo — `of` devolve um modificador genérico e não havia de onde inferir |
+| `kotlin/ktor` | **corrigido** | `JsonRoutes.kt` não importava `io.ktor.server.application.*`, então `call` não resolvia; e o TTL do `/cache` era `Int` onde `getOrSet` pede `Long` |
+| `java/spring`, `graalvm/spring`, `graalvm/gspring` | **corrigido** | os três `JsonController.java` estavam com **chaves duplicadas** (`{{`/`}}`) — artefato de um template `str.format` que nunca foi desescapado. Erro de sintaxe |
+| `kotlin/grpc/armeria` | **corrigido** | o `build.gradle.kts` tinha um bloco `allOpen { }` sem o plugin `kotlin("plugin.allopen")` aplicado: o próprio script de build não compilava |
+| `graalvm/vertx` | **parcial** | o `pom.xml` **não declarava nenhuma dependência** — nem Vert.x, nem PostgreSQL, nem Redis. Era por isso que o `Main` antigo era um `com.sun.net.httpserver`: era a única coisa compilável ali. O Dockerfile também rodava `javac` em um arquivo só, sem classpath |
+
+Compilam limpo: `kotlin/{spring, ktor, http4k}`, `kotlin/graphql/{dgs,
+graphql-kotlin, spring-graphql}`, `java/{spring, micronaut}`,
+`graalvm/{spring, gspring, micronaut, helidon}`.
+
+**`graalvm/vertx` continua sem compilar**, agora por erros de API nomeados em
+vez de por ausência de dependências: `middleware/CorsHandler` importa
+`io.vertx.ext.web.handler.CorsHandler` e declara uma classe com o mesmo nome no
+mesmo arquivo; `Redis.createClient` é chamado com a sobrecarga errada; e há
+símbolos ausentes em `PgPool.pool` e no `DatabaseHandler`. Isso é Fase 6.
+
+**`java/quarkus` ficou inconclusivo**: o passo de uber-jar do plugin Quarkus
+falha com `ReadOnlyFileSystemException` dentro do `ZipFileSystem`, que tem cara
+de atrito com o compartilhamento de rede onde o repositório está montado, não de
+defeito do código. Precisa ser refeito em disco local antes de qualquer
+conclusão.
 
 Os 4 crates Rust não compilavam antes desta passada. Além do payload, foi
 preciso corrigir: `Cargo.toml` do axum com `profile-rustflags` instável
@@ -207,17 +242,36 @@ Divergências encontradas ao converter — cada uma invalidava o ranking `/json`
 | Rust (sqlx) | pool no default 10 do sqlx, não `DB_POOL_MAX` |
 | JVM (7 configs) | porta 3000 em vez de 8080; host do Postgres **fixo no código** (`spsql.home.arpa`) em quarkus e kotlin/spring; pool 25/5 ou não configurado; log em INFO |
 
-### `kotlin/http4k` não é uma implementação — é um stub
+### `kotlin/http4k` era um stub — agora é uma implementação `[FECHADO]`
 
 `/db/simple` devolvia 200 com um usuário inventado, `/db/complex` devolvia
 `{"orders":[]}` e `/cache` devolvia um acerto de cache fabricado. O projeto
-**não declara nenhuma dependência de PostgreSQL ou Redis** e não tem como
+**não declarava nenhuma dependência de PostgreSQL ou Redis** e não tinha como
 falar com nenhum dos dois. Aqueles números não mediam coisa alguma e, ao lado
 de implementações que de fato executam a query, apareceriam como vitória.
 
-Nesta passada os três endpoints passaram a responder **501 Not Implemented**,
-para que o runner registre "não implementado" em vez de um resultado
-fabricado. Implementar a camada de dados do http4k continua pendente.
+O passo intermediário foi responder **501 Not Implemented**, para o runner
+registrar "não implementado" em vez de um resultado fabricado. Agora a camada
+de dados existe: HikariCP dimensionado por `DB_POOL_MAX` e Lettuce, nas mesmas
+versões do `src/kotlin/ktor`, com a **mesma SQL normativa** — uma implementação
+que roda outra query não está medindo a mesma coisa, por mais parecido que o
+JSON seja.
+
+Dois defeitos apareceram junto:
+
+| | |
+|---|---|
+| `/health` devolvia `{status, version}` | o gate confere o **conjunto de chaves** de `/health`, que é `{status, version, timestamp, database, cache}` — esta implementação reprovaria |
+| `val JSON = CONTENT_TYPE of APPLICATION_JSON` | `of` devolve um modificador genérico no tipo da mensagem; içado para um `val` sem anotação, não há de onde inferir. **Erro de compilação**, e é o primeiro que aparece — ou seja, este projeto nunca compilou |
+
+**Nível de evidência: `gradle build` limpo.** Não havia toolchain JVM nesta
+máquina; Gradle 8.5 e um JDK 21 foram instalados no diretório temporário da
+sessão para esta verificação. É a primeira implementação Kotlin do repositório
+com compilação de fato executada.
+
+> O `build/` e o `.gradle/` do Gradle não estavam no `.gitignore` — só o
+> `target/` do Maven estava. Construir qualquer um dos nove projetos Kotlin no
+> lugar deixava a saída como ruído não rastreado.
 
 ### Pool do `rust/actix-web` — fechada
 
@@ -246,9 +300,9 @@ Três erros de SQL recorrentes, corrigidos em todas:
 ### Duas implementações que não implementavam nada
 
 `kotlin/http4k` respondia 200 em `/db/simple`, `/db/complex` e `/cache` com
-literais fixos, sem declarar dependência de PostgreSQL ou Redis. Agora
-respondem **501**, para o runner registrar "não implementado" em vez de uma
-vitória fabricada. A camada de dados continua pendente.
+literais fixos, sem declarar dependência de PostgreSQL ou Redis. Passaram por
+**501** e agora executam as mesmas queries de todo mundo — ver a seção
+`kotlin/http4k` acima.
 
 `graalvm/vertx` **não rodava Vert.x**. O `pom.xml` aponta `main.class` para
 `com.benchmark.vertx.Main`, que era um segundo servidor em
@@ -455,9 +509,9 @@ arquivos. Isso não substitui `dart analyze`.
 Mais 67 Dockerfiles com `EXPOSE` e healthcheck apontando para 3000/50051: um
 healthcheck na porta errada marca como unhealthy um contêiner que funciona.
 
-**Pendente na Fase 3**: camada de dados do `kotlin/http4k`, e o coletor das 6
-imagens nativas do GraalVM (`--gc=G1` em tempo de build). O gate só fecha de
-verdade na Fase 6, contra os serviços rodando.
+**Pendente na Fase 3**: o coletor das 6 imagens nativas do GraalVM (`--gc=G1`
+em tempo de build). A camada de dados do `kotlin/http4k` foi fechada. O gate só
+fecha de verdade na Fase 6, contra os serviços rodando.
 
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
@@ -598,14 +652,18 @@ estavam ali como se significassem algo.
 
 ## Fase 6 — Reconstrução e re-execução `[~4-6 dias]`
 
-### 6.1 As 46 implementações que não buildam
+### 6.1 As implementações que não buildam
+
+A lista abaixo era um palpite: nenhum destes projetos tinha sido construído.
+A passada de Fase 3 instalou uma toolchain JVM (ver "Compilar de fato") e
+mediu a parte JVM, o que **corrigiu a contagem para menos**: dos 6 projetos
+Kotlin de gRPC/GraphQL listados como quebrados, 3 compilam limpo.
 
 | Ambiente | Frameworks | Problema típico |
 |---|---|---|
 | Rust gRPC | volo, grpcio | breaking changes de API |
 | Go gRPC | connectrpc, kitex | `go.sum` / genproto |
 | Java gRPC | armeria, quarkus | naming de classes do proto |
-| Kotlin gRPC | grpc-kotlin, spring, armeria | Gradle wrapper |
 | GraalVM gRPC | quarkus, micronaut, grpc-java | build nativo Maven |
 | Dart gRPC | grpc-dart | versão do protobuf |
 | Rust GraphQL | async-graphql, juniper | deps do Cargo |
@@ -613,6 +671,17 @@ estavam ali como se significassem algo.
 | Dart GraphQL | graphql-server2, angel3, leto | versão do shelf_router |
 | GraalVM GraphQL | smallrye, spring, micronaut | build nativo |
 | Go REST | gin, fiber | `go.sum` incompleto |
+
+Medido, não suposto:
+
+| Projeto | Estado | Causa real |
+|---|---|---|
+| `kotlin/graphql/{dgs, graphql-kotlin, spring-graphql}` | ✅ compilam | estavam na lista sem motivo |
+| `kotlin/grpc/spring-grpc` | ❌ | `io.grpc:grpc-spring-boot-starter:3.2.3` **não existe** — a coordenada publicada é `net.devh:grpc-spring-boot-starter`. Nunca foi resolvível |
+| `kotlin/grpc/armeria` | ❌ | o `allOpen` sem plugin foi corrigido; agora para em `:generateProto`, com o `protoc` abortando (`basic_string::_M_construct null not valid`) |
+| `kotlin/grpc/grpc-kotlin` | ❌ | falha na configuração; pede um toolchain Java 17 e não passa disso |
+| `graalvm/vertx` | ❌ | POM sem dependências (corrigido) + erros de API do Vert.x (pendentes) |
+| `java/quarkus` | ⚠️ | `ReadOnlyFileSystemException` no uber-jar; refazer em disco local |
 
 Paralelizável por ambiente.
 

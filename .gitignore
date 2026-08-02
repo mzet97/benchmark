@@ -41,6 +41,12 @@ x86/
 !src/dart/**/bin/
 !src/dart/**/bin/*.dart
 
+# Gradle build output. target/ below already covered Maven, but the Gradle
+# equivalents were missing, so building any of the nine Kotlin projects in
+# place left its output as untracked noise.
+.gradle/
+**/build/
+
 # NuGet packages
 *.nupkg
 packages/

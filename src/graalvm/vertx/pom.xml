@@ -15,7 +15,65 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <main.class>com.benchmark.vertx.Main</main.class>
+        <vertx.version>4.5.10</vertx.version>
     </properties>
+
+    <!--
+      This POM declared no dependencies at all, which is why the old Main was a
+      com.sun.net.httpserver server answering /db/simple with an invented user:
+      it was the only thing that could compile here. The real Vert.x server next
+      to it (VertxServer, router, handlers, services) could not.
+      See docs/ACTION_PLAN.md, Fase 3.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-stack-depchain</artifactId>
+                <version>${vertx.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-pg-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.vertx</groupId>
+            <artifactId>vertx-redis-client</artifactId>
+        </dependency>
+        <!-- The pg client needs this to authenticate with SCRAM. -->
+        <dependency>
+            <groupId>com.ongres.scram</groupId>
+            <artifactId>client</artifactId>
+            <version>2.1</version>
+        </dependency>
+        <!-- The code imports org.slf4j directly, so the API is a compile
+             dependency in its own right, not just a transitive of the binding. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.13</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.13</version>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
 
     <build>
         <plugins>
