@@ -26,7 +26,6 @@ FROM scratch
 COPY --from=builder /runtime/ /
 COPY --from=builder /app/bin/server /app/bin/server
 
-ENV GRPC_PORT=50051
 
 EXPOSE 8080
 

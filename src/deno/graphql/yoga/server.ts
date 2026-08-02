@@ -12,7 +12,9 @@ const yoga = createYoga({
 
 const PORT = parseInt(Deno.env.get("PORT") || "8080");
 
-Deno.serve({ port: PORT }, async (req: Request) => {
+// reusePort sets SO_REUSEPORT, which is what lets the BENCH_CPUS workers
+// forked by index.ts share this socket instead of fighting over it.
+Deno.serve({ port: PORT, reusePort: true }, async (req: Request) => {
   const url = new URL(req.url);
 
   // Health check endpoint for k8s probes

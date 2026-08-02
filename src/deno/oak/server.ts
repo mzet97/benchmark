@@ -119,7 +119,16 @@ const start = async () => {
 
     console.log("Starting Benchmark API (Deno + Oak)...");
 
-    app.listen({ port: PORT, hostname: HOST });
+    // reusePort sets SO_REUSEPORT, which is what lets the BENCH_CPUS workers
+    // forked by index.ts share this socket instead of fighting over it.
+    // oak's ListenOptions does not declare the field, but its default server
+    // spreads the options straight into Deno.serve (http_server_native.ts),
+    // so it reaches the socket. The cast is for the type checker only.
+    app.listen(
+      { port: PORT, hostname: HOST, reusePort: true } as Parameters<
+        typeof app.listen
+      >[0],
+    );
 
     console.log(`Server listening on http://${HOST}:${PORT}`);
   } catch (error) {

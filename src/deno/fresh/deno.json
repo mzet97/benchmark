@@ -12,7 +12,7 @@
     "redis": "https://deno.land/x/redis@v0.32.1/mod.ts"
   },
   "tasks": {
-    "start": "deno run -A server.ts",
-    "dev": "deno run --watch -A server.ts"
+    "start": "deno run -A index.ts",
+    "dev": "deno run --watch -A index.ts"
   }
 }

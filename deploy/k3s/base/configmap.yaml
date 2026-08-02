@@ -58,7 +58,18 @@ data:
   # from availableProcessors(). Container awareness gets this right for CPU
   # *limits*, but pinning it removes the doubt -- and it is the only knob that
   # works identically across Spring, Micronaut, Quarkus, Helidon and Vert.x.
-  JAVA_TOOL_OPTIONS: "-XX:ActiveProcessorCount=7"
+  #
+  # Heap and collector are here for the same reason. Not one JVM implementation
+  # set -Xms/-Xmx, so each ran with the default 1/64 initial and 1/4 maximum of
+  # the container limit and spent the measurement growing its heap; and four of
+  # them (java/kotlin dgs, spring-graphql, graphql-kotlin) pinned G1 with a 20ms
+  # pause target in their Dockerfile while the rest took the default. A pause
+  # target is tuning, and tuning that only four implementations get is a ranking
+  # of who edited their Dockerfile.
+  #
+  # Does not reach the six GraalVM *native* images: a native executable does not
+  # read JAVA_TOOL_OPTIONS. See docs/ACTION_PLAN.md, Fase 3.1.
+  JAVA_TOOL_OPTIONS: "-XX:ActiveProcessorCount=7 -Xms8g -Xmx8g -XX:+UseG1GC"
 
   # Same idea for .NET's thread pool and GC heap count.
   DOTNET_PROCESSOR_COUNT: "7"

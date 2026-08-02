@@ -14,4 +14,6 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
 
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "server.ts"]
+# index.ts forks BENCH_CPUS workers, which needs --allow-run for
+# Deno.execPath(). The workers themselves keep the original permissions.
+CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "--allow-run", "index.ts"]

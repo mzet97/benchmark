@@ -1,8 +1,13 @@
 import 'dart:io';
 import 'package:postgres/postgres.dart';
 
+import 'runtime.dart';
+
 class DatabaseService {
-  late final Connection _connection;
+  // A single Connection serialises every query behind one socket -- the defect
+  // already fixed in Go REST (pgx.Conn) and Rust actix-web (client behind a
+  // Mutex). Sized from DB_POOL_MAX like every other implementation.
+  late final Pool _pool;
 
   Future<void> initialize() async {
     final host = Platform.environment['DB_HOST'] ?? 'localhost';
@@ -11,28 +16,40 @@ class DatabaseService {
     final password = Platform.environment['DB_PASSWORD'] ?? 'benchmark';
     final database = Platform.environment['DB_NAME'] ?? 'benchmark';
 
-    _connection = await Connection.open(
-      Endpoint(
-        host: host,
-        port: port,
-        database: database,
-        username: username,
-        password: password,
+    _pool = Pool.withEndpoints(
+      [
+        Endpoint(
+          host: host,
+          port: port,
+          database: database,
+          username: username,
+          password: password,
+        ),
+      ],
+      settings: PoolSettings(
+        maxConnectionCount: dbPoolPerWorker(),
+        sslMode: SslMode.disable,
       ),
-      settings: ConnectionSettings(sslMode: SslMode.disable),
     );
   }
 
+  Future<void> close() async {
+    await _pool.close();
+  }
+
   Future<void> ping() async {
-    await _connection.execute(Sql.select('SELECT 1'));
+    await _pool.execute('SELECT 1');
   }
 
   Future<List<Map<String, dynamic>>> query(
     String sql, [
     Map<String, dynamic>? parameters,
   ]) async {
-    final result = await _connection.execute(
-      Sql(sql),
+    // Sql.named, not Sql(): the default constructor sends the statement
+    // unmodified, so the @name placeholders below were never substituted and
+    // the parameters map was never bound.
+    final result = await _pool.execute(
+      Sql.named(sql),
       parameters: parameters ?? {},
     );
     return result.map((row) => row.toColumnMap()).toList();
@@ -56,26 +73,31 @@ class DatabaseService {
   }
 
   Future<List<Map<String, dynamic>>> getComplexOrders(int days) async {
+    // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+    // query aggregated o.amount -- a column the schema does not have, so it
+    // failed at runtime -- with a LEFT JOIN, no LIMIT and no tiebreak in the
+    // ORDER BY, which made the row order arbitrary among equal values.
     final results = await query('''
       SELECT
         u.id AS user_id,
         u.first_name || ' ' || u.last_name AS user_name,
         COUNT(o.id) AS total_orders,
-        COALESCE(SUM(o.amount), 0) AS total_value,
-        COALESCE(AVG(o.amount), 0) AS average_order_value
+        COALESCE(SUM(o.total_amount), 0) AS total_value,
+        COALESCE(AVG(o.total_amount), 0) AS average_order_value
       FROM users u
-      LEFT JOIN orders o ON o.user_id = u.id
-        AND o.created_at >= NOW() - (@days || ' days')::INTERVAL
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * @days
       GROUP BY u.id, u.first_name, u.last_name
-      ORDER BY total_value DESC
+      ORDER BY total_orders DESC, u.id
+      LIMIT 100
     ''', {'days': days});
 
     return results.map((row) => {
       'userId': row['user_id'] as int,
       'userName': row['user_name'] as String,
-      'totalOrders': (row['total_orders'] as BigInt).toInt(),
-      'totalValue': (row['total_value'] as num).toDouble(),
-      'averageOrderValue': (row['average_order_value'] as num).toDouble(),
+      'totalOrders': asInt(row['total_orders']),
+      'totalValue': asDouble(row['total_value']),
+      'averageOrderValue': asDouble(row['average_order_value']),
     }).toList();
   }
 }

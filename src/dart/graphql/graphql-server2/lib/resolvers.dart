@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'db.dart';
 import 'cache.dart';
+import 'runtime.dart';
 import 'package:graphql_server2_benchmark/canonical.dart';
 
 class Resolvers {
@@ -33,7 +36,7 @@ class Resolvers {
 
     return {
       'status': 'ok',
-      'version': const String.fromEnvironment('APP_VERSION', defaultValue: '1.0.0'),
+      'version': Platform.environment['APP_VERSION'] ?? '1.0.0',
       'timestamp': DateTime.now().toUtc().toIso8601String(),
       'database': dbStatus,
       'cache': cacheStatus,
@@ -64,13 +67,11 @@ class Resolvers {
   }
 
   Future<Map<String, dynamic>?> resolveUser(int id) async {
-    final cached = await _cache.get('user:$id');
-    if (cached != null) {
-      return Map<String, dynamic>.from(
-        (cached is String) ? _parseJson(cached) : cached,
-      );
-    }
-
+    // This used to write the user into Redis with Map.toString() and, on the
+    // next call, read it back through a _parseJson stub that returned {} --
+    // so from the second request onwards this resolver answered with an empty
+    // object and never touched PostgreSQL. No other implementation caches
+    // /db/simple; the contract is a database read.
     final result = await _db.query(
       'SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = @id',
       {'id': id},
@@ -88,34 +89,35 @@ class Resolvers {
       'createdAt': (row['created_at'] as DateTime).toIso8601String(),
     };
 
-    await _cache.set('user:$id', user.toString(), 60);
     return user;
   }
 
   Future<Map<String, dynamic>> resolveComplexOrders(int days) async {
+    // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+    // query used a LEFT JOIN, computed the average by hand, had no LIMIT and
+    // no tiebreak in the ORDER BY, so the row order was arbitrary among equal
+    // values and the response was not reproducible between runs.
     final result = await _db.query('''
       SELECT
         u.id AS user_id,
         u.first_name || ' ' || u.last_name AS user_name,
         COUNT(o.id) AS total_orders,
         COALESCE(SUM(o.total_amount), 0) AS total_value,
-        CASE WHEN COUNT(o.id) > 0
-          THEN COALESCE(SUM(o.total_amount), 0) / COUNT(o.id)
-          ELSE 0
-        END AS average_order_value
+        COALESCE(AVG(o.total_amount), 0) AS average_order_value
       FROM users u
-      LEFT JOIN orders o ON o.user_id = u.id
-        AND o.created_at >= NOW() - (@days || ' days')::INTERVAL
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * @days
       GROUP BY u.id, u.first_name, u.last_name
-      ORDER BY total_value DESC
+      ORDER BY total_orders DESC, u.id
+      LIMIT 100
     ''', {'days': days});
 
     final data = result.map((row) => {
       'userId': row['user_id'] as int,
       'userName': row['user_name'] as String,
-      'totalOrders': (row['total_orders'] as BigInt).toInt(),
-      'totalValue': (row['total_value'] as num).toDouble(),
-      'averageOrderValue': (row['average_order_value'] as num).toDouble(),
+      'totalOrders': asInt(row['total_orders']),
+      'totalValue': asDouble(row['total_value']),
+      'averageOrderValue': asDouble(row['average_order_value']),
     }).toList();
 
     return {
@@ -126,19 +128,34 @@ class Resolvers {
   }
 
   Future<Map<String, dynamic>> resolveCache(String key) async {
-    final value = await _cache.get(key);
-    final ttl = await _cache.ttl(key);
+    final cached = await _cache.get(key);
+    if (cached != null) {
+      final ttl = await _cache.ttl(key);
+      return {
+        'key': key,
+        'value': cached.toString(),
+        'cached': true,
+        'ttl': ttl >= 0 ? ttl : 0,
+      };
+    }
+
+    // On a miss every other implementation writes the value back with
+    // CACHE_TTL; this one never did, so its key stayed empty and it reported
+    // cached: false on every request while the others reported a hit.
+    final value = 'benchmark_value_${key}_'
+        '${DateTime.now().millisecondsSinceEpoch}';
+    await _cache.set(key, value, _cacheTtlSeconds);
 
     return {
       'key': key,
-      'value': value?.toString() ?? '',
-      'cached': value != null,
-      'ttl': ttl >= 0 ? ttl : 0,
+      'value': value,
+      'cached': false,
+      'ttl': _cacheTtlSeconds,
     };
   }
 }
 
-Map<String, dynamic> _parseJson(String s) {
-  // Simple fallback for cached JSON parsing
-  return {};
-}
+/// Part of the response contract; must match what is written to Redis.
+/// See contracts/rest/canonical-payloads.md.
+final int _cacheTtlSeconds =
+    int.tryParse(Platform.environment['CACHE_TTL'] ?? '') ?? 300;

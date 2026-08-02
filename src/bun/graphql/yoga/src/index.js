@@ -16,12 +16,28 @@ const workers = Number.isInteger(requested) && requested > 0
   ? requested
   : navigator.hardwareConcurrency;
 
+// DB_POOL_MAX and REDIS_POOL_MAX are budgets for the whole pod, not for one
+// worker. Forking N workers that each open DB_POOL_MAX connections would give
+// this implementation N times the pool of a single-process one -- exactly the
+// kind of hidden variable the contract exists to remove.
+// See docs/ACTION_PLAN.md, Fase 3.2.
+const share = (name, fallback) => {
+  const total = Number.parseInt(process.env[name] ?? '', 10);
+  const budget = Number.isInteger(total) && total > 0 ? total : fallback;
+  return String(Math.max(1, Math.floor(budget / workers)));
+};
+
+const poolEnv = {
+  DB_POOL_MAX: share('DB_POOL_MAX', 32),
+  REDIS_POOL_MAX: share('REDIS_POOL_MAX', 32),
+};
+
 if (workers > 1 && !process.env.BENCH_WORKER) {
   console.log(`Primary ${process.pid} starting ${workers} workers`);
 
   const fork = (index) => {
     Bun.spawn(['bun', 'run', 'src/server.js'], {
-      env: { ...process.env, BENCH_WORKER: String(index) },
+      env: { ...process.env, ...poolEnv, BENCH_WORKER: String(index) },
       stdout: 'inherit',
       stderr: 'inherit',
       onExit(_subprocess, exitCode, signalCode) {

@@ -1,4 +1,5 @@
-import 'dart:math';
+import 'dart:io';
+
 import 'package:benchmark_grpc_dart/canonical.dart';
 
 import 'package:grpc/grpc.dart';
@@ -6,10 +7,16 @@ import 'package:grpc/grpc.dart';
 import 'benchmark.pbgrpc.dart';
 import 'cache.dart';
 import 'db.dart';
+import 'runtime.dart';
 
 /// Implementation of BenchmarkService for the benchmark suite.
 class BenchmarkServiceImpl extends BenchmarkServiceBase {
   static const String _version = '1.0.0';
+
+  /// Part of the response contract; must match what is written to Redis.
+  /// See contracts/rest/canonical-payloads.md.
+  static final int _cacheTtlSeconds =
+      int.tryParse(Platform.environment['CACHE_TTL'] ?? '') ?? 300;
   final Database _db;
   final Cache _cache;
 
@@ -56,14 +63,12 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
   @override
   Future<UserResponse> getUser(
       ServiceCall call, GetUserRequest request) async {
-    final conn = await _db.getConnection();
-    final results = await conn.execute(
+    final results = await _db.session().execute(
       Sql.indexed(
         'SELECT id, email, first_name, last_name, age, created_at '
         'FROM users WHERE id = \$1',
       ),
       parameters: [request.id],
-      //ResultLimit: 1,
     );
 
     if (results.isEmpty) {
@@ -84,21 +89,27 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
   Future<ComplexOrdersResponse> getComplexOrders(
       ServiceCall call, ComplexOrdersRequest request) async {
     final days = request.days > 0 ? request.days : 30;
-    final conn = await _db.getConnection();
-    final results = await conn.execute(
+    // Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+    // query aggregated o.total -- a column the schema does not have, so it
+    // failed at runtime -- interpolated the interval straight into the
+    // statement, joined with LEFT, had no LIMIT and no tiebreak in the
+    // ORDER BY.
+    final results = await _db.session().execute(
       Sql.indexed(
         'SELECT '
         '  u.id AS user_id, '
         '  u.first_name || \' \' || u.last_name AS user_name, '
         '  COUNT(o.id) AS total_orders, '
-        '  COALESCE(SUM(o.total), 0) AS total_value, '
-        '  COALESCE(AVG(o.total), 0) AS average_order_value '
+        '  COALESCE(SUM(o.total_amount), 0) AS total_value, '
+        '  COALESCE(AVG(o.total_amount), 0) AS average_order_value '
         'FROM users u '
-        'LEFT JOIN orders o ON u.id = o.user_id '
-        '  AND o.created_at >= NOW() - INTERVAL \'$days days\' '
+        'INNER JOIN orders o ON u.id = o.user_id '
+        '  WHERE o.created_at >= NOW() - INTERVAL \'1 day\' * \$1 '
         'GROUP BY u.id, u.first_name, u.last_name '
-        'ORDER BY total_value DESC',
+        'ORDER BY total_orders DESC, u.id '
+        'LIMIT 100',
       ),
+      parameters: [days],
     );
 
     final data = <UserOrderStats>[];
@@ -106,9 +117,9 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
       data.add(UserOrderStats()
         ..userId = row[0] as int
         ..userName = row[1] as String
-        ..totalOrders = (row[2] as int)
-        ..totalValue = (row[3] as num).toDouble()
-        ..averageOrderValue = (row[4] as num).toDouble());
+        ..totalOrders = asInt(row[2])
+        ..totalValue = asDouble(row[3])
+        ..averageOrderValue = asDouble(row[4]));
     }
 
     return ComplexOrdersResponse()
@@ -135,30 +146,19 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
         ..timestamp = DateTime.now().toUtc().toIso8601String();
     }
 
-    // Cache miss: generate value and store
-    final rng = Random();
-    final value = 'value_for_${request.key}_${_generateUuid(rng)}';
-    await cmd.send(['SETEX', request.key, '3600', value]);
+    // Cache miss: generate value and store. The TTL is CACHE_TTL (300s), not
+    // the 3600 hardcoded here before: over a 5x60s run a 300s key expires and
+    // a 3600s one does not, so this implementation was serving hits where the
+    // others took a miss.
+    final value = 'benchmark_value_${request.key}_'
+        '${DateTime.now().millisecondsSinceEpoch}';
+    await cmd.send(['SETEX', request.key, '$_cacheTtlSeconds', value]);
 
     return CacheResponse()
       ..key = request.key
       ..value = value
       ..cached = false
-      ..ttl = 3600
+      ..ttl = _cacheTtlSeconds
       ..timestamp = DateTime.now().toUtc().toIso8601String();
-  }
-
-  /// Generate a simple UUID-like string using the given random source.
-  String _generateUuid(Random rng) {
-    const hex = '0123456789abcdef';
-    final buf = StringBuffer();
-    for (var i = 0; i < 36; i++) {
-      if (i == 8 || i == 13 || i == 18 || i == 23) {
-        buf.write('-');
-      } else {
-        buf.write(hex[rng.nextInt(16)]);
-      }
-    }
-    return buf.toString();
   }
 }

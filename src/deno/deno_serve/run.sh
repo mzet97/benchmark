@@ -5,8 +5,8 @@ echo "=================================="
 echo "Running Deno.serve Application"
 echo "=================================="
 
-export PORT=${PORT:-3000}
+export PORT=${PORT:-8080}
 export DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
 export REDIS_URL=${REDIS_URL:?REDIS_URL is required}
 
-deno run --allow-net --allow-env --allow-read server.ts
+deno run --allow-net --allow-env --allow-read --allow-run index.ts

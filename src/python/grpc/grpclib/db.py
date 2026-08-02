@@ -9,6 +9,17 @@ import psycopg2.pool
 _pool: psycopg2.pool.ThreadedConnectionPool | None = None
 
 
+def _pool_max() -> int:
+    """Connections this process may open.
+
+    DB_POOL_MAX comes from the ConfigMap; the size was hardcoded here, so every
+    implementation ran with a pool of 10 regardless of the contract. No division
+    by BENCH_CPUS: this server is a single process with a thread pool, not one
+    process per core. See docs/ACTION_PLAN.md, Fase 3.2.
+    """
+    return max(1, int(os.environ.get("DB_POOL_MAX", "32")))
+
+
 def get_pool() -> psycopg2.pool.ThreadedConnectionPool:
     """Get or create the connection pool."""
     global _pool
@@ -19,7 +30,7 @@ def get_pool() -> psycopg2.pool.ThreadedConnectionPool:
         )
         _pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,
-            maxconn=10,
+            maxconn=_pool_max(),
             dsn=database_url,
         )
     return _pool

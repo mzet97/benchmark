@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:isolate';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
@@ -7,6 +8,7 @@ import 'package:shelf/shelf.dart' show Pipeline;
 
 import 'package:benchmark_dart_vaden/services/database_service.dart';
 import 'package:benchmark_dart_vaden/services/cache_service.dart';
+import 'package:benchmark_dart_vaden/runtime.dart';
 import 'package:benchmark_dart_vaden/utils/logger.dart';
 import 'package:benchmark_dart_vaden/canonical.dart';
 
@@ -18,6 +20,19 @@ late DatabaseService databaseService;
 late CacheService cacheService;
 
 Future<void> main(List<String> args) async {
+  // Dart's equivalent of Node's cluster module: BENCH_CPUS isolates, each
+  // running the whole server, all accepting from one socket opened with
+  // shared: true. Isolates do not share memory, so every one of them builds
+  // its own router, pool and Redis client -- which is the point.
+  // See docs/ACTION_PLAN.md, Fase 3.1.
+  final workers = benchWorkers();
+  for (var i = 1; i < workers; i++) {
+    await Isolate.spawn(_serve, i);
+  }
+  await _serve(0);
+}
+
+Future<void> _serve(int worker) async {
   setupLogger();
 
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
@@ -54,19 +69,34 @@ Future<void> main(List<String> args) async {
   // Root
   router.get('/', _rootHandler);
 
-  // Middleware pipeline
+  // Middleware pipeline.
+  //
+  // The logging middleware is gone from the measured path: it wrote a line per
+  // request through package:logging while the ConfigMap sets LOG_LEVEL=error,
+  // and per-request logging is a 2-3x difference between implementations.
   final handler = const Pipeline()
       .addMiddleware(_corsMiddleware())
-      .addMiddleware(_loggingMiddleware())
       .addMiddleware(_errorMiddleware())
       .addHandler(router.call);
 
-  // Start server
-  final server = await shelf_io.serve(handler, host, port);
+  // Start server. shared: true opens the socket with SO_REUSEPORT so every
+  // isolate accepts from it; poweredByHeader would put an X-Powered-By line on
+  // every response, which no other implementation here sends.
+  final server = await shelf_io.serve(
+    handler,
+    host,
+    port,
+    shared: true,
+    poweredByHeader: null,
+  );
   server.autoCompress = false; // No compression for fair benchmark
-  logger.info('Dart Vaden server listening on ${server.address.host}:${server.port}');
+  logger.info('Dart Vaden worker $worker listening on ${server.address.host}:${server.port}');
 
-  // Graceful shutdown
+  // Graceful shutdown. Only the first isolate watches: ProcessSignal.watch
+  // delivers to whoever is listening, and N isolates racing to close the same
+  // pod's connections buys nothing.
+  if (worker != 0) return;
+
   ProcessSignal.sigint.watch().listen((_) async {
     logger.info('Received SIGINT, shutting down...');
     await _shutdown();
@@ -106,18 +136,6 @@ shelf.Middleware _corsMiddleware() {
       return response.change(headers: {
         'Access-Control-Allow-Origin': '*',
       });
-    };
-  };
-}
-
-shelf.Middleware _loggingMiddleware() {
-  return (shelf.Handler innerHandler) {
-    return (shelf.Request request) async {
-      final start = DateTime.now();
-      final response = await innerHandler(request);
-      final duration = DateTime.now().difference(start);
-      logger.info('${request.method} ${request.url.path} ${response.statusCode} ${duration.inMilliseconds}ms');
-      return response;
     };
   };
 }

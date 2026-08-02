@@ -2,20 +2,31 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
-/// PostgreSQL connection manager for the benchmark service.
+import 'runtime.dart';
+
+/// PostgreSQL access for the benchmark service.
+///
+/// This was a single lazily-opened Connection, so every /db/* call in the
+/// service serialised behind one socket -- the same defect already fixed in Go
+/// REST (pgx.Conn with no pool) and Rust actix-web (one client behind a
+/// Mutex). Those numbers measured queueing, not the framework.
 class Database {
-  Connection? _connection;
+  Pool? _pool;
 
   /// Connection string from environment.
   String get _connectionString =>
       Platform.environment['DATABASE_URL'] ??
       'postgres://benchmark:benchmark@localhost:5432/benchmark';
 
-  /// Get or create the database connection.
-  Future<Connection> getConnection() async {
-    if (_connection == null || _connection!.isClosed) {
-      final uri = Uri.parse(_connectionString);
-      _connection = await Connection.open(
+  /// Get or create the connection pool. Pool implements Session, so callers
+  /// use it exactly like a Connection.
+  Session session() {
+    final pool = _pool;
+    if (pool != null) return pool;
+
+    final uri = Uri.parse(_connectionString);
+    return _pool = Pool.withEndpoints(
+      [
         Endpoint(
           host: uri.host,
           port: uri.port,
@@ -25,28 +36,27 @@ class Database {
               ? uri.userInfo.split(':').last
               : '',
         ),
-        settings: ConnectionSettings(sslMode: SslMode.disable),
-      );
-    }
-    return _connection!;
+      ],
+      settings: PoolSettings(
+        maxConnectionCount: dbPoolPerWorker(),
+        sslMode: SslMode.disable,
+      ),
+    );
   }
 
   /// Check database connectivity and return status string.
   Future<String> checkDatabase() async {
     try {
-      final conn = await getConnection();
-      await conn.execute(Sql.indexed('SELECT 1'));
+      await session().execute(Sql.indexed('SELECT 1'));
       return 'connected';
     } catch (e) {
       return 'error: $e';
     }
   }
 
-  /// Close the database connection.
+  /// Close the pool.
   Future<void> close() async {
-    if (_connection != null && !_connection!.isClosed) {
-      await _connection!.close();
-    }
-    _connection = null;
+    await _pool?.close();
+    _pool = null;
   }
 }

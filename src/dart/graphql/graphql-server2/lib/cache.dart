@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:redis/redis.dart';
 
 class CacheService {
@@ -5,10 +7,11 @@ class CacheService {
   late final Command _command;
 
   Future<void> initialize() async {
-    final redisUrl = const String.fromEnvironment(
-      'REDIS_URL',
-      defaultValue: 'redis://localhost:6379',
-    );
+    // Platform.environment, not String.fromEnvironment: the latter reads
+    // compile-time -D defines, so REDIS_URL from the ConfigMap never arrived
+    // and this service always talked to localhost.
+    final redisUrl =
+        Platform.environment['REDIS_URL'] ?? 'redis://localhost:6379';
 
     final uri = Uri.parse(redisUrl);
     _connection = RedisConnection();

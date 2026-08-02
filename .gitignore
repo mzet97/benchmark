@@ -34,6 +34,13 @@ x86/
 [Oo]bj/
 [Ll]og/
 
+# ...but Dart keeps executable entrypoints in bin/, and the rule above excludes
+# the directory, so it hid src/dart/*/bin/server.dart from the repository
+# entirely: four of the five Dart implementations had no entrypoint in a fresh
+# clone, which is part of why they were never built and never fixed.
+!src/dart/**/bin/
+!src/dart/**/bin/*.dart
+
 # NuGet packages
 *.nupkg
 packages/

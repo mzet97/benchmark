@@ -214,4 +214,6 @@ Deno.addSignalListener("SIGTERM", shutdown);
 const PORT = parseInt(Deno.env.get("PORT") || "8080");
 console.log(`🚀 Deno Hono server starting on port ${PORT}`);
 
-Deno.serve({ port: PORT }, app.fetch);
+// reusePort sets SO_REUSEPORT, which is what lets the BENCH_CPUS workers
+// forked by index.ts share this socket instead of fighting over it.
+Deno.serve({ port: PORT, reusePort: true }, app.fetch);

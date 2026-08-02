@@ -31,7 +31,16 @@ class DatabaseService:
                 port=parsed.port or 5432,
                 database=parsed.path.lstrip('/'),
                 min_size=5,
-                max_size=25,
+                # DB_POOL_MAX is the budget for the pod, divided across the
+                # BENCH_CPUS uvicorn workers. This was hardcoded at 25, which
+                # ignored the ConfigMap and, times seven workers, meant 175
+                # connections against the 32 every other implementation opens.
+                # See docs/ACTION_PLAN.md, Fase 3.2.
+                max_size=max(
+                    1,
+                    int(os.environ.get("DB_POOL_MAX", "32"))
+                    // max(1, int(os.environ.get("BENCH_CPUS", "1"))),
+                ),
                 command_timeout=60,
                 ssl=False,
             )

@@ -1,9 +1,14 @@
 import 'dart:io';
 import 'package:postgres/postgres.dart';
+import '../runtime.dart';
 import '../utils/logger.dart';
 
 class DatabaseService {
-  late final Connection _connection;
+  // A single Connection serialises every /db/* request behind one socket, the
+  // same defect already fixed in Go REST (pgx.Conn with no pool) and Rust
+  // actix-web (one client behind a Mutex). Those numbers measured queueing,
+  // not the framework. Pool is sized from DB_POOL_MAX like everyone else.
+  late final Pool _pool;
   bool _initialized = false;
 
   Future<void> init() async {
@@ -15,26 +20,33 @@ class DatabaseService {
     final uri = Uri.parse(databaseUrl);
     final userInfo = uri.userInfo.split(':');
 
-    _connection = await Connection.open(
-      Endpoint(
-        host: uri.host,
-        database: uri.path.substring(1),
-        username: userInfo.first,
-        password: userInfo.length > 1 ? userInfo.last : '',
-        port: uri.port,
-      ),
-      settings: ConnectionSettings(
+    _pool = Pool.withEndpoints(
+      [
+        Endpoint(
+          host: uri.host,
+          database: uri.path.substring(1),
+          username: userInfo.first,
+          password: userInfo.length > 1 ? userInfo.last : '',
+          port: uri.port,
+        ),
+      ],
+      settings: PoolSettings(
+        maxConnectionCount: dbPoolPerWorker(),
         connectTimeout: Duration(seconds: int.parse(Platform.environment['DB_TIMEOUT'] ?? '30')),
+        // The other four Dart implementations already disable TLS. Leaving it
+        // on the driver default here would have put a handshake and per-query
+        // encryption on this implementation alone.
+        sslMode: SslMode.disable,
       ),
     );
 
     _initialized = true;
-    logger.info('Database connected to ${uri.host}:${uri.port}');
+    logger.info('Database pool opened against ${uri.host}:${uri.port}');
   }
 
   Future<void> close() async {
     if (_initialized) {
-      await _connection.close();
+      await _pool.close();
       _initialized = false;
       logger.info('Database disconnected');
     }
@@ -45,7 +57,7 @@ class DatabaseService {
       throw Exception('Database not initialized');
     }
 
-    final result = await _connection.execute(
+    final result = await _pool.execute(
       Sql.named('SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = @id'),
       parameters: {'id': userId},
     );
@@ -87,21 +99,21 @@ class DatabaseService {
       LIMIT 100
     ''';
 
-    final result = await _connection.execute(query, parameters: [days]);
+    final result = await _pool.execute(query, parameters: [days]);
 
     return result.map((row) => {
       'userId': row[0] as int,
       'userName': row[1] as String,
-      'totalOrders': row[2] as int,
-      'totalValue': (row[3] as num).toDouble(),
-      'averageOrderValue': (row[4] as num).toDouble(),
+      'totalOrders': asInt(row[2]),
+      'totalValue': asDouble(row[3]),
+      'averageOrderValue': asDouble(row[4]),
     }).toList();
   }
 
   Future<bool> healthCheck() async {
     if (!_initialized) return false;
     try {
-      await _connection.execute('SELECT 1');
+      await _pool.execute('SELECT 1');
       return true;
     } catch (error) {
       logger.severe('Database health check failed: $error');

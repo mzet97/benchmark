@@ -1,6 +1,6 @@
 # Plano de Ação — Benchmark REST/gRPC/GraphQL
 
-**Atualizado**: 2026-07-31
+**Atualizado**: 2026-08-02
 **Objetivo**: tornar os resultados deste benchmark defensáveis — hoje eles não são.
 
 > Substitui o plano de 2026-07-29, que assumia que os resultados existentes
@@ -165,7 +165,7 @@ foi executado para nenhuma: isso é a Fase 6, depois do rebuild.
 | Java | spring, micronaut, quarkus | `Canonical.java` compilado com `javac`, executado e cross-check. **Sem Maven/Gradle nesta máquina — os projetos não foram compilados inteiros** |
 | Kotlin | spring, ktor, http4k | **nenhuma — não há `kotlinc` nesta máquina**. Código espelha o `Canonical.java` já verificado |
 | GraalVM | spring, gspring, micronaut, gmicronaut, helidon, vertx | mesmo `Canonical.java` verificado; projetos não compilados (sem Maven/Gradle) |
-| Dart | vaden | **nenhuma — não há SDK Dart nesta máquina** |
+| Dart | vaden | **nenhuma — não há SDK Dart nesta máquina**. Ver "Dart: o ambiente que nunca foi executado" |
 
 Os 4 crates Rust não compilavam antes desta passada. Além do payload, foi
 preciso corrigir: `Cargo.toml` do axum com `profile-rustflags` instável
@@ -332,7 +332,117 @@ handler default. Nenhum desses caminhos ativa `SO_REUSEPORT`, então um
 bootstrap multi-processo daria `EADDRINUSE` em todos os workers menos o
 primeiro — pior que o problema que resolve.
 
-**Ainda pendente**: Deno (10), Dart (5) e parte de JVM/GraalVM.
+#### Deno: 7 de 10
+
+Deno não tem `cluster` e um Web Worker não pode ser dono de um socket de
+escuta. O caminho é o mesmo do Bun: N processos sobre um socket com
+`SO_REUSEPORT`, que no Deno 2 é `reusePort` do `Deno.serve`. Cada
+implementação ganhou um `index.ts` que faz fork de `BENCH_CPUS` workers via
+`Deno.Command`, e o Dockerfile passou a chamá-lo (com `--allow-run`, que o
+fork exige).
+
+`oak` foi o único caso não óbvio: `ListenOptions` do oak não declara
+`reusePort`, mas o servidor padrão dele repassa as opções direto para o
+`Deno.serve` (`http_server_native.ts`), então a opção chega ao socket — o
+cast existe só para o type checker.
+
+Os **3 gRPC do Deno ficaram deliberadamente single-process**, pela mesma razão
+que os do Bun: `grpc-js` e `connectrpc` fazem bind por `bindAsync` e
+`nice-grpc` pelo `createServer` do `node:http2`. Nenhum ativa `SO_REUSEPORT`.
+
+#### Dart: 5 de 5
+
+`BENCH_CPUS` isolates, cada um rodando o servidor inteiro, todos aceitando de
+um socket aberto com `shared: true` (`shelf_io.serve`, `HttpServer.bind` e
+`Server.serve` do package:grpc aceitam o parâmetro). Só o isolate 0 observa
+sinais.
+
+O ambiente Dart era o menos verificado do repositório e o paralelismo foi a
+menor das coisas encontradas — ver "Dart: o ambiente que nunca foi executado"
+abaixo.
+
+#### JVM/GraalVM: heap e coletor
+
+`-XX:ActiveProcessorCount=7` já cobria o dimensionamento de pools. Faltava o
+que estava logo ao lado:
+
+| | |
+|---|---|
+| **Nenhuma implementação JVM fixava heap** | sem `-Xms/-Xmx`, cada uma roda com 1/64 do limite do contêiner de heap inicial e 1/4 de máximo, e passa a medição crescendo o heap |
+| **4 de ~30 fixavam o coletor** | `java/kotlin dgs`, `spring-graphql` e `graphql-kotlin` traziam `-XX:+UseG1GC -XX:MaxGCPauseMillis=20` no próprio Dockerfile; as outras ficavam no default. Um alvo de pausa é tuning, e tuning que só 4 recebem é um ranking de quem editou o Dockerfile |
+
+`JAVA_TOOL_OPTIONS` do ConfigMap passou a carregar `-Xms8g -Xmx8g
+-XX:+UseG1GC`, e os 4 Dockerfiles perderam os flags próprios — flag de linha
+de comando vence `JAVA_TOOL_OPTIONS`, então mantê-los manteria o privilégio.
+
+**As 6 imagens nativas do GraalVM não leem `JAVA_TOOL_OPTIONS`** — um
+executável nativo não lê essa variável. `-Xms8g -Xmx8g` passou a ser argumento
+de linha de comando nos 6 Dockerfiles (`-Xmx`/`-Xms` são opções de runtime
+documentadas para native image).
+
+**Fica registrado, não resolvido**: o native image do GraalVM Community usa
+**Serial GC** por padrão, enquanto as JVM usam G1. Trocar exige `--gc=G1` em
+tempo de build, configurado de forma diferente em cada um dos 6 (Maven
+plugin, `quarkus.native.additional-build-args`, `-Pnative`), e nenhum deles
+compila nesta máquina — não há Maven. Comparar `graalvm/spring` (nativo,
+Serial) com `graalvm/gspring` (JVM, G1) como se a diferença fosse "AOT vs JIT"
+mediria principalmente o coletor. Pertence à Fase 6.
+
+### O pool era por processo, não por pod
+
+O bootstrap multi-processo criou um problema que não existia antes: com 7
+workers, cada um abrindo `DB_POOL_MAX` conexões, uma implementação
+multi-processo rodaria contra **7× o pool** de uma single-process — exatamente
+a variável escondida que o contrato existe para remover.
+
+A divisão passou a viver junto da decisão de quantos workers subir: o
+bootstrap calcula `DB_POOL_MAX / workers` e injeta o valor no ambiente do
+filho, então nenhum arquivo de serviço mudou. Vale para Node (9), Bun (5),
+Deno (7) e Dart (5, no `runtime.dart`).
+
+Aproveitando, os pools do Python — que a Fase 3.2 dava como resolvidos e não
+estavam:
+
+| Onde | Estava |
+|---|---|
+| `graphql/{ariadne,strawberry,graphene}` | `ThreadedConnectionPool(1, 10)` fixo, ignorando `DB_POOL_MAX`; × 7 workers do uvicorn = 70 conexões |
+| `grpc/{grpcio,grpclib,betterproto}` | `maxconn=10` fixo (processo único, sem divisão) |
+| `fastapi` | `max_size=25` fixo; × 7 workers = 175 conexões contra as 32 de todo mundo |
+
+`flask` e `django` ficaram como estão, e isso é deliberado: usam uma conexão
+por worker gunicorn com `--threads 1`, então o modelo de concorrência já
+limita a 7 queries simultâneas. Aumentar o pool não mudaria nada — o teto é do
+modelo sync, não da configuração, e é o que uma implantação real teria.
+
+### Dart: o ambiente que nunca foi executado
+
+Nenhuma das 5 implementações Dart tinha qualquer nível de evidência nas fases
+anteriores (não há SDK Dart nesta máquina). A auditoria desta passada
+encontrou, além do paralelismo:
+
+| Problema | Onde | Efeito |
+|---|---|---|
+| **`bin/` no `.gitignore`** | 4 de 5 | regra `[Bb]in/` do .NET escondia `src/dart/*/bin/server.dart` do repositório: em um clone limpo essas implementações **não têm entrypoint**. É parte de por que nunca foram consertadas — não estavam visíveis |
+| `numeric` decodifica para `String` | 5 de 5 | `SUM/AVG` sobre `DECIMAL(10,2)` chegam como `String`; todas faziam `as num` → exceção em runtime em `/db/complex` |
+| Conexão única, sem pool | 5 de 5 | mesmo defeito já corrigido no Go REST (`pgx.Conn`) e no actix-web (client sob `Mutex`): todo `/db/*` enfileira num socket |
+| `Sql(sql)` com parâmetros nomeados | angel3, leto, graphql-server2 | o construtor default manda o SQL sem modificação, então `@name` nunca era substituído e o mapa de parâmetros nunca era ligado |
+| `String.fromEnvironment` | graphql-server2 | lê `-D` de compilação, não o ambiente: conectava em `localhost:5432` como `postgres` **independentemente do ConfigMap**, e o mesmo para `REDIS_URL` |
+| `GRPC_PORT` | grpc-dart | variável que não está no ConfigMap — escutaria em 50051 com o Service apontando para 8080. É o mesmo defeito dos gRPC Python, e a auditoria de portas não o pegou |
+| SQL de `/db/complex` fora do contrato | 4 de 5 | `SUM(o.total)` e `SUM(o.amount)`, colunas que não existem; `LEFT JOIN`; sem `LIMIT 100`; `ORDER BY` sem desempate; intervalo interpolado na string |
+| `_parseJson` que devolve `{}` | graphql-server2 | `/db/simple` gravava o usuário no Redis com `Map.toString()` e, na chamada seguinte, lia de volta por um stub que retorna vazio — **da segunda requisição em diante respondia um objeto vazio sem tocar no PostgreSQL** |
+| `/cache` que nunca escrevia | graphql-server2 | reportava `cached: false` sempre, enquanto as outras reportavam hit |
+| `SETEX ... 3600` | grpc-dart | contrato é `CACHE_TTL` (300). Numa corrida de 5×60 s uma chave de 300 s expira e uma de 3600 s não |
+| Log por requisição | vaden, leto, graphql-server2 | `shelf.logRequests()` e um middleware próprio, com `LOG_LEVEL=error` no ConfigMap |
+| `app.startServer` | angel3 | não existe em `Angel`; quem tem é o driver (`AngelHttp`) |
+| Schema por requisição | graphql-server2 | `buildSchema()` dentro do handler — nenhuma outra implementação GraphQL paga isso por request |
+
+**Nível de evidência**: nenhum. Não há SDK Dart nesta máquina, então nada
+disso foi compilado. O que foi verificado: as APIs usadas (`shared` em
+`shelf_io.serve`/`Server.serve`, `Pool.withEndpoints`/`PoolSettings`,
+`AngelHttp.custom`, decodificação de `numeric`) foram conferidas contra a
+documentação publicada de cada pacote, e um verificador de balanceamento de
+delimitadores ciente de strings e interpolação do Dart roda limpo nos 19
+arquivos. Isso não substitui `dart analyze`.
 
 ### Porta: 33 implementações não escutavam em 8080
 
@@ -345,7 +455,8 @@ primeiro — pior que o problema que resolve.
 Mais 67 Dockerfiles com `EXPOSE` e healthcheck apontando para 3000/50051: um
 healthcheck na porta errada marca como unhealthy um contêiner que funciona.
 
-**Pendente na Fase 3**: camada de dados do `kotlin/http4k`. O gate só fecha de
+**Pendente na Fase 3**: camada de dados do `kotlin/http4k`, e o coletor das 6
+imagens nativas do GraalVM (`--gc=G1` em tempo de build). O gate só fecha de
 verdade na Fase 6, contra os serviços rodando.
 
 

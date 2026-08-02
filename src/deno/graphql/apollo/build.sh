@@ -25,7 +25,7 @@ case $TARGET in
         print_info "Caching dependencies..."
         deno cache server.ts
         print_success "Dependencies cached"
-        print_info "To run: deno run --allow-net --allow-env --allow-read server.ts"
+        print_info "To run: deno run --allow-net --allow-env --allow-read --allow-run index.ts"
         ;;
     "docker")
         print_info "Building Docker image..."

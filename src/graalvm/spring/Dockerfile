@@ -40,4 +40,9 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-ENTRYPOINT ["./app"]
+# A GraalVM native executable does not read JAVA_TOOL_OPTIONS, so the heap
+# settings every JVM implementation gets from the ConfigMap have to be passed
+# here. -Xms/-Xmx are documented runtime options for native images; without
+# them this binary sizes its heap from the container's memory on its own,
+# against 8g everywhere else. See docs/ACTION_PLAN.md, Fase 3.1.
+ENTRYPOINT ["./app", "-Xms8g", "-Xmx8g"]

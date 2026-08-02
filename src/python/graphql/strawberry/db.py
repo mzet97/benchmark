@@ -5,6 +5,20 @@ import psycopg2.pool
 _pool = None
 
 
+def _pool_max() -> int:
+    """Connections this worker process may open.
+
+    DB_POOL_MAX is the budget for the whole pod, not for one worker: the server
+    runs BENCH_CPUS worker processes and each builds its own pool, so without
+    dividing, this implementation would run against N times the pool of a
+    single-process one. The size was also hardcoded here, ignoring the ConfigMap
+    entirely. See docs/ACTION_PLAN.md, Fase 3.2.
+    """
+    budget = int(os.environ.get("DB_POOL_MAX", "32"))
+    workers = max(1, int(os.environ.get("BENCH_CPUS", "1")))
+    return max(1, budget // workers)
+
+
 def get_pool():
     global _pool
     if _pool is None:
@@ -12,7 +26,7 @@ def get_pool():
             "DATABASE_URL",
             "postgres://benchmark:benchmark@localhost:5432/benchmark",
         )
-        _pool = psycopg2.pool.ThreadedConnectionPool(1, 10, database_url)
+        _pool = psycopg2.pool.ThreadedConnectionPool(1, _pool_max(), database_url)
     return _pool
 
 

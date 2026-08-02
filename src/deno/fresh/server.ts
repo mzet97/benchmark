@@ -245,4 +245,6 @@ Deno.addSignalListener("SIGTERM", shutdown);
 
 // ==================== Start Server ====================
 console.log(`🚀 Deno Fresh server starting on port ${PORT}`);
-Deno.serve({ port: PORT }, handleRequest);
+// reusePort sets SO_REUSEPORT, which is what lets the BENCH_CPUS workers
+// forked by index.ts share this socket instead of fighting over it.
+Deno.serve({ port: PORT, reusePort: true }, handleRequest);

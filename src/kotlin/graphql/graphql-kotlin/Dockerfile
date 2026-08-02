@@ -21,4 +21,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-CMD ["java", "-XX:+UseG1GC", "-XX:MaxGCPauseMillis=20", "-jar", "app.jar"]
+# GC and heap come from JAVA_TOOL_OPTIONS in the ConfigMap, so every JVM
+# implementation gets the same collector. The -XX:MaxGCPauseMillis=20 that
+# used to be here was tuning only four of them received.
+CMD ["java", "-jar", "app.jar"]
