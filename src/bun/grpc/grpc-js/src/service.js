@@ -1,16 +1,17 @@
 const { v4: uuidv4 } = require("crypto");
 const db = require("./db");
 const cache = require("./cache");
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.js';
 
 const VERSION = process.env.APP_VERSION || "1.0.0";
 
-function generateUuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
 
 /**
  * Scenario 1: Health check
@@ -39,17 +40,17 @@ async function Health(call, callback) {
  */
 async function GetJsonItems(call, callback) {
   try {
-    const limit = call.request.limit || 1000;
+    const count = itemCount(call.request.limit);
     const items = [];
 
-    for (let i = 0; i < limit; i++) {
+    for (let i = 0; i < count; i++) {
       items.push({
-        id: i + 1,
-        uuid: generateUuid(),
-        name: `item_${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        created_at: new Date().toISOString(),
-        is_active: i % 2 === 0,
+        id: i,
+        uuid: canonicalUuid(i),
+        name: canonicalName(i),
+        email: canonicalEmail(i),
+        created_at: CANONICAL_CREATED_AT,
+        is_active: canonicalIsActive(i),
       });
     }
 

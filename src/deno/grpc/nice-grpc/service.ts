@@ -1,5 +1,13 @@
 import * as db from "./db.ts";
 import * as cache from "./cache.ts";
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.ts';
 
 const VERSION = Deno.env.get("APP_VERSION") || "1.0.0";
 
@@ -40,14 +48,14 @@ export default {
     const limit = (request.limit as number) > 0 ? (request.limit as number) : 1000;
     const items = [];
 
-    for (let i = 1; i <= limit; i++) {
+    for (let i = 0; i < count; i++) {
       items.push({
         id: i,
-        uuid: crypto.randomUUID(),
-        name: `Item ${i}`,
-        email: `user${i}@benchmark.com`,
-        created_at: new Date().toISOString(),
-        is_active: i % 2 === 0,
+        uuid: canonicalUuid(i),
+        name: canonicalName(i),
+        email: canonicalEmail(i),
+        created_at: CANONICAL_CREATED_AT,
+        is_active: canonicalIsActive(i),
       });
     }
 

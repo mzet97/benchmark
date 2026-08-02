@@ -2,6 +2,14 @@
 
 const db = require('./db');
 const cache = require('./cache');
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.js';
 
 const VERSION = process.env.APP_VERSION || '1.0.0';
 
@@ -33,14 +41,15 @@ const resolvers = {
     },
 
     jsonItems: async (_parent, { limit = 1000 }) => {
+      const count = itemCount(limit);
       const items = [];
-      for (let i = 0; i < limit; i++) {
+      for (let i = 0; i < count; i++) {
         items.push({
-          id: i + 1,
-          uuid: `item-${i + 1}-uuid`,
-          name: `Item ${i + 1}`,
-          email: `item${i + 1}@example.com`,
-          createdAt: new Date().toISOString(),
+          id: i,
+          uuid: canonicalUuid(i),
+          name: canonicalName(i),
+          email: canonicalEmail(i),
+          createdAt: CANONICAL_CREATED_AT,
           isActive: i % 2 === 0
         });
       }

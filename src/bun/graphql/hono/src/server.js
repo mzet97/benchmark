@@ -4,6 +4,14 @@ import { buildSchema } from "graphql";
 import { typeDefs } from "./typeDefs.js";
 import { checkDatabase, getUser, getComplexOrders } from "./db.js";
 import { checkCache, getCache, setCache } from "./cache.js";
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.js';
 
 const PORT = parseInt(process.env.PORT || "3000");
 
@@ -24,18 +32,19 @@ const rootValue = {
 
   jsonItems: async ({ limit = 1000 }) => {
     const timestamp = new Date().toISOString();
+    const count = itemCount(limit);
     const items = [];
-    for (let i = 0; i < limit; i++) {
+    for (let i = 0; i < count; i++) {
       items.push({
-        id: i + 1,
-        uuid: crypto.randomUUID(),
-        name: `Item ${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        createdAt: timestamp,
-        isActive: i % 2 === 0,
+        id: i,
+        uuid: canonicalUuid(i),
+        name: canonicalName(i),
+        email: canonicalEmail(i),
+        createdAt: CANONICAL_CREATED_AT,
+        isActive: canonicalIsActive(i),
       });
     }
-    return { items, count: limit, timestamp };
+    return { items, count, timestamp };
   },
 
   user: async ({ id }) => {

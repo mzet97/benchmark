@@ -1,5 +1,13 @@
 import * as db from "./db.ts";
 import * as cache from "./cache.ts";
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.ts';
 
 const VERSION = Deno.env.get("APP_VERSION") || "1.0.0";
 
@@ -36,17 +44,17 @@ export async function Health(call: GrpcCall, callback: GrpcCallback): Promise<vo
 
 export async function GetJsonItems(call: GrpcCall, callback: GrpcCallback): Promise<void> {
   try {
-    const limit = (call.request.limit as number) || 1000;
+    const count = itemCount(call.request.limit);
     const items = [];
 
-    for (let i = 0; i < limit; i++) {
+    for (let i = 0; i < count; i++) {
       items.push({
-        id: i + 1,
-        uuid: crypto.randomUUID(),
-        name: `item_${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        created_at: new Date().toISOString(),
-        is_active: i % 2 === 0,
+        id: i,
+        uuid: canonicalUuid(i),
+        name: canonicalName(i),
+        email: canonicalEmail(i),
+        created_at: CANONICAL_CREATED_AT,
+        is_active: canonicalIsActive(i),
       });
     }
 

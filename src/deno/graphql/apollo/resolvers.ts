@@ -1,5 +1,13 @@
 import { checkDatabase, getUser, getComplexOrders } from "./db.ts";
 import { checkCache, getCache, setCache } from "./cache.ts";
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.ts';
 
 export const resolvers = {
   Query: {
@@ -17,18 +25,19 @@ export const resolvers = {
 
     jsonItems: async (_parent: unknown, { limit = 1000 }: { limit: number }) => {
       const timestamp = new Date().toISOString();
+      const count = itemCount(limit);
       const items = [];
-      for (let i = 0; i < limit; i++) {
+      for (let i = 0; i < count; i++) {
         items.push({
-          id: i + 1,
-          uuid: crypto.randomUUID(),
-          name: `Item ${i + 1}`,
-          email: `user${i + 1}@example.com`,
-          createdAt: timestamp,
-          isActive: i % 2 === 0,
+          id: i,
+          uuid: canonicalUuid(i),
+          name: canonicalName(i),
+          email: canonicalEmail(i),
+          createdAt: CANONICAL_CREATED_AT,
+          isActive: canonicalIsActive(i),
         });
       }
-      return { items, count: limit, timestamp };
+      return { items, count, timestamp };
     },
 
     user: async (_parent: unknown, { id }: { id: number }) => {

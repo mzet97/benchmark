@@ -1,6 +1,14 @@
 const crypto = require('crypto');
 const db = require('./db');
 const cache = require('./cache');
+import {
+  CANONICAL_CREATED_AT,
+  canonicalEmail,
+  canonicalIsActive,
+  canonicalName,
+  canonicalUuid,
+  itemCount,
+} from './canonical.js';
 
 const VERSION = process.env.APP_VERSION || '1.0.0';
 
@@ -39,17 +47,17 @@ const benchmarkService = {
 
   // Scenario 2: JSON serialization (1000 items)
   async getJsonItems(request, context) {
-    const limit = request.limit > 0 ? request.limit : 1000;
+    const count = itemCount(request.limit);
     const items = [];
 
-    for (let i = 1; i <= limit; i++) {
+    for (let i = 0; i < count; i++) {
       items.push({
         id: i,
-        uuid: crypto.randomUUID(),
-        name: `Item ${i}`,
-        email: `user${i}@benchmark.com`,
-        created_at: new Date().toISOString(),
-        is_active: i % 2 === 0,
+        uuid: canonicalUuid(i),
+        name: canonicalName(i),
+        email: canonicalEmail(i),
+        created_at: CANONICAL_CREATED_AT,
+        is_active: canonicalIsActive(i),
       });
     }
 
