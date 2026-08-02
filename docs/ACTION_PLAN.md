@@ -272,8 +272,40 @@ E dois endpoints que reportavam o oposto do que acontecia: em C# `cached` era
 **acabara de ser gerado**; em `graalvm/gspring`, inferido por conter a data de
 hoje.
 
-**Pendente na Fase 3**: camada de dados do `kotlin/http4k`; depois gRPC (32) e
-GraphQL (32). O gate falha até que todas passem.
+### gRPC e GraphQL: 64/64 no payload canônico
+
+As 32 implementações gRPC e as 32 GraphQL passaram a construir os itens a
+partir de um módulo `Canonical` por linguagem, conferido contra a mesma
+referência que o gate REST usa. As divergências eram as mesmas de sempre —
+`UUID.randomUUID()`/`crypto.randomUUID()`/`Uuid::new_v4()` por item, relógio
+por item, ids a partir de 1, `@example.com` — mais algumas próprias:
+
+| Implementação | Divergência |
+|---|---|
+| `go/graphql` (3) | `time.Now().UnixNano()` por item para montar um "uuid-n-nanos" que não é UUID |
+| `rust/grpc/tonic` | `isActive` era `i % 10 != 0` |
+| `java/dgs`, `kotlin/dgs`, `ariadne`, `graphene`, `dart/leto` | `isActive` era `i % 3 != 0` |
+| `dart/grpc-dart` | itens de um `Random` com semente; `user_3@benchmark.dev` |
+| `bun,deno/graphql/hono` | uma **segunda cópia** de todos os resolvers dentro de `server.js`/`server.ts`, com gerador próprio |
+| C# (3 gRPC), Python (3 gRPC) | itens nomeados `User_3`/`user_3` |
+
+SQL de `/db/complex` nos gRPC/GraphQL: agregavam `o.total` ou `o.amount`,
+colunas que **não existem no schema** (a query falharia em runtime), passavam
+o intervalo como string, não tinham desempate no `ORDER BY` e, em gqlgen,
+graphene, strawberry, ariadne e nos dois `async-graphql`, **não tinham LIMIT
+nenhum** — devolviam todos os usuários em vez dos 100 do contrato.
+
+Erros de compilação pré-existentes corrigidos de passagem: campo `Cache`
+colidindo com o método `Cache` no `gqlgen` e `graphql-go`; conversão de tipos
+`*db.User` no `graphql-go`; `Decimal: FromSql` nos dois `async-graphql`;
+parâmetro opcional antes de obrigatório no HotChocolate;
+`IDatabase.TimeToLiveAsync`, que não existe — o nome é `KeyTimeToLiveAsync`.
+
+`java/grpc/grpc-js` contém **apenas um diretório `k8s/`**: sem código, sem
+build. É um diretório que entra na contagem de implementações e nunca foi uma.
+
+**Pendente na Fase 3**: camada de dados do `kotlin/http4k`. O gate só fecha de
+verdade na Fase 6, contra os serviços rodando.
 
 
 ### 3.1 Paralelismo = 7 cores, via `BENCH_CPUS` no ConfigMap
