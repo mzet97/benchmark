@@ -31,15 +31,15 @@ class BenchmarkServiceImpl(
 
     // Scenario 2: JSON serialization (1000 items)
     override suspend fun getJsonItems(request: benchmark.JsonItemsRequest): benchmark.JsonItemsResponse {
-        val limit = if (request.limit > 0) request.limit else 1000
-        val items = (1..limit).map { i ->
+        val count = Canonical.itemCount(request.limit)
+        val items = (0 until count).map { i ->
             benchmark.JsonItem.newBuilder()
                 .setId(i)
-                .setUuid(UUID.randomUUID().toString())
-                .setName("Item $i")
-                .setEmail("user${i}@benchmark.com")
-                .setCreatedAt(Instant.now().toString())
-                .setIsActive(i % 2 == 0)
+                .setUuid(Canonical.uuid(i))
+                .setName(Canonical.name(i))
+                .setEmail(Canonical.email(i))
+                .setCreatedAt(Canonical.CREATED_AT)
+                .setIsActive(Canonical.isActive(i))
                 .build()
         }
 

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:benchmark_grpc_dart/canonical.dart';
 
 import 'package:grpc/grpc.dart';
 
@@ -30,19 +31,20 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
   @override
   Future<JsonItemsResponse> getJsonItems(
       ServiceCall call, JsonItemsRequest request) async {
-    final limit = request.limit > 0 ? request.limit : 1000;
-    final rng = Random(42); // deterministic seed for reproducibility
+    // The previous version numbered items from 1, drew a UUID from a seeded
+    // Random and named them "user_3" at user_3@benchmark.dev.
+    // See contracts/rest/canonical-payloads.md.
+    final count = itemCount(request.limit);
     final items = <JsonItem>[];
 
-    for (var i = 1; i <= limit; i++) {
-      final uuid = _generateUuid(rng);
+    for (var i = 0; i < count; i++) {
       items.add(JsonItem()
         ..id = i
-        ..uuid = uuid
-        ..name = 'user_$i'
-        ..email = 'user_$i@benchmark.dev'
-        ..createdAt = '2024-01-01T00:00:00Z'
-        ..isActive = i % 2 == 0);
+        ..uuid = canonicalUuid(i)
+        ..name = canonicalName(i)
+        ..email = canonicalEmail(i)
+        ..createdAt = canonicalCreatedAt
+        ..isActive = canonicalIsActive(i));
     }
 
     return JsonItemsResponse()

@@ -27,16 +27,16 @@ class QueryResolver(
 
     @DgsQuery
     fun jsonItems(@InputArgument limit: Int?): JsonItemsResult {
-        val actualLimit = limit ?: 1000
+        val count = Canonical.itemCount(limit)
         val now = Instant.now().toString()
-        val items = (1..actualLimit).map { i ->
+        val items = (0 until count).map { i ->
             JsonItem(
                 id = i,
-                uuid = UUID.randomUUID().toString(),
-                name = "Item $i",
-                email = "user$i@example.com",
-                createdAt = now,
-                isActive = i % 3 != 0
+                uuid = Canonical.uuid(i),
+                name = Canonical.name(i),
+                email = Canonical.email(i),
+                createdAt = Canonical.CREATED_AT,
+                isActive = Canonical.isActive(i)
             )
         }
         return JsonItemsResult(

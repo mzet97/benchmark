@@ -1,5 +1,6 @@
 import 'db.dart';
 import 'cache.dart';
+import 'package:graphql_server2_benchmark/canonical.dart';
 
 class Resolvers {
   late final DatabaseService _db;
@@ -40,15 +41,19 @@ class Resolvers {
   }
 
   Future<Map<String, dynamic>> resolveJsonItems(int limit) async {
+    // The previous version used a 'item-<n>-uuid' string that is not a UUID,
+    // numbered items from 1, used @example.com and stamped the clock into
+    // createdAt. See contracts/rest/canonical-payloads.md.
+    final count = itemCount(limit);
     final items = <Map<String, dynamic>>[];
-    for (var i = 0; i < limit; i++) {
+    for (var i = 0; i < count; i++) {
       items.add({
-        'id': i + 1,
-        'uuid': 'item-${i + 1}-uuid',
-        'name': 'Item ${i + 1}',
-        'email': 'item${i + 1}@example.com',
-        'createdAt': DateTime.now().toUtc().toIso8601String(),
-        'isActive': i % 2 == 0,
+        'id': i,
+        'uuid': canonicalUuid(i),
+        'name': canonicalName(i),
+        'email': canonicalEmail(i),
+        'createdAt': canonicalCreatedAt,
+        'isActive': canonicalIsActive(i),
       });
     }
     return {

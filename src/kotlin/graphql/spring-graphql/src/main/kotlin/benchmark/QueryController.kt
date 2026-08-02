@@ -26,20 +26,22 @@ class QueryController(
 
     @QueryMapping
     fun jsonItems(@Argument limit: Int): JsonItemsResult {
+        val count = Canonical.itemCount(limit)
+        // The envelope timestamp is the only clock-dependent field.
         val timestamp = java.time.Instant.now().toString()
-        val items = (1..limit).map { i ->
+        val items = (0 until count).map { i ->
             JsonItem(
                 id = i,
-                uuid = UUID.randomUUID().toString(),
-                name = "Item $i",
-                email = "user${i}@example.com",
+                uuid = Canonical.uuid(i),
+                name = Canonical.name(i),
+                email = Canonical.email(i),
                 createdAt = timestamp,
-                isActive = i % 2 == 0
+                isActive = Canonical.isActive(i)
             )
         }
         return JsonItemsResult(
             items = items,
-            count = limit,
+            count = count,
             timestamp = timestamp
         )
     }

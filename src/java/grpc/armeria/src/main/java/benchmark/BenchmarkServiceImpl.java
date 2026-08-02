@@ -45,21 +45,21 @@ public class BenchmarkServiceImpl extends BenchmarkServiceGrpc.BenchmarkServiceI
     @Override
     public void getJsonItems(Benchmark.JsonItemsRequest request,
                              StreamObserver<Benchmark.JsonItemsResponse> responseObserver) {
-        int limit = request.getLimit() > 0 ? request.getLimit() : 1000;
+        int count = Canonical.itemCount(request.getLimit());
 
         Benchmark.JsonItemsResponse.Builder builder = Benchmark.JsonItemsResponse.newBuilder();
-        for (int i = 1; i <= limit; i++) {
+        for (int i = 0; i < count; i++) {
             builder.addItems(Benchmark.JsonItem.newBuilder()
                     .setId(i)
-                    .setUuid(UUID.randomUUID().toString())
-                    .setName("Item " + i)
-                    .setEmail("user" + i + "@benchmark.com")
-                    .setCreatedAt(Instant.now().toString())
-                    .setIsActive(i % 2 == 0)
+                    .setUuid(Canonical.uuid(i))
+                    .setName(Canonical.name(i))
+                    .setEmail(Canonical.email(i))
+                    .setCreatedAt(Canonical.CREATED_AT)
+                    .setIsActive(Canonical.isActive(i))
                     .build());
         }
 
-        builder.setCount(limit);
+        builder.setCount(count);
         builder.setTimestamp(Instant.now().toString());
 
         responseObserver.onNext(builder.build());

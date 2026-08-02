@@ -25,14 +25,15 @@ class QueryResolver(
 
     fun jsonItems(limit: Int = 1000): JsonItemsResult {
         val now = Instant.now().toString()
-        val items = (1..limit).map { i ->
+        val count = Canonical.itemCount(limit)
+        val items = (0 until count).map { i ->
             JsonItem(
                 id = i,
-                uuid = UUID.randomUUID().toString(),
-                name = "Item $i",
-                email = "user$i@example.com",
-                createdAt = now,
-                isActive = i % 3 != 0
+                uuid = Canonical.uuid(i),
+                name = Canonical.name(i),
+                email = Canonical.email(i),
+                createdAt = Canonical.CREATED_AT,
+                isActive = Canonical.isActive(i)
             )
         }
         return JsonItemsResult(

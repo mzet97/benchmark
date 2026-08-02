@@ -31,15 +31,16 @@ public class QueryResource {
 
     @Query("jsonItems")
     public Models.JsonItemsResult jsonItems(int limit) {
-        List<Models.JsonItem> items = new ArrayList<>(limit);
-        for (int i = 0; i < limit; i++) {
+        int count = Canonical.itemCount(limit);
+        List<Models.JsonItem> items = new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
             items.add(new Models.JsonItem(
-                    i + 1,
-                    UUID.randomUUID().toString(),
-                    "Item " + (i + 1),
-                    "user" + (i + 1) + "@example.com",
-                    Instant.now().toString(),
-                    i % 3 != 0
+                    i,
+                    Canonical.uuid(i),
+                    Canonical.name(i),
+                    Canonical.email(i),
+                    Canonical.CREATED_AT,
+                    Canonical.isActive(i)
             ));
         }
         return new Models.JsonItemsResult(items, items.size(), Instant.now().toString());

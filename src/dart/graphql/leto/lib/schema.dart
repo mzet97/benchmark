@@ -1,4 +1,5 @@
 import 'package:leto/leto.dart';
+import 'package:graphql_leto_benchmark/canonical.dart';
 
 import 'db.dart';
 import 'cache.dart';
@@ -80,15 +81,15 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
       type: GraphQLNonNull(jsonItemsResultType),
       args: [GraphQLFieldArg('limit', GraphQLInt, defaultValue: 1000)],
       resolve: (obj, args, ctx) {
-        final limit = args['limit'] as int? ?? 1000;
+        final count = itemCount(args['limit'] as int?);
         final now = DateTime.now().toUtc().toIso8601String();
-        final items = List.generate(limit, (i) => {
-          'id': i + 1,
-          'uuid': 'item-${i + 1}-uuid',
-          'name': 'Item ${i + 1}',
-          'email': 'user${i + 1}@example.com',
-          'createdAt': now,
-          'isActive': i % 3 != 0,
+        final items = List.generate(count, (i) => {
+          'id': i,
+          'uuid': canonicalUuid(i),
+          'name': canonicalName(i),
+          'email': canonicalEmail(i),
+          'createdAt': canonicalCreatedAt,
+          'isActive': canonicalIsActive(i),
         });
         return {
           'items': items,

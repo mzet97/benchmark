@@ -36,21 +36,21 @@ public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceI
 
     @Override
     public Uni<JsonItemsResponse> getJsonItems(JsonItemsRequest request) {
-        int limit = request.getLimit() > 0 ? request.getLimit() : 1000;
+        int count = Canonical.itemCount(request.getLimit());
         JsonItemsResponse.Builder builder = JsonItemsResponse.newBuilder();
 
-        for (int i = 0; i < limit; i++) {
+        for (int i = 0; i < count; i++) {
             builder.addItems(JsonItem.newBuilder()
                     .setId(i)
-                    .setUuid(UUID.randomUUID().toString())
-                    .setName("User_" + i)
-                    .setEmail("user" + i + "@example.com")
-                    .setCreatedAt(Instant.now().toString())
-                    .setIsActive(i % 2 == 0)
+                    .setUuid(Canonical.uuid(i))
+                    .setName(Canonical.name(i))
+                    .setEmail(Canonical.email(i))
+                    .setCreatedAt(Canonical.CREATED_AT)
+                    .setIsActive(Canonical.isActive(i))
                     .build());
         }
 
-        builder.setCount(limit);
+        builder.setCount(count);
         builder.setTimestamp(Instant.now().toString());
         return Uni.createFrom().item(builder.build());
     }
