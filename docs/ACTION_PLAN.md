@@ -304,6 +304,47 @@ parâmetro opcional antes de obrigatório no HotChocolate;
 `java/grpc/grpc-js` contém **apenas um diretório `k8s/`**: sem código, sem
 build. É um diretório que entra na contagem de implementações e nunca foi uma.
 
+### Paralelismo de runtime: 77 de 100 não tinham nenhum
+
+Uma auditoria das 100 implementações encontrou **77 sem qualquer ajuste de
+paralelismo**. Num pod de 7 CPUs isso significa que o runtime ou dimensiona
+seus pools pelo número de cores do **host** (que não é a cota do cgroup) ou
+fica numa thread só. Um serviço Node em uma thread ao lado de um Go em sete
+não é comparação de framework — é ranking de quem lembrou de configurar
+workers.
+
+A maior parte se resolve **sem tocar em código**. O ConfigMap passou a
+carregar `GOMAXPROCS`, `JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount`,
+`DOTNET_PROCESSOR_COUNT` e `TOKIO_WORKER_THREADS`/`ROCKET_WORKERS`, cobrindo
+Go, JVM, .NET e Tokio em ~45 implementações. Go é o caso que mais importa: lê
+os cores do host, não a cota, e honra a variável desde o Go 1.21.
+
+Mudanças de código onde o runtime é genuinamente single-thread: Node (6,
+`cluster`), Bun (2, `Bun.spawn` sobre `Bun.serve` com `reusePort`), Python (2,
+`uvicorn --workers`) e o pool de threads do gRPC Python (2), que vinha de
+`GRPC_MAX_WORKERS` — variável fora do ConfigMap, de modo que todas rodavam com
+o default fixo de 10.
+
+**Quatro implementações Bun ficaram deliberadamente single-process**:
+`grpc-js` faz bind por `bindAsync`, `nice-grpc` por `createServer` do
+`node:http`, `connectrpc` por `fastify.listen` e o GraphQL `hono` exporta um
+handler default. Nenhum desses caminhos ativa `SO_REUSEPORT`, então um
+bootstrap multi-processo daria `EADDRINUSE` em todos os workers menos o
+primeiro — pior que o problema que resolve.
+
+**Ainda pendente**: Deno (10), Dart (5) e parte de JVM/GraalVM.
+
+### Porta: 33 implementações não escutavam em 8080
+
+| Grupo | Efeito |
+|---|---|
+| fallback errado, mas liam `PORT` (20) | funcionavam sob o ConfigMap; armadilha fora dele |
+| **variável errada (3)** | os gRPC Python liam `GRPC_PORT`, que não está no ConfigMap — escutariam em 50051 com o Service apontando para 8080, **pod nunca alcançável** |
+| **porta fixa em config (5)** | `graalvm/grpc/micronaut` (3000), os dois Quarkus gRPC e `kotlin/grpc/spring-grpc` (50051), `kotlin/graphql/spring-graphql` (3000) — nenhuma variável consultada |
+
+Mais 67 Dockerfiles com `EXPOSE` e healthcheck apontando para 3000/50051: um
+healthcheck na porta errada marca como unhealthy um contêiner que funciona.
+
 **Pendente na Fase 3**: camada de dados do `kotlin/http4k`. O gate só fecha de
 verdade na Fase 6, contra os serviços rodando.
 
