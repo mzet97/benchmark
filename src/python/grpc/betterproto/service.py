@@ -17,6 +17,14 @@ import uuid
 
 import grpclib
 from grpclib import const
+from canonical import (
+    CANONICAL_CREATED_AT,
+    canonical_email,
+    canonical_is_active,
+    canonical_name,
+    canonical_uuid,
+    item_count,
+)
 
 # Generated stubs -- available after running generate.py
 # betterproto produces dataclass-based messages and grpclib-compatible service stubs
@@ -57,19 +65,21 @@ class BenchmarkService(benchmark_grpc.BenchmarkServiceBase):
     async def GetJsonItems(self, stream: grpclib.server.Stream) -> None:
         """Scenario 2: JSON serialization (1000 items)."""
         request = await stream.recv_message()
-        limit = request.limit if request.limit > 0 else 1000
-        items = []
-        for i in range(1, limit + 1):
-            items.append(
-                benchmark.JsonItem(
-                    id=i,
-                    uuid=str(uuid.uuid4()),
-                    name=f"user_{i}",
-                    email=f"user_{i}@benchmark.dev",
-                    created_at=datetime.datetime(2024, 1, 1, 0, 0, 0).isoformat() + "Z",
-                    is_active=(i % 2 == 0),
-                )
+        # The previous version minted a uuid.uuid4() per item -- 1000 random
+        # UUIDs per request -- numbered items from 1 and named them "user_3"
+        # at user_3@benchmark.dev. See contracts/rest/canonical-payloads.md.
+        limit = item_count(request.limit)
+        items = [
+            benchmark.JsonItem(
+                id=i,
+                uuid=canonical_uuid(i),
+                name=canonical_name(i),
+                email=canonical_email(i),
+                created_at=CANONICAL_CREATED_AT,
+                is_active=canonical_is_active(i),
             )
+            for i in range(limit)
+        ]
         await stream.send_message(
             benchmark.JsonItemsResponse(
                 items=items,
@@ -117,17 +127,25 @@ class BenchmarkService(benchmark_grpc.BenchmarkServiceBase):
             with conn.cursor() as cur:
                 cur.execute(
                     """
+                    -- Normative SQL, see contracts/rest/canonical-payloads.md. The
+                    -- previous query aggregated o.total or o.amount, columns the schema
+                    -- does not have; the interval was pasted in as text rather than
+                    -- bound, so it was never substituted; the ORDER BY had no tiebreak;
+                    -- and there was no LIMIT, so it returned every user rather than the
+                    -- 100 the contract fixes -- which changes the payload size and the
+                    -- network ceiling of this scenario.
                     SELECT
                         u.id AS user_id,
                         u.first_name || ' ' || u.last_name AS user_name,
                         COUNT(o.id) AS total_orders,
-                        COALESCE(SUM(o.total), 0) AS total_value,
-                        COALESCE(AVG(o.total), 0) AS average_order_value
+                        COALESCE(SUM(o.total_amount), 0) AS total_value,
+                        COALESCE(AVG(o.total_amount), 0) AS average_order_value
                     FROM users u
-                    LEFT JOIN orders o ON u.id = o.user_id
-                        AND o.created_at >= NOW() - INTERVAL '%s days'
+                    INNER JOIN orders o ON u.id = o.user_id
+                        WHERE o.created_at >= NOW() - INTERVAL '1 day' * %s
                     GROUP BY u.id, u.first_name, u.last_name
-                    ORDER BY total_value DESC
+                    ORDER BY total_orders DESC, u.id
+                    LIMIT 100
                     """,
                     (days,),
                 )

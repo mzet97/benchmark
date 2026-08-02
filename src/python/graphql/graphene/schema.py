@@ -5,6 +5,14 @@ import graphene
 
 from db import check_db, get_user, get_complex_orders
 from cache import check_cache, cache_get, cache_set
+from canonical import (
+    CANONICAL_CREATED_AT,
+    canonical_email,
+    canonical_is_active,
+    canonical_name,
+    canonical_uuid,
+    item_count,
+)
 
 
 class Health(graphene.ObjectType):
@@ -80,16 +88,20 @@ class Query(graphene.ObjectType):
 
     def resolve_json_items(self, info, limit):
         now = datetime.now(timezone.utc).isoformat()
+        # The previous version minted a uuid.uuid4() per item, numbered items
+        # from 1, used @example.com and stamped the clock into createdAt.
+        # See contracts/rest/canonical-payloads.md.
+        count = item_count(limit)
         items = [
             JsonItem(
                 id=i,
-                uuid=str(uuid.uuid4()),
-                name=f"Item {i}",
-                email=f"user{i}@example.com",
-                created_at=now,
-                is_active=i % 3 != 0,
+                uuid=canonical_uuid(i),
+                name=canonical_name(i),
+                email=canonical_email(i),
+                created_at=CANONICAL_CREATED_AT,
+                is_active=canonical_is_active(i),
             )
-            for i in range(1, limit + 1)
+            for i in range(count)
         ]
         return JsonItemsResult(
             items=items,

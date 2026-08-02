@@ -5,6 +5,14 @@ from ariadne import QueryType, make_executable_schema
 
 from db import check_db, get_user, get_complex_orders
 from cache import check_cache, cache_get, cache_set
+from canonical import (
+    CANONICAL_CREATED_AT,
+    canonical_email,
+    canonical_is_active,
+    canonical_name,
+    canonical_uuid,
+    item_count,
+)
 
 type_defs = """
     type Health {
@@ -88,16 +96,21 @@ def resolve_health(*_):
 @query.field("jsonItems")
 def resolve_json_items(_, info, limit=1000):
     now = datetime.now(timezone.utc).isoformat()
+    # The previous version minted a uuid.uuid4() per item, numbered items from
+    # 1, used @example.com, stamped the clock into createdAt and flagged
+    # isActive with `i % 3 != 0` instead of `i % 2 == 0`.
+    # See contracts/rest/canonical-payloads.md.
+    count = item_count(limit)
     items = [
         {
             "id": i,
-            "uuid": str(uuid.uuid4()),
-            "name": f"Item {i}",
-            "email": f"user{i}@example.com",
-            "createdAt": now,
-            "isActive": i % 3 != 0,
+            "uuid": canonical_uuid(i),
+            "name": canonical_name(i),
+            "email": canonical_email(i),
+            "createdAt": CANONICAL_CREATED_AT,
+            "isActive": canonical_is_active(i),
         }
-        for i in range(1, limit + 1)
+        for i in range(count)
     ]
     return {
         "items": items,

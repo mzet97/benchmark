@@ -121,19 +121,27 @@ def get_complex_orders(days: int = 30):
         cur = conn.cursor()
         cur.execute(
             """
+            -- Normative SQL, see contracts/rest/canonical-payloads.md. The
+            -- previous query aggregated o.total or o.amount, columns the schema
+            -- does not have; the interval was pasted in as text rather than
+            -- bound, so it was never substituted; the ORDER BY had no tiebreak;
+            -- and there was no LIMIT, so it returned every user rather than the
+            -- 100 the contract fixes -- which changes the payload size and the
+            -- network ceiling of this scenario.
             SELECT
                 u.id AS user_id,
                 u.first_name || ' ' || u.last_name AS user_name,
                 COUNT(o.id) AS total_orders,
-                COALESCE(SUM(o.amount), 0) AS total_value,
-                COALESCE(AVG(o.amount), 0) AS average_order_value
+                COALESCE(SUM(o.total_amount), 0) AS total_value,
+                COALESCE(AVG(o.total_amount), 0) AS average_order_value
             FROM users u
-            LEFT JOIN orders o ON o.user_id = u.id
-                AND o.created_at >= NOW() - (%s || ' days')::interval
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - INTERVAL '1 day' * %s
             GROUP BY u.id, u.first_name, u.last_name
-            ORDER BY total_value DESC
+            ORDER BY total_orders DESC, u.id
+            LIMIT 100
             """,
-            (str(days),),
+            (days,),
         )
         rows = cur.fetchall()
         cur.close()
