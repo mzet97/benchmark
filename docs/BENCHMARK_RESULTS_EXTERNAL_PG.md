@@ -1,3 +1,31 @@
+> [!CAUTION]
+> # THESE RESULTS ARE INVALID — DO NOT CITE
+>
+> Every number below was produced by `run_all_benchmarks.py`, which has since
+> been retired. It is not defensible, for reasons that are independent of each
+> other and each sufficient on its own:
+>
+> * **One 5-second sample** per implementation per scenario, with a 2-second
+>   warm-up — against a documented methodology of 5 repetitions of 60 s with a
+>   30 s warm-up. A single sample has no error bar.
+> * **The load generator ran inside the same single-node cluster** as the
+>   subject, capped at 1 CPU, competing for the same 8 cores.
+> * **The implementations were not comparable.** They served different
+>   payloads: different item counts, different field sets, some minting 1000
+>   random UUIDs or reading the clock 1000 times per request. Some `/db/*`
+>   endpoints ran materially heavier SQL than others; two implementations
+>   (`kotlin/http4k`, `graalvm/vertx`) returned hardcoded literals without
+>   touching PostgreSQL or Redis at all.
+> * **Resource profiles conflicted.** Three existed in the repository; the one
+>   that actually ran (100m request / 500m limit, 5 replicas) matched neither
+>   the methodology nor the deploy base.
+> * **The tables are internally inconsistent** — rows out of rank order,
+>   summary figures that contradict the table above them.
+>
+> Kept for provenance only. See `docs/ACTION_PLAN.md` for the remediation, and
+> `docs/BENCHMARK_METHODOLOGY.md` for the protocol that replaces it. New
+> results will come from `scripts/run-benchmark-suite.py`.
+
 # BENCHMARK RESULTS — External PostgreSQL (192.168.1.52)
 
 **Date**: 2026-07-30
