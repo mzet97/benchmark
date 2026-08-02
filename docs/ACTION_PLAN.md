@@ -131,7 +131,7 @@ uniforme, sem Ingress.
 
 ---
 
-## Fase 3 — Paridade entre implementações `[EM ANDAMENTO — ~5-8 dias]`
+## Fase 3 — Paridade entre implementações `[CONCLUÍDA, exceto http4k]`
 
 **Fundação concluída** (contrato + gate + implementação de referência):
 
@@ -364,51 +364,83 @@ implementação divergir em porta, pool, workers, log level ou hash de payload.
 
 ---
 
-## Fase 4 — Unificar o deploy `[~1-2 dias]`
+## Fase 4 — Deploy unificado `[CONCLUÍDA]`
 
-1. **Eliminar `src/*/k8s/`** (101 diretórios) — conflitam com os 99 overlays
-   Kustomize e foram o que de fato rodou.
-2. Perfil Guaranteed: `requests == limits == 7 CPU / 12 GiB`.
-3. Modo A (ranking primário) = **1 réplica** com o nó inteiro. Modos B e C em
-   overlays separados, nunca misturados no ranking.
-4. Reconciliar `config/implementations.yaml` (99) com README (101) e com os
-   101 diretórios; `maturity` refletindo a realidade.
-5. `make inventory|build|deploy|smoke|benchmark` como único caminho —
-   aposentar `run_all_benchmarks.py`, `deploy_grpc.py`, `fix_*.py`.
+Havia **duas** fontes de configuração de deploy, e a que de fato rodou era a
+errada: `src/*/k8s` (101 diretórios) com 5 réplicas a 100m/500m, contra
+`deploy/k3s/base` com 1 réplica a 7 CPU em QoS Guaranteed — e a metodologia
+descrevendo um terceiro perfil. Os 101 diretórios foram removidos;
+`deploy/k3s` é a fonte única.
+
+Os overlays passaram a ser **gerados** a partir de `src/`, com
+`scripts/generate-overlays.py`, e a relação implementação↔overlay virou 1:1,
+verificável em CI:
+
+```
+python scripts/generate-overlays.py --check
+```
+
+Isso expôs o que a manutenção manual havia deixado para trás:
+
+| | |
+|---|---|
+| **10 overlays órfãos** | todas as variantes `graalvm-*-native` nos três protocolos, sem nenhuma fonte; mais `csharp-rest-minimal-api`, cujo diretório é `MinimalApi` |
+| **11 implementações sem overlay** | `graalvm/{micronaut,spring,gmicronaut,gspring}`, `csharp/MinimalApi` e as 6 de gRPC/GraphQL do graalvm — nunca poderiam ter sido medidas |
+
+**A contagem real é de 100 implementações, não 101.** `src/java/grpc/grpc-js`
+contém apenas um diretório `k8s/`: sem código, sem Dockerfile, sem nada para
+construir. O gerador o ignora e diz por quê, em vez de contá-lo.
+
+Também foram aposentados 18 scripts da topologia antiga (`deploy.sh`,
+`deploy-k8s.sh`, `undeploy*.sh`, `run-benchmark.sh`, `run-all-benchmarks.sh`
+e os `benchmark-wrk-*.sh`, que apontavam o wrk para o DNS interno do cluster).
 
 ---
 
-## Fase 5 — Runner que honra a metodologia `[~3-4 dias]`
+## Fase 5 — Runner `[CONCLUÍDA]`
 
-| Item | Hoje | Alvo |
-|---|---|---|
-| Warm-up | 2s | 30s (60s para JVM/GraalVM) |
-| Medição | 5s | 60s |
-| Repetições | 1 | 5 → mediana + IC 95% |
-| Ordem | alfabética | randomizada |
-| Isolamento | 53 pods simultâneos | 1 implementação por vez |
-| Saída | Markdown manual | JSON conforme `docs/RESULTS_SCHEMA.md` |
+`run_all_benchmarks.py` foi aposentado. Ele produziu todos os números
+publicados e não é defensável por razões independentes entre si:
 
-**Métrica A — throughput máximo**: varredura de concorrência (1, 8, 32, 64,
-128, 256, 512) até o joelho da curva. Válido só se CPU do SUT ≥ 90%, rede
-< 80% do teto, DB < 70%.
+- **uma amostra de 5 s** por implementação/cenário, com warm-up de 2 s, contra
+  uma metodologia que pedia 5×60 s com warm-up de 30 s — uma amostra única não
+  tem barra de erro
+- **ordem alfabética**, concentrando deriva térmica e temporal em quem ficasse
+  por último
+- **o gerador rodava dentro do mesmo cluster de um nó**, limitado a 1 CPU,
+  disputando os mesmos 8 cores com o sujeito
+- lista **fixa de 23 implementações** de 37, sem registro de quem ficou de fora
+- **sem gate de paridade**: implementações servindo payloads diferentes eram
+  ranqueadas entre si
 
-**Métrica B — custo de CPU por requisição** (primária onde há teto de infra):
-a taxa fixa abaixo do teto, medir `cpu_seconds_do_pod / requests × 1e6`.
-É independente da rede e do cliente, e sobrevive à topologia de 1 GbE.
+O substituto é `scripts/run-benchmark-suite.py`:
 
-**Classificação automática**, calculada pelo runner, nunca escrita à mão:
-
-| Flag | Condição |
+| | |
 |---|---|
-| `FRAMEWORK_BOUND` | CPU ≥ 90%, rede < 80%, DB < 70% → entra no ranking de throughput |
-| `NET_BOUND` | bytes/s ≥ 80% da banda medida |
-| `PPS_BOUND` | req/s ≥ 80% do teto de PPS |
-| `CLIENT_BOUND` | CPU da workstation ≥ 90% |
-| `DB_BOUND` | PostgreSQL ou Redis ≥ 85% |
+| Gerador | `bombardier` na workstation, contra o NodePort 30080 |
+| Descoberta | a partir dos overlays, não de lista fixa |
+| Ordem | randomizada, **com a semente registrada** na saída |
+| Gate | roda `validate-parity.py` antes de medir; fora do contrato é **pulado**, não ranqueado |
+| Isolamento | aborta se sobrou pod da implementação anterior |
+| Medição | 5×60 s, warm-up 30 s, mediana **com o desvio** |
+| Métrica de reserva | CPU por 1000 req, que ainda discrimina quando a rede satura |
+| Acesso | apenas chave SSH — o antigo lia senha de variável de ambiente |
 
-Rejeitar runs com erro > 0,1%, throttling > 0, ou desvio-padrão > 5%.
-Saída em `results/raw/<run-id>/<impl>/<scenario>/<mode>/c<conc>.json`.
+O `Service` base virou **NodePort 30080** (era ClusterIP, que a topologia
+escolhida não alcança de fora). Porta fixa é seguro porque só uma
+implementação roda por vez.
+
+`docs/BENCHMARK_METHODOLOGY.md` foi reescrito para descrever o que de fato se
+faz. A versão anterior exigia o gerador "em um nó diferente do servidor" num
+cluster de um nó, e definia quatro perfis de recursos, nenhum dos quais era o
+que rodava. **O Mode C (5 réplicas) foi registrado como inexecutável aqui**:
+5 pods a 7 CPU exigem 35 cores e o nó tem 8.
+
+### Resultados publicados marcados como inválidos
+
+Os 9 documentos de resultados receberam um aviso no topo. Foram preservados
+para rastreabilidade, não apagados — mas o repositório é público e eles
+estavam ali como se significassem algo.
 
 ---
 
