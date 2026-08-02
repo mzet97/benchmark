@@ -190,20 +190,20 @@ kubectl create namespace benchmark
 #### Deploy Any Language
 ```bash
 # Apply all manifests for a language
-kubectl apply -f src/<language>/<framework>/k8s/ -n benchmark
+kubectl apply -k deploy/k3s/overlays/<protocol>/<environment>-<protocol>-<framework>
 
 # Examples:
-kubectl apply -f src/csharp/MinimalApi/k8s/ -n benchmark
-kubectl apply -f src/rust/actix-web/k8s/ -n benchmark
-kubectl apply -f src/java/quarkus/k8s/ -n benchmark
-kubectl apply -f src/go/fiber/k8s/ -n benchmark
-kubectl apply -f src/kotlin/ktor/k8s/ -n benchmark
-kubectl apply -f src/nodejs/fastify/k8s/ -n benchmark
-kubectl apply -f src/python/fastapi/k8s/ -n benchmark
-kubectl apply -f src/bun/elysia/k8s/ -n benchmark
-kubectl apply -f src/deno/oak/k8s/ -n benchmark
-kubectl apply -f src/dart/vaden/k8s/ -n benchmark
-kubectl apply -f src/graalvm/vertx/k8s/ -n benchmark
+kubectl apply -k deploy/k3s/overlays/rest/csharp-rest-minimalapi
+kubectl apply -k deploy/k3s/overlays/rest/rust-rest-actix-web
+kubectl apply -k deploy/k3s/overlays/rest/java-rest-quarkus
+kubectl apply -k deploy/k3s/overlays/rest/go-rest-fiber
+kubectl apply -k deploy/k3s/overlays/rest/kotlin-rest-ktor
+kubectl apply -k deploy/k3s/overlays/rest/nodejs-rest-fastify
+kubectl apply -k deploy/k3s/overlays/rest/python-rest-fastapi
+kubectl apply -k deploy/k3s/overlays/rest/bun-rest-elysia
+kubectl apply -k deploy/k3s/overlays/rest/deno-rest-oak
+kubectl apply -k deploy/k3s/overlays/rest/dart-rest-vaden
+kubectl apply -k deploy/k3s/overlays/rest/graalvm-rest-vertx
 ```
 
 #### Check Status
@@ -233,7 +233,7 @@ curl http://localhost:8080/health
 #### Remove Deployment
 ```bash
 # Delete all resources for a language
-kubectl delete -f src/<language>/<framework>/k8s/ -n benchmark
+kubectl delete -k deploy/k3s/overlays/<protocol>/<environment>-<protocol>-<framework>
 
 # Delete all benchmark resources
 kubectl delete namespace benchmark
@@ -274,7 +274,7 @@ jobs:
         run: |
           echo ${{ secrets.KUBE_CONFIG }} | base64 -d > kubeconfig
           export KUBECONFIG=kubeconfig
-          kubectl apply -f src/${{ matrix.language }}/*/k8s/ -n benchmark
+          kubectl apply -k deploy/k3s/overlays/rest/${{ matrix.language }}-rest-${{ matrix.framework }}
 ```
 
 ## Monitoring

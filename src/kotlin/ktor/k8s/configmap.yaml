@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: kotlin-ktor-config
-  namespace: benchmark
-  labels:
-    app: kotlin-ktor
-data:
-  port: "8080"

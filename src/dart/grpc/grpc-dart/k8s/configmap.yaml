@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: dart-grpc-grpc-dart-config
-  labels:
-    app: dart-grpc-grpc-dart
-    component: benchmark
-data:
-  GRPC_PORT: "50051"

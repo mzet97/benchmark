@@ -68,9 +68,10 @@ validate_impl() {
   fi
 
   # K8s
-  check "$dir" "K8s configmap" "true" "$dir/k8s/configmap.yaml"
-  check "$dir" "K8s deployment" "true" "$dir/k8s/deployment.yaml"
-  check "$dir" "K8s service" "true" "$dir/k8s/service.yaml"
+  # Manifests live in deploy/k3s/overlays now, one per implementation,
+  # generated from this tree. The per-implementation k8s/ directories are gone:
+  # they were a second, conflicting source of deployment configuration and the
+  # one that actually ran. See docs/ACTION_PLAN.md, Fase 4.
 
   # README
   check "$dir" "README.md" "false" "$dir/README.md"
