@@ -13,4 +13,4 @@ EXPOSE 3000
 
 USER app
 
-CMD ["node", "src/server.js"]
+CMD ["node", "src/index.js"]

@@ -25,7 +25,11 @@ from service import BenchmarkServiceServicer
 
 def serve():
     port = os.environ.get("GRPC_PORT", "50051")
-    max_workers = int(os.environ.get("GRPC_MAX_WORKERS", "10"))
+    # The pool used to be sized from GRPC_MAX_WORKERS, which is not in the
+    # ConfigMap, so every implementation got the hardcoded 10. It is sized
+    # from BENCH_CPUS now, like every other implementation.
+    # See docs/ACTION_PLAN.md, Fase 3.1.
+    max_workers = int(os.environ.get("BENCH_CPUS") or os.cpu_count() or 4)
 
     server = grpc.server(
         futures.ThreadPoolExecutor(max_workers=max_workers),

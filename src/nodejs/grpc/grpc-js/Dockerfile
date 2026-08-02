@@ -24,4 +24,4 @@ EXPOSE 50051
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "const grpc=require('@grpc/grpc-js');const c=new grpc.Client('localhost:50051',grpc.credentials.createInsecure());c.getChannel().getConnectivityState(true)===2?process.exit(0):process.exit(1)" || exit 1
 
-CMD ["node", "src/server.js"]
+CMD ["node", "src/index.js"]

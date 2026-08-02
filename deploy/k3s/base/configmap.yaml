@@ -35,3 +35,35 @@ data:
   # the PostgreSQL ceiling measured in Fase 0.
   DB_POOL_MAX: "32"
   REDIS_POOL_MAX: "32"
+
+  # ---------------------------------------------------------------------
+  # Runtime parallelism, set through the environment.
+  #
+  # An audit of all 100 implementations found 77 with no parallelism setting
+  # of any kind. In a pod with 7 CPUs that means a runtime either sizes its
+  # pools from the *host* core count -- which is not the cgroup quota -- or
+  # stays on one thread entirely. Either way the ranking would reward whoever
+  # remembered to configure workers, not the framework.
+  #
+  # These four cover Go, the JVM, .NET and Tokio without touching any source
+  # file. The genuinely single-threaded runtimes (Node, Deno, Bun, Python,
+  # Dart) need a multi-process bootstrap in code and read BENCH_CPUS for it.
+  # ---------------------------------------------------------------------
+
+  # Go reads the host CPU count, not the cgroup quota. Since Go 1.21 the
+  # runtime honours this variable, so no code change is needed.
+  GOMAXPROCS: "7"
+
+  # The JVM sizes ForkJoinPool, GC threads and most framework thread pools
+  # from availableProcessors(). Container awareness gets this right for CPU
+  # *limits*, but pinning it removes the doubt -- and it is the only knob that
+  # works identically across Spring, Micronaut, Quarkus, Helidon and Vert.x.
+  JAVA_TOOL_OPTIONS: "-XX:ActiveProcessorCount=7"
+
+  # Same idea for .NET's thread pool and GC heap count.
+  DOTNET_PROCESSOR_COUNT: "7"
+
+  # Tokio defaults to the number of available cores, which in a container is
+  # usually right; pinned so it does not depend on the runtime's detection.
+  TOKIO_WORKER_THREADS: "7"
+  ROCKET_WORKERS: "7"

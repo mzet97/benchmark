@@ -10,4 +10,8 @@ EXPOSE 8080
 
 USER app
 
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
+# Shell form on purpose: BENCH_CPUS has to expand at runtime. A single
+# uvicorn worker uses one of the pod's 7 CPUs, which measures "is this
+# runtime multi-process", not the framework.
+# See docs/ACTION_PLAN.md, Fase 3.1.
+CMD uvicorn server:app --host 0.0.0.0 --port 8080 --workers ${BENCH_CPUS:-4} --log-level ${LOG_LEVEL:-error}

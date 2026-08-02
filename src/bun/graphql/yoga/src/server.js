@@ -13,6 +13,9 @@ const yoga = createYoga({
 const PORT = parseInt(process.env.PORT || "3000");
 
 const server = Bun.serve({
+  // Several worker processes bind the same port; the kernel balances
+  // accepted connections across them. See src/index.js.
+  reusePort: true,
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
