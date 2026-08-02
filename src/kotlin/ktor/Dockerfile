@@ -11,7 +11,7 @@ WORKDIR /app
 COPY --from=builder /app/build/libs/*.jar app.jar
 RUN chown appuser:appuser app.jar
 USER appuser
-EXPOSE 3000
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 CMD ["java", "-jar", "app.jar"]

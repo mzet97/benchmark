@@ -9,7 +9,7 @@ RUN bun install --frozen-lockfile --production 2>/dev/null || bun install --prod
 COPY proto/ ./proto/
 COPY src/ ./src/
 
-EXPOSE 50051
+EXPOSE 8080
 
 USER bun
 

@@ -41,9 +41,9 @@ RUN chown -R appuser:appuser /app
 
 USER 1001
 
-EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD grpcurl -plaintext localhost:3000 benchmark.BenchmarkService/Health || exit 1
+    CMD grpcurl -plaintext localhost:8080 benchmark.BenchmarkService/Health || exit 1
 
 ENTRYPOINT ["./app"]

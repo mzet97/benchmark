@@ -13,7 +13,7 @@ import {
   itemCount,
 } from './canonical.js';
 
-const PORT = parseInt(process.env.PORT || "3000");
+const PORT = parseInt(process.env.PORT || '8080');
 
 const schema = buildSchema(typeDefs);
 

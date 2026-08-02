@@ -10,7 +10,7 @@ import io.grpc.protobuf.services.ProtoReflectionService;
 public class Server {
 
     public static void main(String[] args) throws Exception {
-        int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "50051"));
+        int port = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
 
         DatabaseService dbService = new DatabaseService();
         CacheService cacheService = new CacheService();

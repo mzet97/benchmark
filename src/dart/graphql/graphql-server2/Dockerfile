@@ -11,6 +11,6 @@ FROM scratch
 COPY --from=build /runtime/ /
 COPY --from=build /app/bin/server /app/bin/server
 
-EXPOSE 3000
+EXPOSE 8080
 
 ENTRYPOINT ["/app/bin/server"]

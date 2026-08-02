@@ -18,7 +18,7 @@ COPY --from=builder /app/target/*.jar app.jar
 
 USER benchmark
 
-EXPOSE 50051
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD java -cp app.jar benchmark.HealthCheck || exit 1

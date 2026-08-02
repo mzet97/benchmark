@@ -22,6 +22,6 @@ COPY server.py service.py db.py cache.py ./
 ENV GRPC_PORT=50051
 ENV GRPC_MAX_WORKERS=10
 
-EXPOSE 50051
+EXPOSE 8080
 
 CMD ["python", "server.py"]

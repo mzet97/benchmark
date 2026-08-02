@@ -28,7 +28,9 @@ from service import BenchmarkService
 
 
 async def serve():
-    port = int(os.environ.get("GRPC_PORT", "50051"))
+    # Was GRPC_PORT, a variable the ConfigMap does not set, so this server
+    # listened on 50051 while the Service targeted 8080.
+    port = int(os.environ.get("PORT", "8080"))
     # The pool used to be sized from GRPC_MAX_WORKERS, which is not in the
     # ConfigMap, so every implementation got the hardcoded 10. It is sized
     # from BENCH_CPUS now, like every other implementation.

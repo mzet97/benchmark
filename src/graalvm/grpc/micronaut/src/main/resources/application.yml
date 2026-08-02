@@ -6,7 +6,7 @@ micronaut:
 
 grpc:
   server:
-    port: 3000
+    port: ${PORT:8080}
 
 datasources:
   default:

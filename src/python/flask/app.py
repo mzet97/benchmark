@@ -14,7 +14,7 @@ if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1 and sys.argv[1] == 'run':
         # Development mode
-        port = int(os.getenv('PORT', 8000))
+        port = int(os.getenv('PORT', 8080))
         app.run(host='0.0.0.0', port=port, debug=False)
     else:
         # Production mode with Gunicorn

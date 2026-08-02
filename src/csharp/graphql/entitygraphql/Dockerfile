@@ -12,7 +12,7 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-EXPOSE 3000
+EXPOSE 8080
 
 ENV ASPNETCORE_URLS=http://+:3000
 ENV DOTNET_EnableDiagnostics=0

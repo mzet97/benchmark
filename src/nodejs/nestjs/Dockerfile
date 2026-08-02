@@ -13,7 +13,7 @@ COPY --from=builder --chown=nestjs:nestjs /app/dist ./dist
 COPY --from=builder --chown=nestjs:nestjs /app/node_modules ./node_modules
 COPY --from=builder --chown=nestjs:nestjs /app/package.json ./
 USER nestjs
-EXPOSE 3000
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 CMD ["node", "dist/main.js"]

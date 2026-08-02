@@ -10,7 +10,7 @@ RUN groupadd -r app && useradd -r -g app app
 COPY --from=builder /app/out ./out
 RUN chown -R app:app /app
 USER app
-EXPOSE 3000
+EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 CMD ["java", "-cp", "out", "com.benchmark.vertx.Main"]

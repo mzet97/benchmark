@@ -9,9 +9,9 @@ COPY --chown=denoapp:denoapp . .
 RUN deno install server.ts 2>/dev/null || true
 
 USER denoapp
-EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:8080/health || exit 1
 
 CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "server.ts"]

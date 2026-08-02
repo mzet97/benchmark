@@ -10,10 +10,10 @@ RUN groupadd -r app && useradd -r -g app app
 WORKDIR /app
 COPY --from=builder /app/target/release/benchmark-warp .
 USER app
-EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -sf http://localhost:3000/health || exit 1
+    CMD curl -sf http://localhost:8080/health || exit 1
 
 # Tokio (and Rocket) size their worker pool from the environment, so the
 # contract-level BENCH_CPUS drives it without touching the source.

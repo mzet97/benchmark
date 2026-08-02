@@ -17,7 +17,9 @@ from service import BenchmarkService
 
 
 async def serve():
-    port = int(os.environ.get("GRPC_PORT", "50051"))
+    # Was GRPC_PORT, a variable the ConfigMap does not set, so this server
+    # listened on 50051 while the Service targeted 8080.
+    port = int(os.environ.get("PORT", "8080"))
     max_workers = int(os.environ.get("GRPC_MAX_WORKERS", "10"))
 
     service = BenchmarkService()

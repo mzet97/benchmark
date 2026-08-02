@@ -4,7 +4,7 @@ import { resolve } from "https://deno.land/std@0.224.0/path/mod.ts";
 import * as service from "./service.ts";
 
 const PROTO_PATH = resolve(import.meta.dirname ?? ".", "proto", "benchmark.proto");
-const PORT = parseInt(Deno.env.get("PORT") || "50051");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

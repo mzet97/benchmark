@@ -7,7 +7,7 @@ import io.grpc.protobuf.services.ProtoReflectionService
 import kotlinx.coroutines.runBlocking
 
 fun main(): Unit = runBlocking {
-    val port = (System.getenv("PORT") ?: "50051").toInt()
+    val port = (System.getenv("PORT") ?: "8080").toInt()
 
     val dbService = DatabaseService()
     val cacheService = CacheService()

@@ -116,7 +116,7 @@ async function start() {
   try {
     const fastify = await buildServer();
 
-    const port = process.env.PORT || 3000;
+    const port = process.env.PORT || 8080;
     const host = process.env.HOST || '0.0.0.0';
 
     await fastify.listen({ port, host });

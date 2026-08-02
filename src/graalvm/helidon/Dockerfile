@@ -24,9 +24,9 @@ COPY --from=builder /build/target/dependency/ /app/lib/
 RUN chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 3000
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["java", "-cp", "app.jar:lib/*", "com.benchmark.Main"]

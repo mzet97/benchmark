@@ -28,6 +28,6 @@ COPY --from=builder /app/bin/server /app/bin/server
 
 ENV GRPC_PORT=50051
 
-EXPOSE 50051
+EXPOSE 8080
 
 ENTRYPOINT ["/app/bin/server"]

@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 public class BenchmarkServer {
 
-    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "50051"));
+    private static final int PORT = Integer.parseInt(System.getenv().getOrDefault("PORT", "8080"));
 
     private Server server;
     private final DatabaseService databaseService;

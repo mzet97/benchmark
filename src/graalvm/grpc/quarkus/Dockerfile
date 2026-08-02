@@ -15,7 +15,7 @@ RUN chown 1001 /work \
     && chown 1001:root /work
 COPY --from=build /code/target/*-runner /work/application
 
-EXPOSE 50051
+EXPOSE 8080
 
 USER 1001
 

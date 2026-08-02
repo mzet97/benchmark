@@ -7,7 +7,7 @@ const db = require("./db");
 const cache = require("./cache");
 
 const PROTO_PATH = path.join(__dirname, "..", "proto", "benchmark.proto");
-const PORT = parseInt(process.env.PORT || "50051");
+const PORT = parseInt(process.env.PORT || '8080');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

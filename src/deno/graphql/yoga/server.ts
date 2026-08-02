@@ -10,7 +10,7 @@ const yoga = createYoga({
   logging: false,
 });
 
-const PORT = parseInt(Deno.env.get("PORT") || "3000");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
 
 Deno.serve({ port: PORT }, async (req: Request) => {
   const url = new URL(req.url);

@@ -9,7 +9,7 @@ import * as grpc from "@grpc/grpc-js";
 import * as protoLoader from "@grpc/proto-loader";
 
 const PROTO_PATH = resolve(import.meta.dirname ?? ".", "proto", "benchmark.proto");
-const PORT = parseInt(Deno.env.get("PORT") || "50051");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

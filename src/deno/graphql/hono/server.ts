@@ -13,7 +13,7 @@ import {
   itemCount,
 } from './canonical.ts';
 
-const PORT = parseInt(Deno.env.get("PORT") || "3000");
+const PORT = parseInt(Deno.env.get("PORT") || "8080");
 
 const schema = buildSchema(typeDefs);
 

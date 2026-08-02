@@ -13,7 +13,7 @@ COPY *.ts ./
 # Cache the entry point
 RUN deno cache server.ts
 
-EXPOSE 50051
+EXPOSE 8080
 
 USER deno
 

@@ -13,7 +13,7 @@ WORKDIR /app
 RUN adduser --disabled-password --no-create-home appuser
 USER appuser
 
-EXPOSE 50051
+EXPOSE 8080
 
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "magiconion.dll"]

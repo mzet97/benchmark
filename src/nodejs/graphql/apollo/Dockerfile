@@ -9,7 +9,7 @@ COPY src/ ./src/
 
 RUN addgroup -g 1001 -S app && adduser -u 1001 -S app -G app
 
-EXPOSE 3000
+EXPOSE 8080
 
 USER app
 

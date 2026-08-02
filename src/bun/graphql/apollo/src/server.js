@@ -2,7 +2,7 @@ import { ApolloServer } from "@apollo/server";
 import { typeDefs } from "./typeDefs.js";
 import { resolvers } from "./resolvers.js";
 
-const PORT = parseInt(process.env.PORT || "3000");
+const PORT = parseInt(process.env.PORT || '8080');
 
 const server = new ApolloServer({
   typeDefs,

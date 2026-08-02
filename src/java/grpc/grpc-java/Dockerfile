@@ -16,6 +16,6 @@ WORKDIR /app
 
 COPY --from=build /app/target/benchmark-grpc-java-1.0.0.jar /app/app.jar
 
-EXPOSE 50051
+EXPOSE 8080
 
 CMD ["java", "-jar", "/app/app.jar"]

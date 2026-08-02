@@ -4,7 +4,7 @@ const service = require('./service');
 const db = require('./db');
 const cache = require('./cache');
 
-const PORT = parseInt(process.env.PORT || '50051');
+const PORT = parseInt(process.env.PORT || '8080');
 
 async function main() {
   const server = createServer();

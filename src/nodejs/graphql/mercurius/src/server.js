@@ -5,7 +5,7 @@ const mercurius = require('mercurius');
 const { typeDefs } = require('./schema');
 const { resolvers } = require('./resolvers');
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 fastify.register(mercurius, {
   schema: typeDefs,

@@ -19,7 +19,7 @@ const logger = pino({
 
 // Create Express app
 const app = express();
-const PORT = parseInt(process.env.PORT || '3000');
+const PORT = parseInt(process.env.PORT || '8080');
 const HOST = process.env.HOST || '0.0.0.0';
 
 // Add middleware

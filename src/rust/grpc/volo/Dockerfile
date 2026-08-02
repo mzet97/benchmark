@@ -23,6 +23,6 @@ COPY --from=builder /app/target/release/server /usr/local/bin/server
 RUN groupadd -r app && useradd -r -g app -u 1001 app
 USER app
 
-EXPOSE 50051
+EXPOSE 8080
 
 CMD ["server"]

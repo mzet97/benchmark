@@ -7,7 +7,7 @@ const http = require('http');
 const { typeDefs } = require('./typeDefs');
 const { resolvers } = require('./resolvers');
 
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '8080', 10);
 
 async function start() {
   const app = express();

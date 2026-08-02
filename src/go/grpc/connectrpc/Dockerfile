@@ -34,7 +34,7 @@ COPY --from=builder /app/server /usr/local/bin/server
 
 RUN groupadd -r app && useradd -r -g app -u 1001 app
 
-EXPOSE 50051
+EXPOSE 8080
 
 USER app
 
