@@ -43,15 +43,18 @@ impl QueryRoot {
     }
 
     async fn json_items(&self, _ctx: &Context<'_>, limit: Option<i32>) -> JsonItemsResult {
-        let count = limit.unwrap_or(1000);
-        let items: Vec<JsonItem> = (1..=count)
+        let count = crate::canonical::item_count(limit.unwrap_or(0));
+        // The previous version minted a Uuid::new_v4() per item -- 1000 random
+        // UUIDs per request -- and formatted Utc::now() into every created_at.
+        // See contracts/rest/canonical-payloads.md.
+        let items: Vec<JsonItem> = (0..count)
             .map(|i| JsonItem {
                 id: i,
-                uuid: uuid::Uuid::new_v4().to_string(),
-                name: format!("Item {}", i),
-                email: format!("item{}@example.com", i),
-                created_at: Utc::now().to_rfc3339(),
-                is_active: i % 2 == 0,
+                uuid: crate::canonical::uuid(i),
+                name: crate::canonical::name(i),
+                email: crate::canonical::email(i),
+                created_at: crate::canonical::CANONICAL_CREATED_AT.to_string(),
+                is_active: crate::canonical::is_active(i),
             })
             .collect();
 
@@ -94,17 +97,23 @@ impl QueryRoot {
 
         let rows = conn
             .query(
+                // Normative SQL, see contracts/rest/canonical-payloads.md. The
+                // previous query aggregated o.amount, a column the schema does not
+                // have; it wrote ($1 || ' days')::interval with a string bind; it
+                // ordered without a tiebreak; and it had no LIMIT, so it returned
+                // every user rather than the 100 the contract fixes.
                 "SELECT
                     u.id AS user_id,
                     u.first_name || ' ' || u.last_name AS user_name,
                     COUNT(o.id) AS total_orders,
-                    COALESCE(SUM(o.amount), 0) AS total_value,
-                    COALESCE(AVG(o.amount), 0) AS average_order_value
+                    COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                    COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
                  FROM users u
-                 LEFT JOIN orders o ON o.user_id = u.id
-                    AND o.created_at >= NOW() - ($1 || ' days')::interval
+                 INNER JOIN orders o ON u.id = o.user_id
+                    WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
                  GROUP BY u.id, u.first_name, u.last_name
-                 ORDER BY total_value DESC",
+                 ORDER BY total_orders DESC, u.id
+                 LIMIT 100",
                 &[&period_days],
             )
             .await
@@ -116,14 +125,12 @@ impl QueryRoot {
                 user_id: r.get(0),
                 user_name: r.get(1),
                 total_orders: r.get(2),
-                total_value: {
-                    let v: rust_decimal::Decimal = r.get(3);
-                    v.to_string().parse::<f64>().unwrap_or(0.0)
-                },
-                average_order_value: {
-                    let v: rust_decimal::Decimal = r.get(4);
-                    v.to_string().parse::<f64>().unwrap_or(0.0)
-                },
+                // rust_decimal::Decimal does not implement FromSql for
+                // tokio-postgres, so this never compiled. The query casts to
+                // float8 instead, which is also what the reference
+                // implementation carries.
+                total_value: r.get(3),
+                average_order_value: r.get(4),
             })
             .collect();
 

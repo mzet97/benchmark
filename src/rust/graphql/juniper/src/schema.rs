@@ -47,15 +47,18 @@ impl QueryRoot {
     }
 
     async fn json_items(limit: Option<i32>) -> JsonItemsResult {
-        let count = limit.unwrap_or(1000);
-        let items: Vec<JsonItem> = (1..=count)
+        let count = crate::canonical::item_count(limit.unwrap_or(0));
+        // The previous version minted a Uuid::new_v4() per item -- 1000 random
+        // UUIDs per request -- and formatted Utc::now() into every created_at.
+        // See contracts/rest/canonical-payloads.md.
+        let items: Vec<JsonItem> = (0..count)
             .map(|i| JsonItem {
                 id: i,
-                uuid: uuid::Uuid::new_v4().to_string(),
-                name: format!("Item {}", i),
-                email: format!("item{}@example.com", i),
-                created_at: Utc::now().to_rfc3339(),
-                is_active: i % 2 == 0,
+                uuid: crate::canonical::uuid(i),
+                name: crate::canonical::name(i),
+                email: crate::canonical::email(i),
+                created_at: crate::canonical::CANONICAL_CREATED_AT.to_string(),
+                is_active: crate::canonical::is_active(i),
             })
             .collect();
 

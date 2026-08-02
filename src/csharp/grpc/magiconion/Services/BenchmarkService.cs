@@ -1,6 +1,7 @@
 using MagicOnion;
 using MagicOnion.Server;
 using MagicOnionBenchmark.Contracts;
+using MagicOnionBenchmark;
 
 namespace MagicOnionBenchmark.Services;
 
@@ -38,11 +39,11 @@ public class BenchmarkServiceImpl : ServiceBase<IBenchmarkService>, IBenchmarkSe
             items.Add(new JsonItem
             {
                 Id = i,
-                Uuid = Guid.NewGuid().ToString(),
-                Name = $"User_{i}",
-                Email = $"user{i}@example.com",
-                CreatedAt = DateTime.UtcNow.ToString("o"),
-                IsActive = i % 2 == 0
+                Uuid = Canonical.Uuid(i),
+                Name = Canonical.Name(i),
+                Email = Canonical.Email(i),
+                CreatedAt = Canonical.CreatedAt,
+                IsActive = Canonical.IsActive(i)
             });
         }
 

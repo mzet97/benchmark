@@ -1,6 +1,7 @@
 using GraphQL;
 using GraphQL.Types;
 using GraphqlDotnet.Services;
+using GraphqlDotnet;
 
 namespace GraphqlDotnet.Types;
 
@@ -37,17 +38,18 @@ public class QueryType : ObjectGraphType
             .Resolve(context =>
             {
                 var limit = context.GetArgument<int>("limit");
-                var items = new List<JsonItem>(limit);
-                for (var i = 0; i < limit; i++)
+                var count = Canonical.ItemCount(limit);
+                var items = new List<JsonItem>(count);
+                for (var i = 0; i < count; i++)
                 {
                     items.Add(new JsonItem
                     {
-                        Id = i + 1,
-                        Uuid = $"item-{i + 1}-uuid",
-                        Name = $"Item {i + 1}",
-                        Email = $"item{i + 1}@example.com",
-                        CreatedAt = DateTime.UtcNow.ToString("o"),
-                        IsActive = i % 2 == 0
+                        Id = i,
+                        Uuid = Canonical.Uuid(i),
+                        Name = Canonical.Name(i),
+                        Email = Canonical.Email(i),
+                        CreatedAt = Canonical.CreatedAt,
+                        IsActive = Canonical.IsActive(i)
                     });
                 }
 

@@ -62,17 +62,19 @@ impl BenchmarkService for BenchmarkServiceImpl {
         &self,
         request: Request<JsonItemsRequest>,
     ) -> Result<Response<JsonItemsResponse>, Status> {
-        let limit = request.into_inner().limit;
-        let limit = if limit > 0 { limit } else { 1000 };
+        let count = crate::canonical::item_count(request.into_inner().limit);
+        // The previous version minted a Uuid::new_v4() per item -- 1000 random
+        // UUIDs per request -- and formatted Utc::now() into every created_at.
+        // See contracts/rest/canonical-payloads.md.
 
-        let items: Vec<JsonItem> = (1..=limit)
+        let items: Vec<JsonItem> = (0..count)
             .map(|i| JsonItem {
                 id: i,
-                uuid: Uuid::new_v4().to_string(),
-                name: format!("Item {}", i),
-                email: format!("item{}@benchmark.local", i),
-                created_at: Utc::now().to_rfc3339(),
-                is_active: i % 10 != 0,
+                uuid: crate::canonical::uuid(i),
+                name: crate::canonical::name(i),
+                email: crate::canonical::email(i),
+                created_at: crate::canonical::CANONICAL_CREATED_AT.to_string(),
+                is_active: crate::canonical::is_active(i),
             })
             .collect();
 

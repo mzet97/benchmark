@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Benchmark;
+using GrpcDotnet;
 
 namespace GrpcDotnet.Services;
 
@@ -29,19 +30,19 @@ public class BenchmarkServiceImpl : BenchmarkService.BenchmarkServiceBase
 
     public override Task<JsonItemsResponse> GetJsonItems(JsonItemsRequest request, ServerCallContext context)
     {
-        var limit = request.Limit > 0 ? request.Limit : 1000;
+        var count = Canonical.ItemCount(request.Limit);
         var items = new List<JsonItem>();
 
-        for (int i = 0; i < limit; i++)
+        for (int i = 0; i < count; i++)
         {
             items.Add(new JsonItem
             {
                 Id = i,
-                Uuid = Guid.NewGuid().ToString(),
-                Name = $"User_{i}",
-                Email = $"user{i}@example.com",
-                CreatedAt = DateTime.UtcNow.ToString("o"),
-                IsActive = i % 2 == 0
+                Uuid = Canonical.Uuid(i),
+                Name = Canonical.Name(i),
+                Email = Canonical.Email(i),
+                CreatedAt = Canonical.CreatedAt,
+                IsActive = Canonical.IsActive(i)
             });
         }
 

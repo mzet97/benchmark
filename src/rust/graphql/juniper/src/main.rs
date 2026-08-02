@@ -1,3 +1,4 @@
+mod canonical;
 mod cache;
 mod db;
 mod models;

@@ -1,4 +1,5 @@
 using GraphqlHotChocolate.Services;
+using GraphqlHotChocolate;
 
 namespace GraphqlHotChocolate.Types;
 
@@ -29,17 +30,18 @@ public class Query
 
     public JsonItemsResult GetJsonItems(int limit = 1000)
     {
-        var items = new List<JsonItem>(limit);
-        for (var i = 0; i < limit; i++)
+        var count = Canonical.ItemCount(limit);
+        var items = new List<JsonItem>(count);
+        for (var i = 0; i < count; i++)
         {
             items.Add(new JsonItem
             {
-                Id = i + 1,
-                Uuid = $"item-{i + 1}-uuid",
-                Name = $"Item {i + 1}",
-                Email = $"item{i + 1}@example.com",
-                CreatedAt = DateTime.UtcNow.ToString("o"),
-                IsActive = i % 2 == 0
+                Id = i,
+                Uuid = Canonical.Uuid(i),
+                Name = Canonical.Name(i),
+                Email = Canonical.Email(i),
+                CreatedAt = Canonical.CreatedAt,
+                IsActive = Canonical.IsActive(i)
             });
         }
 
@@ -70,9 +72,12 @@ public class Query
         return result;
     }
 
+    // The injected service has to come before the optional argument: C# does
+    // not allow a required parameter after an optional one, so this method
+    // never compiled.
     public async Task<ComplexOrdersResult> GetComplexOrders(
-        int days = 30,
-        [Service] DatabaseService db)
+        [Service] DatabaseService db,
+        int days = 30)
     {
         var data = await db.GetComplexOrdersAsync(days);
         return new ComplexOrdersResult
@@ -95,7 +100,7 @@ public class Query
             Key = key,
             Value = value ?? "",
             Cached = value != null,
-            Ttl = ttl >= 0 ? ttl : 0
+            Ttl = ttl >= 0 ? (int)ttl : 0
         };
     }
 }

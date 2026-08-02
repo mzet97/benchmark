@@ -30,9 +30,11 @@ public class CacheService : IDisposable
         await _db.StringSetAsync(key, value, TimeSpan.FromSeconds(ttlSeconds));
     }
 
+    // StackExchange.Redis exposes KeyTimeToLiveAsync on IDatabase; the
+    // TimeToLiveAsync this called does not exist, so the project never built.
     public async Task<long> GetTtlAsync(string key)
     {
-        var ttl = await _db.TimeToLiveAsync(key);
+        var ttl = await _db.KeyTimeToLiveAsync(key);
         return ttl?.TotalSeconds >= 0 ? (long)ttl.Value.TotalSeconds : -2;
     }
 
