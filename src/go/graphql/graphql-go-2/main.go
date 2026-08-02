@@ -50,9 +50,9 @@ func main() {
 
 	// Create GraphQL handler - POST only, no playground, no introspection
 	h := handler.New(&handler.Config{
-		Schema:   schema,
-		Pretty:   false,
-		GraphiQL: false,
+		Schema:     schema,
+		Pretty:     false,
+		GraphiQL:   false,
 		Playground: false,
 	})
 

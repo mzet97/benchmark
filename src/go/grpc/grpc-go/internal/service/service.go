@@ -1,6 +1,7 @@
 package service
 
 import (
+	"benchmark-grpc-go/internal/canonical"
 	"context"
 	"fmt"
 	"time"
@@ -47,24 +48,26 @@ func (s *BenchmarkService) Health(ctx context.Context, req *pb.HealthRequest) (*
 }
 
 func (s *BenchmarkService) GetJsonItems(ctx context.Context, req *pb.JsonItemsRequest) (*pb.JsonItemsResponse, error) {
-	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = 1000
-	}
+	// The previous version minted a uuid.New() per item -- 1000 random
+	// UUIDs per request -- stamped the clock into every CreatedAt and
+	// used @example.com. See contracts/rest/canonical-payloads.md.
+	limit := canonical.ItemCount(int(req.Limit))
 
 	items := make([]*pb.JsonItem, limit)
-	now := time.Now().UTC().Format(time.RFC3339)
-
 	for i := 0; i < limit; i++ {
 		items[i] = &pb.JsonItem{
 			Id:        int32(i),
-			Uuid:      uuid.New().String(),
-			Name:      fmt.Sprintf("Item %d", i),
-			Email:     fmt.Sprintf("item%d@example.com", i),
-			CreatedAt: now,
-			IsActive:  i%2 == 0,
+			Uuid:      canonical.UUID(i),
+			Name:      canonical.Name(i),
+			Email:     canonical.Email(i),
+			CreatedAt: canonical.CreatedAt,
+			IsActive:  canonical.IsActive(i),
 		}
 	}
+
+	// The envelope timestamp is the only clock-dependent field and is
+	// excluded from the parity hash.
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	return &pb.JsonItemsResponse{
 		Count:     int32(limit),
@@ -97,19 +100,24 @@ func (s *BenchmarkService) GetComplexOrders(ctx context.Context, req *pb.Complex
 	}
 
 	query := `
-		SELECT u.id, u.first_name || ' ' || u.last_name AS user_name,
-			COUNT(o.id) AS total_orders,
-			COALESCE(SUM(o.total), 0) AS total_value,
-			COALESCE(AVG(o.total), 0) AS average_order_value
+		-- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+		-- query summed o.total, a column the schema does not have; it also ordered
+		-- without a tiebreak, so rows with equal totals came back in arbitrary order.
+		SELECT
+		    u.id AS user_id,
+		    u.first_name || ' ' || u.last_name AS user_name,
+		    COUNT(o.id) AS total_orders,
+		    COALESCE(SUM(o.total_amount), 0) AS total_value,
+		    COALESCE(AVG(o.total_amount), 0) AS average_order_value
 		FROM users u
-		LEFT JOIN orders o ON o.user_id = u.id
-			AND o.created_at >= NOW() - ($1 || ' days')::interval
-		GROUP BY u.id, user_name
-		ORDER BY total_value DESC
+		INNER JOIN orders o ON u.id = o.user_id
+		    WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+		GROUP BY u.id, u.first_name, u.last_name
+		ORDER BY total_orders DESC, u.id
 		LIMIT 100
 	`
 
-	rows, err := s.db.Pool.Query(ctx, query, fmt.Sprintf("%d", days))
+	rows, err := s.db.Pool.Query(ctx, query, days)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "query error: %v", err)
 	}

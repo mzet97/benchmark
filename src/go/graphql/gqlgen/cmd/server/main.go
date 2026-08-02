@@ -46,8 +46,8 @@ func main() {
 
 	// Create resolver
 	resolver := &graph.Resolver{
-		DB:    database,
-		Cache: cacheClient,
+		DB:       database,
+		CacheSvc: cacheClient,
 	}
 
 	// Create GraphQL server - POST only, no playground

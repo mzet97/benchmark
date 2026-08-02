@@ -1,6 +1,7 @@
 package service
 
 import (
+	"benchmark-kitex/internal/canonical"
 	"context"
 	"fmt"
 	"time"
@@ -67,16 +68,16 @@ type ComplexOrdersRequest struct {
 }
 
 type ComplexOrdersResponse struct {
-	PeriodDays int32              `thrift:"period_days,1" json:"period_days"`
-	TotalUsers int32              `thrift:"total_users,2" json:"total_users"`
-	Data       []*UserOrderStats  `thrift:"data,3" json:"data"`
+	PeriodDays int32             `thrift:"period_days,1" json:"period_days"`
+	TotalUsers int32             `thrift:"total_users,2" json:"total_users"`
+	Data       []*UserOrderStats `thrift:"data,3" json:"data"`
 }
 
 type UserOrderStats struct {
-	UserId           int32   `thrift:"user_id,1" json:"user_id"`
-	UserName         string  `thrift:"user_name,2" json:"user_name"`
-	TotalOrders      int32   `thrift:"total_orders,3" json:"total_orders"`
-	TotalValue       float64 `thrift:"total_value,4" json:"total_value"`
+	UserId            int32   `thrift:"user_id,1" json:"user_id"`
+	UserName          string  `thrift:"user_name,2" json:"user_name"`
+	TotalOrders       int32   `thrift:"total_orders,3" json:"total_orders"`
+	TotalValue        float64 `thrift:"total_value,4" json:"total_value"`
 	AverageOrderValue float64 `thrift:"average_order_value,5" json:"average_order_value"`
 }
 
@@ -132,24 +133,26 @@ func (s *BenchmarkServiceImpl) Health(ctx context.Context, req *HealthRequest) (
 
 // GetJsonItems implements the GetJsonItems RPC.
 func (s *BenchmarkServiceImpl) GetJsonItems(ctx context.Context, req *JsonItemsRequest) (*JsonItemsResponse, error) {
-	limit := int(req.GetLimit())
-	if limit <= 0 {
-		limit = 1000
-	}
+	// The previous version minted a uuid.New() per item -- 1000 random
+	// UUIDs per request -- stamped the clock into every CreatedAt and
+	// used @example.com. See contracts/rest/canonical-payloads.md.
+	limit := canonical.ItemCount(int(req.GetLimit()))
 
 	items := make([]*JsonItem, limit)
-	now := time.Now().UTC().Format(time.RFC3339)
-
 	for i := 0; i < limit; i++ {
 		items[i] = &JsonItem{
 			Id:        int32(i),
-			Uuid:      uuid.New().String(),
-			Name:      fmt.Sprintf("Item %d", i),
-			Email:     fmt.Sprintf("item%d@example.com", i),
-			CreatedAt: now,
-			IsActive:  i%2 == 0,
+			Uuid:      canonical.UUID(i),
+			Name:      canonical.Name(i),
+			Email:     canonical.Email(i),
+			CreatedAt: canonical.CreatedAt,
+			IsActive:  canonical.IsActive(i),
 		}
 	}
+
+	// The envelope timestamp is the only clock-dependent field and is
+	// excluded from the parity hash.
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	return &JsonItemsResponse{
 		Count:     int32(limit),
@@ -184,19 +187,24 @@ func (s *BenchmarkServiceImpl) GetComplexOrders(ctx context.Context, req *Comple
 	}
 
 	query := `
-		SELECT u.id, u.first_name || ' ' || u.last_name AS user_name,
-			COUNT(o.id) AS total_orders,
-			COALESCE(SUM(o.total), 0) AS total_value,
-			COALESCE(AVG(o.total), 0) AS average_order_value
+		-- Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+		-- query summed o.total, a column the schema does not have; it also ordered
+		-- without a tiebreak, so rows with equal totals came back in arbitrary order.
+		SELECT
+		    u.id AS user_id,
+		    u.first_name || ' ' || u.last_name AS user_name,
+		    COUNT(o.id) AS total_orders,
+		    COALESCE(SUM(o.total_amount), 0) AS total_value,
+		    COALESCE(AVG(o.total_amount), 0) AS average_order_value
 		FROM users u
-		LEFT JOIN orders o ON o.user_id = u.id
-			AND o.created_at >= NOW() - ($1 || ' days')::interval
-		GROUP BY u.id, user_name
-		ORDER BY total_value DESC
+		INNER JOIN orders o ON u.id = o.user_id
+		    WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
+		GROUP BY u.id, u.first_name, u.last_name
+		ORDER BY total_orders DESC, u.id
 		LIMIT 100
 	`
 
-	rows, err := s.db.Pool.Query(ctx, query, fmt.Sprintf("%d", days))
+	rows, err := s.db.Pool.Query(ctx, query, days)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
 	}

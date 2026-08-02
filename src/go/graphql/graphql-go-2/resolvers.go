@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"graphql-graphql-go-2/internal/canonical"
 	"time"
 
 	"graphql-graphql-go-2/cache"
@@ -42,23 +43,30 @@ func (r *Resolver) ResolveHealth(p graphql.ResolveParams) (interface{}, error) {
 
 // ResolveJsonItems handles the jsonItems query.
 func (r *Resolver) ResolveJsonItems(p graphql.ResolveParams) (interface{}, error) {
-	count := 1000
+	// The previous version built a "uuid-<n>-<nanos>" string, calling
+	// time.Now().UnixNano() once per item -- 1000 high-resolution clock
+	// reads per request -- numbered items from 1 and used @example.com.
+	// See contracts/rest/canonical-payloads.md.
+	count := canonical.DefaultItems
 	if limit, ok := p.Args["limit"].(int); ok {
-		count = limit
+		count = canonical.ItemCount(limit)
 	}
 
 	items := make([]map[string]interface{}, count)
-	now := time.Now().UTC().Format(time.RFC3339)
 	for i := 0; i < count; i++ {
 		items[i] = map[string]interface{}{
-			"id":        i + 1,
-			"uuid":      fmt.Sprintf("uuid-%d-%d", i+1, time.Now().UnixNano()),
-			"name":      fmt.Sprintf("Item %d", i+1),
-			"email":     fmt.Sprintf("item%d@example.com", i+1),
-			"createdAt": now,
-			"isActive":  i%2 == 0,
+			"id":        i,
+			"uuid":      canonical.UUID(i),
+			"name":      canonical.Name(i),
+			"email":     canonical.Email(i),
+			"createdAt": canonical.CreatedAt,
+			"isActive":  canonical.IsActive(i),
 		}
 	}
+
+	// The envelope timestamp is the only clock-dependent field and is
+	// excluded from the parity hash.
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	return map[string]interface{}{
 		"items":     items,

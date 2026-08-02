@@ -94,7 +94,7 @@ func NewSchema(database *db.DB, cacheClient *cache.Cache) (*graphql.Schema, erro
 		Name: "Query",
 		Fields: graphql.Fields{
 			"health": &graphql.Field{
-				Type: graphql.NewNonNull(healthType),
+				Type:    graphql.NewNonNull(healthType),
 				Resolve: resolvers.ResolveHealth,
 			},
 			"jsonItems": &graphql.Field{

@@ -6,6 +6,7 @@ package graph
 import (
 	"context"
 	"fmt"
+	"graphql-gqlgen/internal/canonical"
 	"time"
 
 	"graphql-gqlgen/graph/model"
@@ -19,7 +20,7 @@ func (r *queryResolver) Health(ctx context.Context) (*model.Health, error) {
 	}
 
 	cacheStatus := "connected"
-	if err := r.Cache.Ping(ctx); err != nil {
+	if err := r.CacheSvc.Ping(ctx); err != nil {
 		cacheStatus = "disconnected"
 	}
 
@@ -34,23 +35,30 @@ func (r *queryResolver) Health(ctx context.Context) (*model.Health, error) {
 
 // JsonItems is the resolver for the jsonItems field.
 func (r *queryResolver) JsonItems(ctx context.Context, limit *int) (*model.JsonItemsResult, error) {
-	count := 1000
+	// The previous version built a "uuid-<n>-<nanos>" string, calling
+	// time.Now().UnixNano() once per item -- 1000 high-resolution clock
+	// reads per request -- numbered items from 1 and used @example.com.
+	// See contracts/rest/canonical-payloads.md.
+	count := canonical.DefaultItems
 	if limit != nil {
-		count = *limit
+		count = canonical.ItemCount(*limit)
 	}
 
 	items := make([]*model.JsonItem, count)
-	now := time.Now().UTC().Format(time.RFC3339)
 	for i := 0; i < count; i++ {
 		items[i] = &model.JsonItem{
-			ID:        i + 1,
-			UUID:      fmt.Sprintf("uuid-%d-%d", i+1, time.Now().UnixNano()),
-			Name:      fmt.Sprintf("Item %d", i+1),
-			Email:     fmt.Sprintf("item%d@example.com", i+1),
-			CreatedAt: now,
-			IsActive:  i%2 == 0,
+			ID:        i,
+			UUID:      canonical.UUID(i),
+			Name:      canonical.Name(i),
+			Email:     canonical.Email(i),
+			CreatedAt: canonical.CreatedAt,
+			IsActive:  canonical.IsActive(i),
 		}
 	}
+
+	// The envelope timestamp is the only clock-dependent field and is
+	// excluded from the parity hash.
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	return &model.JsonItemsResult{
 		Items:     items,
@@ -90,7 +98,7 @@ func (r *queryResolver) ComplexOrders(ctx context.Context, days *int) (*model.Co
 // Cache is the resolver for the cache field.
 func (r *queryResolver) Cache(ctx context.Context, key string) (*model.CacheEntry, error) {
 	// Try to get from cache
-	val, ttl, err := r.Cache.Get(ctx, key)
+	val, ttl, err := r.CacheSvc.Get(ctx, key)
 	if err == nil && val != "" {
 		return &model.CacheEntry{
 			Key:    key,
@@ -102,7 +110,7 @@ func (r *queryResolver) Cache(ctx context.Context, key string) (*model.CacheEntr
 
 	// Generate value on miss
 	value := fmt.Sprintf("value-for-%s", key)
-	_ = r.Cache.Set(ctx, key, value, 300*time.Second)
+	_ = r.CacheSvc.Set(ctx, key, value, 300*time.Second)
 
 	return &model.CacheEntry{
 		Key:    key,

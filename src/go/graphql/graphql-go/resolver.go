@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"graphql-graphql-go/internal/canonical"
 	"time"
 
 	"graphql-graphql-go/cache"
@@ -10,9 +11,13 @@ import (
 )
 
 // Resolver is the root resolver for the GraphQL schema.
+// CacheSvc, not Cache: the resolver method for the `cache` query is also
+// called Cache, and a Go struct cannot carry a field and a method with the
+// same name -- every r.CacheSvc.* call resolved to the method value instead,
+// so neither package compiled.
 type Resolver struct {
-	DB    *db.DB
-	Cache *cache.Cache
+	DB       *db.DB
+	CacheSvc *cache.Cache
 }
 
 // Health resolves the health query.
@@ -23,7 +28,7 @@ func (r *Resolver) Health(ctx context.Context) (*Health, error) {
 	}
 
 	cacheStatus := "connected"
-	if err := r.Cache.Ping(ctx); err != nil {
+	if err := r.CacheSvc.Ping(ctx); err != nil {
 		cacheStatus = "disconnected"
 	}
 
@@ -38,23 +43,30 @@ func (r *Resolver) Health(ctx context.Context) (*Health, error) {
 
 // JsonItems resolves the jsonItems query.
 func (r *Resolver) JsonItems(ctx context.Context, args struct{ Limit *int32 }) (*JsonItemsResult, error) {
-	count := 1000
+	// The previous version built a "uuid-<n>-<nanos>" string, calling
+	// time.Now().UnixNano() once per item -- 1000 high-resolution clock
+	// reads per request -- numbered items from 1 and used @example.com.
+	// See contracts/rest/canonical-payloads.md.
+	count := canonical.DefaultItems
 	if args.Limit != nil {
-		count = int(*args.Limit)
+		count = canonical.ItemCount(int(*args.Limit))
 	}
 
 	items := make([]*JsonItem, count)
-	now := time.Now().UTC().Format(time.RFC3339)
 	for i := 0; i < count; i++ {
 		items[i] = &JsonItem{
-			ID:        int32(i + 1),
-			UUID:      fmt.Sprintf("uuid-%d-%d", i+1, time.Now().UnixNano()),
-			Name:      fmt.Sprintf("Item %d", i+1),
-			Email:     fmt.Sprintf("item%d@example.com", i+1),
-			CreatedAt: now,
-			IsActive:  i%2 == 0,
+			ID:        int32(i),
+			UUID:      canonical.UUID(i),
+			Name:      canonical.Name(i),
+			Email:     canonical.Email(i),
+			CreatedAt: canonical.CreatedAt,
+			IsActive:  canonical.IsActive(i),
 		}
 	}
+
+	// The envelope timestamp is the only clock-dependent field and is
+	// excluded from the parity hash.
+	now := time.Now().UTC().Format(time.RFC3339)
 
 	return &JsonItemsResult{
 		Items:     items,
@@ -72,7 +84,16 @@ func (r *Resolver) User(ctx context.Context, args struct{ ID int32 }) (*User, er
 	if user == nil {
 		return nil, nil
 	}
-	return user, nil
+	// db.User and the GraphQL User carry the same fields, but they are
+	// distinct named types -- the resolver never compiled.
+	return &User{
+		ID:        user.ID,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Age:       user.Age,
+		CreatedAt: user.CreatedAt,
+	}, nil
 }
 
 // ComplexOrders resolves the complexOrders query.
@@ -87,16 +108,27 @@ func (r *Resolver) ComplexOrders(ctx context.Context, args struct{ Days *int32 }
 		return nil, err
 	}
 
+	stats := make([]*UserOrderStats, len(data))
+	for i, d := range data {
+		stats[i] = &UserOrderStats{
+			UserID:            d.UserID,
+			UserName:          d.UserName,
+			TotalOrders:       d.TotalOrders,
+			TotalValue:        d.TotalValue,
+			AverageOrderValue: d.AverageOrderValue,
+		}
+	}
+
 	return &ComplexOrdersResult{
 		PeriodDays: int32(periodDays),
-		TotalUsers: int32(len(data)),
-		Data:       data,
+		TotalUsers: int32(len(stats)),
+		Data:       stats,
 	}, nil
 }
 
 // Cache resolves the cache query.
 func (r *Resolver) Cache(ctx context.Context, args struct{ Key string }) (*CacheEntry, error) {
-	val, ttl, err := r.Cache.Get(ctx, args.Key)
+	val, ttl, err := r.CacheSvc.Get(ctx, args.Key)
 	if err == nil && val != "" {
 		return &CacheEntry{
 			Key:    args.Key,
@@ -108,7 +140,7 @@ func (r *Resolver) Cache(ctx context.Context, args struct{ Key string }) (*Cache
 
 	// Generate value on miss
 	value := fmt.Sprintf("value-for-%s", args.Key)
-	_ = r.Cache.Set(ctx, args.Key, value, 300*time.Second)
+	_ = r.CacheSvc.Set(ctx, args.Key, value, 300*time.Second)
 
 	return &CacheEntry{
 		Key:    args.Key,

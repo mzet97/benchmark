@@ -45,8 +45,8 @@ func main() {
 
 	// Parse schema and create resolver
 	s, err := graphql.ParseSchema(schemaString, &Resolver{
-		DB:    database,
-		Cache: cacheClient,
+		DB:       database,
+		CacheSvc: cacheClient,
 	})
 	if err != nil {
 		log.Fatalf("Failed to parse schema: %v", err)
