@@ -46,7 +46,7 @@ Apurada nesta data contra a árvore de trabalho, não herdada da versão anterio
 |---|---|---|---:|
 | **0** | Tetos de infra | ✅ concluída — topologia medida difere da assumida | 0 |
 | **1** | Segurança | ⚠️ árvore limpa; rotação e histórico pendentes | 3 |
-| **2** | Topologia de teste | ⚠️ parcial — manifestos + runbook prontos; config K3s precisa root | 1 |
+| **2** | Topologia de teste | ✅ concluída — config aplicado, QoS Guaranteed validado | 0 |
 | **3** | Paridade entre implementações | ✅ concluída, com 3 resíduos | 3 |
 | **4** | Deploy unificado | ✅ concluída | 0 |
 | **5** | Runner | ✅ concluída | 0 |

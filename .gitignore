@@ -135,3 +135,9 @@ bun.lockb
 
 # OMC scratch logs
 .omc/
+
+# Dart build output (from Fase 6.1 dart analyze)
+.dart_tool/
+**/.dart_tool/
+pubspec.lock
+**/pubspec.lock
