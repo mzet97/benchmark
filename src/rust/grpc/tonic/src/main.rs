@@ -4,6 +4,7 @@ mod db;
 mod service;
 
 use service::BenchmarkServiceImpl;
+use std::env;
 use tokio::signal;
 use tonic::transport::Server;
 

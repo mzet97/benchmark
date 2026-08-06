@@ -18,7 +18,7 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	benchmarkpb "benchmark-connectrpc/gen/benchmark"
+	benchmarkconnect "benchmark-connectrpc/gen/benchmark/benchmarkconnect"
 )
 
 func main() {
@@ -46,7 +46,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	// Register the BenchmarkService ConnectRPC handler
-	path, handler := benchmarkpb.NewBenchmarkServiceHandler(svc,
+	path, handler := benchmarkconnect.NewBenchmarkServiceHandler(svc,
 		connect.WithInterceptors(),
 	)
 	mux.Handle(path, handler)

@@ -35,6 +35,13 @@ type JsonItemsRequest struct {
 	Limit int32 `thrift:"limit,1" json:"limit"`
 }
 
+func (r *JsonItemsRequest) GetLimit() int32 {
+	if r != nil {
+		return r.Limit
+	}
+	return 0
+}
+
 type JsonItemsResponse struct {
 	Items     []*JsonItem `thrift:"items,1" json:"items"`
 	Count     int32       `thrift:"count,2" json:"count"`
@@ -54,6 +61,13 @@ type GetUserRequest struct {
 	Id int32 `thrift:"id,1" json:"id"`
 }
 
+func (r *GetUserRequest) GetId() int32 {
+	if r != nil {
+		return r.Id
+	}
+	return 0
+}
+
 type UserResponse struct {
 	Id        int32  `thrift:"id,1" json:"id"`
 	Email     string `thrift:"email,2" json:"email"`
@@ -65,6 +79,13 @@ type UserResponse struct {
 
 type ComplexOrdersRequest struct {
 	Days int32 `thrift:"days,1" json:"days"`
+}
+
+func (r *ComplexOrdersRequest) GetDays() int32 {
+	if r != nil {
+		return r.Days
+	}
+	return 0
 }
 
 type ComplexOrdersResponse struct {
@@ -83,6 +104,13 @@ type UserOrderStats struct {
 
 type CacheRequest struct {
 	Key string `thrift:"key,1" json:"key"`
+}
+
+func (r *CacheRequest) GetKey() string {
+	if r != nil {
+		return r.Key
+	}
+	return ""
 }
 
 type CacheResponse struct {
