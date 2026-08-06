@@ -32,13 +32,26 @@ The Axum and Actix integrations share the **same GraphQL engine** (`async-graphq
 
 ## Technical Limitations
 
-### No Real Benchmark Data
+### Previous Results Are Not Defensible
 
-All existing "results" in the repository are **ESTIMATED** values, not measured data. No real benchmark has been executed yet.
+Benchmark runs *were* executed and produced the numbers in the 9 `docs/*RESULTS*.md`
+files and `BENCHMARK_RESULTS_K3S.md`. Those results have been reviewed and declared
+**INVALID — DO NOT CITE**. The defects that invalidated them are documented in
+`docs/ACTION_PLAN.md` (Anexo A): a 5-second sample instead of the methodology's
+5×60s, a load generator sharing the SUT's only node, non-comparable payloads,
+unequal worker counts, and three conflicting resource profiles. The remediation
+plan (Fases 0–7) is in progress; until Fase 6 completes, no measured numbers in
+this repository should be cited or compared.
 
-### Single Connection Pool
+### Database Connection Pooling
 
-Most implementations use a single database connection. Production deployments would use connection pooling (PgBouncer, etc.).
+All implementations now use a pooled connection with `DB_POOL_MAX=32` set via
+the ConfigMap (see `deploy/k3s/base/configmap.yaml`). For multi-process runtimes
+(Node, Bun, Deno, Dart) the bootstrap divides this by the worker count and
+injects the per-process limit into each child, so the pod's total stays at 32.
+The previous state — Go REST with a single `pgx.Conn`, others with pools of 10
+or 25 — was one of the defects that invalidated the earlier results and has been
+corrected in Fase 3.
 
 ### No TLS
 
@@ -48,9 +61,12 @@ All communication inside the cluster is **plaintext** (no TLS). This is standard
 
 The benchmark uses fixed queries. Real-world performance depends on query plan caching, connection state, and data distribution.
 
-### Resource Contention
+### Mode C (Scale-Out) Is Not Executable on This Cluster
 
-When running Mode C (5 replicas), pods may be scheduled on the same node, causing resource contention. The benchmark documents pod placement but doesn't guarantee node distribution.
+Mode C (5 replicas) was designed for horizontal scalability analysis. It is
+**not executable** on the current single-node cluster: each pod requests 7 of
+the node's 8 vCPUs (QoS Guaranteed), so 5 replicas would require 35 dedicated
+cores against 8 available. This is recorded in `docs/ACTION_PLAN.md`, Fase 5.
 
 ## Protocol Comparison Caveats
 
@@ -85,4 +101,4 @@ PostgreSQL and Redis are **external to the cluster**. Network latency between th
 
 ---
 
-**Last Updated**: 2026-07-29
+**Last Updated**: 2026-08-06

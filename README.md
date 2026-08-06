@@ -1,15 +1,15 @@
 # API Benchmark — REST, gRPC & GraphQL
 
-Comparativo de desempenho de **101 implementações** em **11 ambientes tecnológicos** e **3 protocolos**.
+Comparativo de desempenho de **100 implementações** em **11 ambientes tecnológicos** e **3 protocolos**.
 
 ## 📊 Resumo
 
 | Protocolo | Implementações | Status |
 |-----------|---------------|--------|
-| REST | 36 | ✅ |
-| gRPC | 33 | ✅ |
+| REST | 37 | ✅ |
+| gRPC | 31 | ✅ |
 | GraphQL | 32 | ✅ |
-| **Total** | **101** | ✅ |
+| **Total** | **100** | ✅ |
 
 ## 🌐 Ambientes
 
@@ -23,9 +23,9 @@ Comparativo de desempenho de **101 implementações** em **11 ambientes tecnoló
 | Deno | 4 | 3 | 3 | 10 |
 | Python | 3 | 3 | 3 | 9 |
 | Dart | 1 | 1 | 3 | 5 |
-| Java/JVM | 3 | 4 | 2 | 9 |
+| Java/JVM | 3 | 3 | 2 | 8 |
 | Kotlin/JVM | 3 | 3 | 3 | 9 |
-| GraalVM Native | 5 | 3 | 3 | 11 |
+| GraalVM Native | 6 | 3 | 3 | 12 |
 
 ## 📋 Contratos
 
@@ -88,7 +88,7 @@ Exemplos:
 ## 🚀 Comandos
 
 ```bash
-# Listar todas as 101 implementações
+# Listar todas as 100 implementações
 make inventory
 
 # Build por implementation ID
@@ -122,7 +122,7 @@ make preflight
 
 ```
 benchmark/
-├── config/implementations.yaml    # Fonte de verdade (101 impls)
+├── config/implementations.yaml    # Generated from src/ (100 impls)
 ├── contracts/
 │   ├── grpc/benchmark.proto       # Contrato gRPC
 │   └── graphql/schema.graphql     # Schema GraphQL
@@ -142,9 +142,9 @@ benchmark/
 │   ├── deno/     (4+3+3 = 10)
 │   ├── python/   (3+3+3 = 9)
 │   ├── dart/     (1+1+3 = 5)
-│   ├── java/     (3+4+2 = 9)
+│   ├── java/     (3+3+2 = 8)
 │   ├── kotlin/   (3+3+3 = 9)
-│   └── graalvm/  (5+3+3 = 11)
+│   └── graalvm/  (6+3+3 = 12)
 ├── sql/                           # Schema, seed, indexes
 ├── kubernetes/secrets.example.yaml
 └── Makefile
@@ -155,7 +155,7 @@ benchmark/
 | Documento | Descrição |
 |-----------|-----------|
 | [SECURITY_REMEDIATION.md](docs/SECURITY_REMEDIATION.md) | Plano de rotação de credenciais |
-| [PROJECT_INVENTORY.md](docs/PROJECT_INVENTORY.md) | Inventário completo de 101 implementações |
+| [PROJECT_INVENTORY.md](docs/PROJECT_INVENTORY.md) | Inventário completo de 100 implementações |
 | [FRAMEWORK_MATRIX.md](docs/FRAMEWORK_MATRIX.md) | Matriz de frameworks por ambiente |
 | [API_CONTRACTS.md](docs/API_CONTRACTS.md) | Contratos REST/gRPC/GraphQL |
 | [BENCHMARK_METHODOLOGY.md](docs/BENCHMARK_METHODOLOGY.md) | Metodologia científica |
