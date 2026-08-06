@@ -121,5 +121,17 @@ __pycache__/
 target/
 **/target/
 
+# Node.js / Bun / Deno build output. Running npm install / bun install / nest
+# build (Fase 6.1 build matrix) left node_modules/, dist/, and package-lock.json
+# as untracked noise under every src/<env>/ implementation.
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+package-lock.json
+**/package-lock.json
+bun.lockb
+
+
 # OMC scratch logs
 .omc/
