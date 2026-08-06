@@ -3,8 +3,10 @@ mod cache;
 mod db;
 mod service;
 
-use service::BenchmarkServiceImpl;
-use tokio::signal;
+use service::{
+    BenchmarkServiceImpl, BenchmarkServiceRequestRecv, BenchmarkServiceResponseSend,
+};
+use volo::net::Address;
 use volo_grpc::server::{Server, ServiceBuilder};
 
 #[volo::main]
@@ -22,9 +24,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     println!("Volo gRPC server listening on {}", addr);
 
+    // ServiceBuilder wraps the generated service and build() produces a
+    // CodecService that operates on BoxBody, which is what add_service requires.
+    let codec_svc = ServiceBuilder::new(svc)
+        .build::<BenchmarkServiceRequestRecv, BenchmarkServiceResponseSend>();
+
     Server::new()
-        .add_service(svc)
-        .run(addr)
+        .add_service(codec_svc)
+        .run(Address::Ip(addr))
         .await?;
 
     Ok(())

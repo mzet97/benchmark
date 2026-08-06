@@ -7,8 +7,17 @@ use volo_grpc::{Request, Response, Status};
 
 include!(concat!(env!("OUT_DIR"), "/benchmark.rs"));
 
-use benchmark::benchmark_service_server::{BenchmarkService, BenchmarkServiceServer};
-use benchmark::*;
+// The volo-build-generated code nests the proto package as
+// `benchmark::benchmark::<items>` (outer file module -> inner package module).
+// Re-export the generated items so the rest of the crate (main.rs) shares a
+// single copy of these types instead of re-including the generated file.
+pub use benchmark::benchmark::{
+    BenchmarkService, BenchmarkServiceServer,
+    BenchmarkServiceRequestRecv, BenchmarkServiceResponseSend,
+    CacheRequest, CacheResponse, ComplexOrdersRequest, ComplexOrdersResponse,
+    GetUserRequest, HealthRequest, HealthResponse, JsonItem, JsonItemsRequest,
+    JsonItemsResponse, UserOrderStats, UserResponse,
+};
 
 pub struct BenchmarkServiceImpl {
     db: DbPool,
@@ -21,7 +30,7 @@ impl BenchmarkServiceImpl {
     }
 }
 
-#[volo::async_trait]
+// The generated trait uses native async fn in trait (RPITIT); no macro needed.
 impl BenchmarkService for BenchmarkServiceImpl {
     async fn health(
         &self,
@@ -41,11 +50,11 @@ impl BenchmarkService for BenchmarkServiceImpl {
         };
 
         Ok(Response::new(HealthResponse {
-            status: "ok".to_string(),
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            timestamp: Utc::now().to_rfc3339(),
-            database: db_status,
-            cache: cache_status,
+            status: "ok".to_string().into(),
+            version: env!("CARGO_PKG_VERSION").to_string().into(),
+            timestamp: Utc::now().to_rfc3339().into(),
+            database: db_status.into(),
+            cache: cache_status.into(),
         }))
     }
 
@@ -62,10 +71,10 @@ impl BenchmarkService for BenchmarkServiceImpl {
         let items: Vec<JsonItem> = (0..count)
             .map(|i| JsonItem {
                 id: i,
-                uuid: crate::canonical::uuid(i),
-                name: crate::canonical::name(i),
-                email: crate::canonical::email(i),
-                created_at: crate::canonical::CANONICAL_CREATED_AT.to_string(),
+                uuid: crate::canonical::uuid(i).into(),
+                name: crate::canonical::name(i).into(),
+                email: crate::canonical::email(i).into(),
+                created_at: crate::canonical::CANONICAL_CREATED_AT.to_string().into(),
                 is_active: crate::canonical::is_active(i),
             })
             .collect();
@@ -73,7 +82,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
         Ok(Response::new(JsonItemsResponse {
             count: items.len() as i32,
             items,
-            timestamp: Utc::now().to_rfc3339(),
+            timestamp: Utc::now().to_rfc3339().into(),
         }))
     }
 
@@ -96,13 +105,19 @@ impl BenchmarkService for BenchmarkServiceImpl {
         let created_at: std::time::SystemTime = row.get(5);
         let created_at: chrono::DateTime<Utc> = created_at.into();
 
+        // The generated string fields are FastStr; read text columns as String
+        // (FastStr does not implement tokio_postgres::FromSql) then convert.
+        let email: String = row.get(1);
+        let first_name: String = row.get(2);
+        let last_name: String = row.get(3);
+
         Ok(Response::new(UserResponse {
             id: row.get(0),
-            email: row.get(1),
-            first_name: row.get(2),
-            last_name: row.get(3),
+            email: email.into(),
+            first_name: first_name.into(),
+            last_name: last_name.into(),
             age: row.get(4),
-            created_at: created_at.to_rfc3339(),
+            created_at: created_at.to_rfc3339().into(),
         }))
     }
 
@@ -134,12 +149,15 @@ impl BenchmarkService for BenchmarkServiceImpl {
 
         let data: Vec<UserOrderStats> = rows
             .iter()
-            .map(|row| UserOrderStats {
-                user_id: row.get(0),
-                user_name: row.get(1),
-                total_orders: row.get(2),
-                total_value: row.get::<_, f64>(3),
-                average_order_value: row.get::<_, f64>(4),
+            .map(|row| {
+                let user_name: String = row.get(1);
+                UserOrderStats {
+                    user_id: row.get(0),
+                    user_name: user_name.into(),
+                    total_orders: row.get(2),
+                    total_value: row.get::<_, f64>(3),
+                    average_order_value: row.get::<_, f64>(4),
+                }
             })
             .collect();
 
@@ -170,11 +188,11 @@ impl BenchmarkService for BenchmarkServiceImpl {
             let ttl: i32 = conn.ttl(&cache_key).await.unwrap_or(-1);
 
             return Ok(Response::new(CacheResponse {
-                key,
-                value,
+                key: key.into(),
+                value: value.into(),
                 cached: true,
                 ttl,
-                timestamp: Utc::now().to_rfc3339(),
+                timestamp: Utc::now().to_rfc3339().into(),
             }));
         }
 
@@ -186,11 +204,11 @@ impl BenchmarkService for BenchmarkServiceImpl {
             .map_err(|e| Status::internal(format!("Redis error: {}", e)))?;
 
         Ok(Response::new(CacheResponse {
-            key,
-            value,
+            key: key.into(),
+            value: value.into(),
             cached: false,
             ttl: 3600,
-            timestamp: Utc::now().to_rfc3339(),
+            timestamp: Utc::now().to_rfc3339().into(),
         }))
     }
 }

@@ -1,3 +1,5 @@
+using GraphqlEntityGraphQL.Models;
+
 namespace GraphqlEntityGraphQL;
 
 /// <summary>
@@ -43,5 +45,30 @@ public static class Canonical
         }
 
         return n > MaxItems ? MaxItems : n;
+    }
+
+    /// <summary>
+    /// Build the canonical list of <paramref name="limit"/> items. Exposed as a
+    /// single call so GraphQL field resolvers can use it inside an expression
+    /// tree (no loops or statement bodies in the resolver itself).
+    /// </summary>
+    public static List<JsonItem> BuildItems(int limit)
+    {
+        var count = ItemCount(limit);
+        var items = new List<JsonItem>(count);
+        for (var i = 0; i < count; i++)
+        {
+            items.Add(new JsonItem
+            {
+                Id = i,
+                Uuid = Uuid(i),
+                Name = Name(i),
+                Email = Email(i),
+                CreatedAt = CreatedAt,
+                IsActive = IsActive(i)
+            });
+        }
+
+        return items;
     }
 }

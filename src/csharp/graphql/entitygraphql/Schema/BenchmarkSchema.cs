@@ -1,18 +1,48 @@
 using EntityGraphQL.Schema;
 using GraphqlEntityGraphQL.Models;
 using GraphqlEntityGraphQL.Services;
-using GraphqlEntityGraphQL;
 
 namespace GraphqlEntityGraphQL.Schema;
 
-public static class BenchmarkSchema
+/// <summary>
+/// Configures the GraphQL schema on top of <see cref="BenchmarkContext"/>.
+///
+/// EntityGraphQL 5.x compiles every field resolver into an expression tree, so
+/// resolvers must be expression-body lambdas: no statement bodies, no assignment
+/// operators, and no async/await. Async data access (Postgres, Redis) is done by
+/// calling the async service methods and unwrapping the Task synchronously with
+/// <c>.GetAwaiter().GetResult()</c> -- the documented 5.x pattern (see
+/// EntityGraphQL.AspNet tests/QueryTests/AsyncTests.cs). EntityGraphQL executes
+/// the resulting expression tree itself.
+///
+/// Fields that resolve data through a service use <c>Resolve&lt;TService&gt;</c>
+/// so the service is injected from the request's <see cref="IServiceProvider"/>.
+/// The query-context object (<see cref="BenchmarkContext"/>) is supplied by the
+/// ASP.NET integration but carries no data here -- every resolver works through
+/// the injected services.
+/// </summary>
+public class BenchmarkSchema
 {
-    public static SchemaProvider<BenchmarkContext> Create(DatabaseService db, CacheService cache)
+    /// <summary>
+    /// Builds and configures the <see cref="SchemaProvider{BenchmarkContext}"/>.
+    /// Registered via <c>AddGraphQLSchema&lt;BenchmarkContext&gt;(Configure)</c>.
+    /// </summary>
+    public static SchemaProvider<BenchmarkContext> Configure(DatabaseService db, CacheService cache, bool introspectionEnabled = true)
     {
-        var schema = new SchemaProvider<BenchmarkContext>();
+        var schema = new SchemaProvider<BenchmarkContext>(introspectionEnabled: introspectionEnabled);
 
-        // Health query
-        schema.Query().AddField("health", new { }, (p, args) => new Health
+        // Result types are returned by service-resolved fields, which EntityGraphQL
+        // cannot infer from the empty context -- register them explicitly.
+        schema.AddType<Health>("Health", "Health check endpoint").AddAllFields();
+        schema.AddType<JsonItem>("JsonItem", "A canonical JSON benchmark item").AddAllFields();
+        schema.AddType<JsonItemsResult>("JsonItemsResult", "JSON serialization benchmark result").AddAllFields();
+        schema.AddType<User>("User", "Application user").AddAllFields();
+        schema.AddType<UserOrderStats>("UserOrderStats", "Per-user order aggregation").AddAllFields();
+        schema.AddType<ComplexOrdersResult>("ComplexOrdersResult", "Complex orders aggregation result").AddAllFields();
+        schema.AddType<CacheEntry>("CacheEntry", "Cache hit/miss benchmark entry").AddAllFields();
+
+        // -- health: pure expression, no service or wall clock dependency --------
+        schema.Query().AddField("health", new { }, (ctx, args) => new Health
         {
             Status = "ok",
             Version = Environment.GetEnvironmentVariable("APP_VERSION") ?? "1.0.0",
@@ -21,87 +51,45 @@ public static class BenchmarkSchema
             Cache = "ok"
         }, "Health check endpoint");
 
-        // JsonItems query
-        schema.Query().AddField("jsonItems", new { limit = 1000 }, (p, args) =>
+        // -- jsonItems: CPU-only generation, no I/O ------------------------------
+        schema.Query().AddField("jsonItems", new { limit = 1000 }, (ctx, args) => new JsonItemsResult
         {
-            var limit = args.limit;
-            var count = Canonical.ItemCount(limit);
-            var items = new List<JsonItem>(count);
-            for (var i = 0; i < count; i++)
-            {
-                items.Add(new JsonItem
-                {
-                    Id = i,
-                    Uuid = Canonical.Uuid(i),
-                    Name = Canonical.Name(i),
-                    Email = Canonical.Email(i),
-                    CreatedAt = Canonical.CreatedAt,
-                    IsActive = Canonical.IsActive(i)
-                });
-            }
-
-            return new JsonItemsResult
-            {
-                Items = items,
-                Count = items.Count,
-                Timestamp = DateTime.UtcNow.ToString("o")
-            };
+            Items = Canonical.BuildItems(args.limit),
+            Count = Canonical.ItemCount(args.limit),
+            Timestamp = DateTime.UtcNow.ToString("o")
         }, "JSON serialization benchmark with 1000 objects");
 
-        // User query
-        schema.Query().AddField("user", new { id = 0 }, async (p, args) =>
-        {
-            var user = await db.GetUserByIdAsync(args.id);
-            return user;
-        }, "Get a user by ID");
+        // -- user: Postgres lookup ------------------------------------------------
+        // Per the contract `user(id): User` is nullable (no "!"), so returning
+        // null on a missing user is correct; the pragma silences the NRT warning
+        // that fires because the resolver delegate's return type is non-null.
+        schema.Query().AddField("user", new { id = 0 }, "Get a user by ID")
+#pragma warning disable CS8603
+            .Resolve<DatabaseService>((ctx, args, database) => database.GetUserById(args.id));
+#pragma warning restore CS8603
 
-        // ComplexOrders query
-        schema.Query().AddField("complexOrders", new { days = 30 }, async (p, args) =>
-        {
-            var data = await db.GetComplexOrdersAsync(args.days);
-            return new ComplexOrdersResult
+        // -- complexOrders: Postgres aggregation ----------------------------------
+        schema.Query().AddField("complexOrders", new { days = 30 }, "Complex orders aggregation query")
+            .Resolve<DatabaseService>((ctx, args, database) => new ComplexOrdersResult
             {
                 PeriodDays = args.days,
-                TotalUsers = data.Count,
-                Data = data
-            };
-        }, "Complex orders aggregation query");
+                TotalUsers = database.GetComplexOrders(args.days).Count,
+                Data = database.GetComplexOrders(args.days)
+            });
 
-        // Cache query
-        schema.Query().AddField("cache", new { key = "" }, async (p, args) =>
-        {
-            var key = args.key;
-            var value = await cache.GetAsync(key);
-            var ttl = await cache.GetTtlAsync(key);
-
-            if (value != null)
-            {
-                return new CacheEntry
-                {
-                    Key = key,
-                    Value = value,
-                    Cached = true,
-                    Ttl = ttl >= 0 ? (int)ttl : 0
-                };
-            }
-
-            // Generate value on miss
-            var generatedValue = $"value-for-{key}";
-            await cache.SetAsync(key, generatedValue, 300);
-
-            return new CacheEntry
-            {
-                Key = key,
-                Value = generatedValue,
-                Cached = false,
-                Ttl = 300
-            };
-        }, "Cache hit/miss benchmark");
+        // -- cache: Redis hit/miss with write-on-miss -----------------------------
+        schema.Query().AddField("cache", new { key = "" }, "Cache hit/miss benchmark")
+            .Resolve<CacheService>((ctx, args, redis) => redis.GetOrSet(args.key, 300));
 
         return schema;
     }
 }
 
+/// <summary>
+/// Root query context for EntityGraphQL. Carries no data itself; all field
+/// resolvers obtain data through injected services. Must be registered in DI so
+/// the ASP.NET integration can supply the context instance per request.
+/// </summary>
 public class BenchmarkContext
 {
 }

@@ -1,7 +1,9 @@
 using GraphQL;
+using GraphQL.SystemTextJson;
 using GraphQL.Types;
 using GraphqlDotnet.Services;
 using GraphqlDotnet.Schema;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,7 +24,9 @@ app.Map("/graphql", async (HttpContext context) =>
         return;
     }
 
-    var request = await context.Request.ReadFromJsonAsync<GraphQLRequest>();
+    var jsonOptions = new JsonSerializerOptions();
+    jsonOptions.Converters.Add(new InputsJsonConverter());
+    var request = await context.Request.ReadFromJsonAsync<GraphQLRequest>(jsonOptions);
     if (request == null)
     {
         context.Response.StatusCode = 400;
@@ -53,6 +57,6 @@ app.Run();
 public class GraphQLRequest
 {
     public string Query { get; set; } = "";
-    public object? Variables { get; set; }
+    public Inputs? Variables { get; set; }
     public string? OperationName { get; set; }
 }

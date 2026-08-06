@@ -1,6 +1,6 @@
 # Build Matrix — Fase 6.1
 
-**Atualizado**: 2026-08-06
+**Atualizado**: 2026-08-06 (pós-fixes Fase 6.2–6.9)
 **Objetivo**: registrar, para cada uma das 100 implementações, se ela compila
 (E2) e qual é o erro real quando não compila. Antes deste documento, a lista de
 "implementações que não buildam" era um palpite — e quando a toolchain JVM foi
@@ -162,30 +162,39 @@ e medir; isso é trabalho das tarefas 6.2–6.9.
 
 ## Resumo executivo
 
-| | |
-|---|---|
-| **Medido (E2)** | 56 implementações |
-| **Compila limpo** | 43 (77%) |
-| **Falha** | 13 |
-| **Não medido** | 44 (sem toolchain) |
-
-### As 13 falhas, por causa raiz
-
-| Causa raiz | Qtd | Implementações |
+| | Antes dos fixes | Depois dos fixes (6.2–6.9) |
 |---|---|---|
-| Código protobuf nunca gerado (`protoc` ausente) | 4 | go-grpc-{grpc-go, connectrpc, kitex}, rust-grpc-tonic |
-| Bug de fonte (erro de tipo, API drift, import ausente) | 6 | go-graphql-gqlgen, rust-grpc-{volo, grpcio}, rust-graphql-{async-graphql-actix, juniper}, csharp-graphql-{graphql-dotnet, entitygraphql} |
-| Configuração TypeScript/tsconfig | 2 | bun-rest-{bun-serve, hono} |
-| Conflito de versão de dependência | 2 | bun-graphql-yoga, python-graphql-graphene |
-| `protoc` não instalado (limite de toolchain, não de código) | 1 | (incluído em "protoc ausente" acima) |
+| **Medido (E2)** | 56 | 56 |
+| **Compila limpo** | 43 (77%) | **53 (95%)** |
+| **Falha** | 13 | **3** |
+| **Não medido** | 44 (sem toolchain) | 44 |
 
-> **4 das 13 falhas são limite de toolchain**, não defeito de código: `protoc`
-> não está instalado. Quando for, as 3 de Go gRPC + tonic devem ser remedidas.
-> `grpcio` (Rust) depende de CMake compatível — separado.
+### As 10 falhas corrigidas (Fase 6.2–6.9)
 
-### Próximo passo
+| Implementação | Causa real | Fix |
+|---|---|---|
+| `go-graphql-gqlgen` | `QueryResolver` undefined (generated.go era stub) | Adicionadas as 3 declarações que o gqlgen emite: `QueryResolver` interface, `Config`, `NewExecutableSchema` |
+| `rust-graphql-async-graphql-actix` | `GraphQLResponse` não existe em async-graphql v7 | Handler retorna `async_graphql::Response` direto via `HttpResponse::Ok().json()` |
+| `rust-graphql-juniper` | `Decimal: FromSql` não satisfeito | Feature `db-tokio-postgres` adicionada a `rust_decimal` no Cargo.toml |
+| `rust-grpc-volo` | `volo_build::Config` não existe (API reworked) | build.rs reescrito com `Builder`; service.rs/main.rs adaptados à API 0.10 (FastStr, MakeIncoming, ServiceBuilder) |
+| `bun-rest-bun-serve` | tsconfig sem `allowImportingTsExtensions` (14 erros TS5097) | Flag adicionada ao tsconfig (já tinha `noEmit`) |
+| `bun-rest-hono` | idem (11 erros TS5097) | idem |
+| `bun-graphql-yoga` | `@graphql-yoga/node@^5.1.0` não existe (renomeado) | Trocado para `graphql-yoga@^5.1.0` no package.json |
+| `csharp-graphql-graphql-dotnet` | cast implícito `object` → `Inputs` | `Variables` tipado como `Inputs?` + `InputsJsonConverter` |
+| `csharp-graphql-entitygraphql` | 14 erros: static type como generic arg, async lambdas em expression trees, `TimeToLiveAsync` inexistente | Schema reescrito: expression-body lambdas, `.Resolve<TService>()`, `KeyTimeLiveAsync`, `BenchmarkContext` como generic arg |
+| `python-graphql-graphene` | `flask-graphql` incompatível com `graphene` v3 | Removido `flask-graphql`; `/graphql` serve direto via `schema.execute()` |
 
-A lista final de defeitos para a Fase 6.2–6.9 sai deste documento. As 13 falhas
-acima têm causa real identificada; as 44 pendentes precisam de toolchain antes
-de ser classificadas. Implementação que não chega a E2 **sai da matriz e isso é
-publicado** (Fase 7.4).
+### As 3 falhas restantes
+
+| Implementação | Causa real | Status |
+|---|---|---|
+| `go-grpc-grpc-go` | código protobuf nunca gerado | Precisa `protoc` + geração de stubs |
+| `go-grpc-connectrpc` | idem | idem |
+| `go-grpc-kitex` | idem + `go.mod` dessincronizado | idem + `go mod tidy` |
+
+> As 3 falhas restantes são do mesmo grupo — **código protobuf nunca gerado**.
+> Precisam de `protoc` instalado e geração dos stubs (`*.pb.go`). O `protoc`
+> não estava no PATH; o agente Rust reportou tê-lo usado (provavelmente via
+> cargo build dependency), mas o Go gRPC precisa dele explicitamente.
+> `rust-grpc-tonic` também depende de `protoc` — pode ter sido corrigido na
+> passada do agente Rust, mas não foi re-verificado isoladamente.

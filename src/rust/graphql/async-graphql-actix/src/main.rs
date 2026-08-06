@@ -5,7 +5,6 @@ mod models;
 mod schema;
 
 use actix_web::{web, App, HttpServer, HttpResponse, middleware};
-use async_graphql::http::GraphQLResponse;
 use schema::QueryRoot;
 use std::sync::Arc;
 
@@ -18,7 +17,9 @@ async fn graphql_handler(
     req: web::Json<async_graphql::Request>,
 ) -> HttpResponse {
     let response = state.schema.execute(req.into_inner()).await;
-    HttpResponse::Ok().json(GraphQLResponse::from(response))
+    // async_graphql::Response implements Serialize, so we can return it directly.
+    // (GraphQLResponse was removed from the `http` module in v7.)
+    HttpResponse::Ok().json(response)
 }
 
 async fn health_handler() -> HttpResponse {

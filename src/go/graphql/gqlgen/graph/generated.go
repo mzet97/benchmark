@@ -7,10 +7,33 @@ import (
 
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/vektah/gqlparser/v2/ast"
+
+	"graphql-gqlgen/graph/model"
 )
 
 // This is a placeholder. Run `go run github.com/99designs/gqlgen generate` to produce the real generated.go.
 // It defines the executable schema, the ComplexityRoot, and wires up the resolvers.
+
+// QueryResolver is the resolver interface for the Query type.
+// Mirrors the interface gqlgen would normally emit in generated.go.
+type QueryResolver interface {
+	Health(ctx context.Context) (*model.Health, error)
+	JsonItems(ctx context.Context, limit *int) (*model.JsonItemsResult, error)
+	User(ctx context.Context, id int) (*model.User, error)
+	ComplexOrders(ctx context.Context, days *int) (*model.ComplexOrdersResult, error)
+	Cache(ctx context.Context, key string) (*model.CacheEntry, error)
+}
+
+// Config ties the root Resolver into the executable schema, matching the
+// signature gqlgen generates (NewExecutableSchema(cfg Config)).
+type Config struct {
+	Resolvers *Resolver
+}
+
+// NewExecutableSchema builds an ExecutableSchema from the supplied Config.
+func NewExecutableSchema(cfg Config) *ExecutableSchema {
+	return &ExecutableSchema{Resolvers: cfg.Resolvers}
+}
 
 type ExecutableSchema struct {
 	Resolvers *Resolver

@@ -90,4 +90,17 @@ public class DatabaseService
 
         return results;
     }
+
+    /// <summary>
+    /// Synchronous wrapper for use inside EntityGraphQL field expressions, which
+    /// are compiled to expression trees and cannot use async/await. EntityGraphQL
+    /// executes the expression tree itself, so blocking here is expected.
+    /// </summary>
+    public User? GetUserById(int id) => GetUserByIdAsync(id).GetAwaiter().GetResult();
+
+    /// <summary>
+    /// Synchronous wrapper for use inside EntityGraphQL field expressions. See
+    /// <see cref="GetUserById"/> for the rationale.
+    /// </summary>
+    public List<UserOrderStats> GetComplexOrders(int days) => GetComplexOrdersAsync(days).GetAwaiter().GetResult();
 }
