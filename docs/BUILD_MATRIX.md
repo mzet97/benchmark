@@ -165,8 +165,8 @@ e medir; isso é trabalho das tarefas 6.2–6.9.
 | | Após 6.2–6.9 | Após Trilha A3 (44 pendentes) |
 |---|---|---|
 | **Medido (E2)** | 56 | **100** |
-| **Compila limpo** | 56 (100% das medidas) | **68/100 (68%)** |
-| **Falha** | 0 | **32** |
+| **Compila limpo** | 56 (100% das medidas) | **74/100 (74%)** |
+| **Falha** | 0 | **26** |
 | **Não medido** | 44 | **0** |
 
 ### As 13 falhas corrigidas (Fase 6.2–6.9)
@@ -207,22 +207,21 @@ e medir; isso é trabalho das tarefas 6.2–6.9.
 
 **Java: 5/8 limpo.**
 
-### Kotlin (9) — `gradle compileKotlin -q` (Gradle 8.5)
+### Kotlin (9) — `gradle compileKotlin` (Gradle 8.5, JDK 21 + JDK 17 toolchain)
 
 | ID | E2 | Erro real |
 |---|---|---|
-| `kotlin-rest-ktor` | ❌ | `jvmToolchain(21)` falha — só JDK 25 disponível |
-| `kotlin-rest-spring` | ❌ | `Unsupported class file major version 69` — Gradle 8.5 não roda em JDK 25 |
-| `kotlin-rest-http4k` | ❌ | idem |
-| `kotlin-grpc-grpc-kotlin` | ❌ | `jvmToolchain` mismatch |
-| `kotlin-grpc-spring-grpc` | ❌ | idem |
-| `kotlin-grpc-armeria` | ❌ | idem |
-| `kotlin-graphql-graphql-kotlin` | ❌ | idem |
-| `kotlin-graphql-spring-graphql` | ❌ | idem |
-| `kotlin-graphql-dgs` | ❌ | idem |
+| `kotlin-rest-ktor` | ✅ | — |
+| `kotlin-rest-spring` | ✅ | — |
+| `kotlin-rest-http4k` | ✅ | — |
+| `kotlin-grpc-grpc-kotlin` | ❌ | `addService` sobrecarga ambígua (BindableService vs ServerServiceDefinition) |
+| `kotlin-grpc-spring-grpc` | ❌ | `io.grpc:grpc-spring-boot-starter:3.2.3` não existe — deveria ser `net.devh:` (plano 6.2) |
+| `kotlin-grpc-armeria` | ❌ | `addService` sobrecarga ambígua (GrpcServiceBuilder) |
+| `kotlin-graphql-graphql-kotlin` | ✅ | — |
+| `kotlin-graphql-spring-graphql` | ✅ | — |
+| `kotlin-graphql-dgs` | ✅ | — |
 
-**Kotlin: 0/9.** Todas falham por **JDK ausente** — Gradle 8.5 requer ≤JDK 21.
-JDK 21 (Temurin) em instalação; re-medir quando disponível.
+**Kotlin: 6/9 limpo.** Os 3 gRPC têm defeitos de código reais (6.2–6.4).
 
 ### GraalVM JIT (12) — `mvn compile -B -q`
 
