@@ -1,110 +1,107 @@
 # K3s Environment
 
-**Status**: TEMPLATE — Needs actual cluster data collection
-
-## How to Collect
-
-Run these commands against the K3s cluster and fill in the values:
-
-```bash
-# Cluster info
-kubectl version
-kubectl cluster-info
-kubectl get nodes -o wide
-kubectl describe nodes
-
-# Resources
-kubectl top nodes
-kubectl get pods -A -o wide
-kubectl get svc -A
-kubectl get storageclass
-
-# Health
-kubectl get --raw /readyz
-
-# Namespace
-kubectl get all -n benchmark
-kubectl get secrets -n benchmark
-kubectl get configmaps -n benchmark
-```
+**Status**: MEDIDO em 2026-08-06 (Fase 0). Os valores abaixo são reais, não
+template. Veja `docs/BASELINE_CEILINGS.md` para os tetos medidos.
 
 ## Cluster Information
 
 | Item | Value |
 |------|-------|
-| K3s Version | `______` |
-| Kubernetes Version | `______` |
-| Number of Nodes | `______` |
-| Architecture | `______` |
+| K3s Version | `v1.34.6+k3s1` |
+| Kubernetes Version | `v1.34.6` |
+| Number of Nodes | **1** (`k8s1`, control-plane) |
+| Architecture | `x86_64` |
+| OS | Ubuntu 24.04.4 LTS (kernel 6.8.0-136-generic) |
+| Container Runtime | containerd 2.2.2 |
 | CNI | flannel (default) |
 | CoreDNS | Built-in |
 | kube-proxy | Built-in |
-| Traefik | Built-in |
-| ServiceLB | Built-in |
-| metrics-server | `______` |
+| Traefik | Built-in (Fase 2 planeja `--disable`) |
+| ServiceLB | Built-in (Fase 2 planeja `--disable`) |
+| metrics-server | Presente (o runner o usa para `pod_cpu_seconds`) |
 
-## Nodes
+## Node
 
-| Node | Role | CPU | Memory | Architecture | Labels |
-|------|------|-----|--------|--------------|--------|
-| `______` | `______` | `______` | `______` | `______` | `______` |
-| `______` | `______` | `______` | `______` | `______` | `______` |
+| Node | Role | CPU | Memory | Hypervisor |
+|------|------|-----|--------|------------|
+| `k8s1` (192.168.1.51) | control-plane | **48 vCPU** (2×24, sem HT) | **62 GiB** | KVM/Proxmox |
 
-### Required Labels
+CPU steal: **0%** (medido em idle e sob carga — ver BASELINE_CEILINGS.md §0.7).
 
-```bash
-# Label nodes for benchmark roles
-kubectl label node <node-name> benchmark-role=server
-kubectl label node <node-name> benchmark-role=loadgen
-```
+> A topologia assumida no ACTION_PLAN (8 vCPU / 16 GiB) não corresponde à
+> realidade. O dimensionamento do pod SUT (7 CPU) e o `--system-reserved` da
+> Fase 2 precisam ser recalculados contra 48 cores.
 
 ## Image Registry
 
 | Strategy | Status |
 |----------|--------|
-| Harbor/private registry | `______` |
-| Docker Hub | `______` |
-| GHCR | `______` |
-| Local registry | `______` |
-| containerd import | `______` |
+| containerd import via `docker` | ✅ Docker 29.4.0 no nó |
+| GHCR | Configurado no `ci.yml` (`ghcr.io`) |
+| Local registry | Não configurado |
 
-## External Services
+## Data Services
 
 ### PostgreSQL
 
 | Item | Value |
 |------|-------|
-| Host | `spsql.home.arpa` |
-| Port | `5432` |
+| Host (real) | `192.168.1.52:5432` (DNS `spsql.home.arpa`) |
 | Database | `benchmark_api` |
-| Users table | 10,000 rows |
-| Orders table | 50,000 rows |
-| Order items table | 200,000 rows |
+| User | `db_admin` |
+| Versão | **18.3** (Ubuntu 18.3-1.pgdg24.04) |
+| `max_connections` | **100** |
+| `shared_buffers` | **4 GB** |
+| Tabela `users` | 10.000 linhas |
+| Tabela `orders` | 50.000 linhas |
+| Tabela `order_items` | 200.000 linhas |
+| **TPS (query `/db/simple`)** | **25.436** (32 clients, 1.26 ms/query) |
+
+> Há também um pod `benchmark/postgres` (ClusterIP 10.43.143.47) com credenciais
+> `benchmark/benchmark`, mas o secret do benchmark (`benchmark-secrets`) aponta
+> para `.52` com `db_admin`. O SUT usa `.52`.
 
 ### Redis
 
 | Item | Value |
 |------|-------|
-| Host | `redis.home.arpa` |
-| Port | `30379` |
+| Host (externo) | `192.168.1.51:30379` (DNS `redis.home.arpa`) |
+| Host (interno) | `redis-master.redis.svc.cluster.local:6379` |
+| Senha | `Admin@123` |
+| Topologia | cluster in-cluster (master + replica), namespace `redis`, 112 dias |
+| **Teto (PING/SET/GET)** | **~30k ops/s** (via NodePort, 50 clients) |
+
+> **Confounder declarado**: o Redis roda no mesmo nó do SUT. O `/cache` pode
+> carregar competição de CPU com o framework medido.
 
 ## Capacity
 
-| Resource | Total | Used | Available |
-|----------|-------|------|-----------|
-| CPU (cores) | `______` | `______` | `______` |
-| Memory (GB) | `______` | `______` | `______` |
-| Pods | `______` | `______` | `______` |
+| Resource | Total | Disponível (medição) |
+|----------|-------|----------------------|
+| CPU (cores) | 48 | ~44 (K3s+SO+redis+argocd consomem ~4) |
+| Memória | 62 GiB | ~50 GiB livres |
 
-## Active Workloads
+## Active Workloads (vizinhança no nó)
 
-List any workloads running in the cluster that might affect benchmark results:
+| Namespace | Workload | Impacto no benchmark |
+|-----------|----------|----------------------|
+| `redis` | redis-master + replica | compartilha CPU; confounder `/cache` |
+| `argocd` | argocd + argocd-redis | CPU residual |
+| `benchmark` | postgres (standby, não usado pelo SUT) | mínimo |
 
-| Namespace | Workload | Impact |
-|-----------|----------|--------|
-| `______` | `______` | `______` |
+## Rede
+
+| Camada | Throughput medido |
+|--------|-------------------|
+| Loopback VM `.51` | 53,8 Gbps |
+| Workstation ↔ `.51` | **~95 Mbps** (TCP/UDP, simétrico, confirmado por HTTP) |
+| NIC workstation | Intel I211, 1 Gbps link (mas throughput real ~95 Mbps) |
+| NIC VM `ens18` | virtio, `Speed: Unknown` |
+
+> O teto de rede é ~10× pior que o assumido (1 GbE útil ≈ 117 MB/s). Ver
+> `BASELINE_CEILINGS.md` para o impacto por cenário.
 
 ---
 
-**Last Updated**: 2026-07-29
-**Status**: TEMPLATE — Fill with actual cluster data
+**Last Updated**: 2026-08-06
+**Status**: MEDIDO

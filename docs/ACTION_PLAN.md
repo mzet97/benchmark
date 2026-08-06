@@ -44,7 +44,7 @@ Apurada nesta data contra a árvore de trabalho, não herdada da versão anterio
 
 | Fase | Escopo | Status | Tarefas abertas |
 |---|---|---|---:|
-| **0** | Tetos de infra | ❌ **não iniciada — bloqueia todas as demais** | 7 |
+| **0** | Tetos de infra | ✅ concluída — topologia medida difere da assumida | 0 |
 | **1** | Segurança | ⚠️ árvore limpa; rotação e histórico pendentes | 3 |
 | **2** | Topologia de teste | ❌ não aplicada | 6 |
 | **3** | Paridade entre implementações | ✅ concluída, com 3 resíduos | 3 |
@@ -82,42 +82,34 @@ conferidos contra a árvore nesta data e estão fechados:
 
 ---
 
-## Topologia decidida
+## Topologia decidida (e medida em 2026-08-06)
 
-Inalterada desde 2026-08-02. Não é objeto deste plano rediscuti-la; é objeto da
-Fase 2 aplicá-la.
+A topologia assumida era 8 vCPU / 16 GiB / 1 GbE útil. A medição da Fase 0
+mostrou que nenhum dos três é real. **A Fase 2 precisa ser refeita contra os
+números medidos abaixo**, não contra os que estavam aqui antes.
 
 ```
 Workstation Windows              VM .51 — K3s (SUT)          VM .52 — PostgreSQL
-  bombardier / oha / k6   ──>      8 vCPU / 16 GiB              8 vCPU / 16 GiB
-  ghz (gRPC)             NIC        ├ sistema ... 1 CPU
-                        1 GbE       └ pod SUT ... 7 CPU  ──>   Redis (externo)
+  Intel I211 1 Gbps        ──>    KVM/Proxmox                 KVM/Proxmox
+  iperf3: ~95 Mbps real    NIC     48 vCPU / 62 GiB            PG 18.3
+  bombardier/oha/k6/ghz          ├ K3s + SO + argocd + redis   .52:5432
+                                 └ pod SUT ... 7 CPU (15% do nó!)
+                                    Redis (in-cluster) ←─ master NodePort 30379
 ```
 
-| Camada | CPU | Memória |
-|---|---:|---:|
-| VM `.51` total | 8 | 16 GiB |
-| K3s + SO (`--system-reserved` + `--kube-reserved`) | 1,0 | 2 GiB |
-| **Pod SUT** (`requests == limits`, QoS Guaranteed) | **7** | **12 GiB** |
+| Camada | Assumido | Medido | Fonte |
+|---|---|---|---|
+| VM `.51` total | 8 vCPU / 16 GiB | **48 vCPU / 62 GiB** | `nproc`, `free -h` |
+| Rede WS↔`.51` | 1 GbE útil (117 MB/s) | **~95 Mbps (12 MB/s)** | iperf3 + HTTP |
+| Redis | externo | **in-cluster** (mesmo nó do SUT) | `kubectl get svc -n redis` |
+| CPU steal | desconhecido | **0%** | `vmstat`, `/proc/stat` |
 
-`--cpu-manager-policy=static` + requests inteiros + Guaranteed → cores
-exclusivos, sem CFS throttling. É o que torna "100% do hardware" repetível.
+O detalhe completo, com o teto efetivo por cenário, está em
+`docs/BASELINE_CEILINGS.md`.
 
-### Consequência da rede de 1 GbE
-
-Teto útil ≈ 941 Mbps ≈ 117,6 MB/s. **Estes números são estimados e a Fase 0
-existe para substituí-los por medição.**
-
-| Cenário | Corpo | Teto de rede | Gargalo esperado | Veredito |
-|---|---:|---:|---|---|
-| `/health` | ~100 B | ~390k rps | **PPS/cliente** ~50-150k | ⚠️ topo comprimido |
-| `/json` n=1000 | 106-154 KB | **~750-1.100 rps** | **rede** | ❌ inviável p/ throughput |
-| `/db/simple` | ~130 B | ~356k rps | PostgreSQL | ✅ válido |
-| `/db/complex` | ~13 KB (`LIMIT 100`) | ~8.900 rps | PostgreSQL | ✅ válido |
-| `/cache` | ~150 B | ~336k rps | Redis / PPS | ✅ válido |
-
-Por isso o cenário de ranking do `/json` é **`json-n100`**, não n=1000
-(`scripts/run-benchmark-suite.py`, `PRIMARY_JSON_SCENARIO`).
+> O pod SUT com `requests: cpu 7, memory 12Gi` (`deploy/k3s/base/deployment.yaml`)
+> usa **15% dos 48 cores disponíveis**. O dimensionamento pode ser maior — mas a
+> Fase 2 precisa decidir isso explicitamente contra os vizinhos (Redis, argocd).
 
 ---
 
@@ -150,35 +142,31 @@ pronta. O detalhe de onde cada um foi encontrado está no Anexo A.
 
 ---
 
-# Fase 0 — Congelar e medir os tetos `[BLOQUEANTE]`
+# Fase 0 — Congelar e medir os tetos `[CONCLUÍDA]`
 
 **Nenhum resultado de framework tem significado antes destes números.** Um
 framework que atinge 90% do teto da rede e outro que atinge 100% são o mesmo
 framework para efeito de ranking, e não há como saber isso sem o teto.
 
-Scripts já existem: `scripts/measure-ceilings.ps1` (workstation),
-`scripts/measure-ceilings-server.sh` (`.51`).
+**Executada em 2026-08-06.** Resultados completos em `docs/BASELINE_CEILINGS.md`;
+topologia real em `docs/K3S_ENVIRONMENT.md`. As três descobertas que mudam o
+plano:
 
-| # | Tarefa | Critério de saída | Evidência |
+| Descoberta | Assumido | Medido | Impacto |
 |---|---|---|---|
-| 0.1 | `iperf3` workstation ↔ `.51`, TCP e UDP, ambos os sentidos | largura de banda real registrada — **não assumir 1 GbE** | E5 |
-| 0.2 | Teto de PPS do cliente: nginx servindo um corpo estático de ~100 B, carga a partir da workstation | rps máximo que o par workstation/NIC sustenta, independente do SUT | E5 |
-| 0.3 | Tamanho real de cada payload canônico em n=10/100/1000 e nos 5 cenários | bytes/resposta medidos por `validate-parity.py --reference` e conferidos no fio | E5 |
-| 0.4 | `pgbench -S` no `.52` + `max_connections`, `shared_buffers` atuais | teto de TPS do PostgreSQL e a configuração de partida | E5 |
-| 0.5 | **Descobrir onde o Redis roda.** `redis.home.arpa:30379` é porta de NodePort — pode estar dentro de outro cluster | topologia do Redis documentada; se for compartilhado, é confounder declarado ou o Redis muda de lugar | E5 |
-| 0.6 | `redis-benchmark` contra o endpoint que o SUT vai usar | teto de ops/s | E5 |
-| 0.7 | Inventário de hardware do `.51` + **CPU steal do host Proxmox** sob carga | steal ≈ 0 sob carga, ou o "100% do hardware" é fictício e precisa ser dito | E5 |
+| Rede WS↔`.51` | 1 GbE útil (~117 MB/s) | **~95 Mbps (~12 MB/s)** | `/json` n=1000 destruído (~72 rps); todos os cenários mais limitados por rede |
+| VM `.51` | 8 vCPU / 16 GiB | **48 vCPU / 62 GiB** (KVM) | pod SUT de 7 CPU usa 15% do nó; Fase 2 precisa redimensionar |
+| Redis/PostgreSQL | "externos ao cluster" | **dentro/próximos do cluster** | Redis compartilha o nó do SUT (confounder `/cache`) |
 
-**Saídas**: `docs/BASELINE_CEILINGS.md` (novo) e `docs/K3S_ENVIRONMENT.md`
-(hoje é template com campos `______`).
-
-**Critério de saída da fase**: para cada um dos 5 cenários, o teto efetivo é
-conhecido e é o **menor** entre rede, PPS, PostgreSQL e Redis — com a fonte do
-limite nomeada. Cenários cujo teto de infra fique abaixo do que os frameworks
-conseguem entregar são marcados como **não ranqueáveis** aqui, e isso é dito no
-resultado em vez de ser descoberto depois.
-
-**Estimativa**: ~1,5 dia.
+| # | Tarefa | Resultado | Evidência |
+|---|---|---|---|
+| 0.1 | iperf3 WS↔`.51`, TCP/UDP, ambos os sentidos | **~95 Mbps** simétrico (confirmado por HTTP: 90 Mbps) | E5 |
+| 0.2 | Teto de PPS (nginx 79 B, localhost) | **68.614 rps** (interno; rede será medido em 6.13) | E5 |
+| 0.3 | Tamanho dos payloads canônicos | 155-160 B/item (n=10/100/1000) | E5 |
+| 0.4 | TPS do PostgreSQL (query do contrato) | **25.436 TPS**, `max_connections=100`, `shared_buffers=4GB`, PG 18.3 | E5 |
+| 0.5 | Topologia do Redis | **in-cluster**, namespace `redis`, master NodePort `30379` — confounder declarado | E5 |
+| 0.6 | redis-benchmark (NodePort 30379, 50 clients) | **~30k ops/s** (PING/SET/GET) | E5 |
+| 0.7 | CPU steal do Proxmox | **0%** (idle e sob carga) | E5 |
 
 ---
 
