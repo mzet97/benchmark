@@ -11,7 +11,7 @@ RUN chmod +x mvnw && ./mvnw dependency:go-offline -B
 
 COPY src ./src
 
-RUN ./mvnw -Pnative native:compile -DskipTests -B
+RUN ./mvnw -Pnative native:compile -DskipTests -B -Dspring.native.buildargs="--gc=G1"
 
 # Stage 2: Minimal runtime
 FROM debian:bookworm-slim

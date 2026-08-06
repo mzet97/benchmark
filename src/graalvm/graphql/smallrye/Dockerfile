@@ -6,7 +6,7 @@ COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
 COPY src ./src
-RUN mvn package -Dnative -DskipTests -B
+RUN mvn package -Dnative -DskipTests -B -Dquarkus.native.additional-build-args="--gc=G1"
 
 # Stage 2: Minimal runtime
 FROM quay.io/quarkus/ubi-quarkus-micro-image:2.0

@@ -11,7 +11,7 @@ RUN mvn dependency:go-offline -B
 
 # Copy source and build native image
 COPY src ./src
-RUN mvn package -Pnative -DskipTests -B
+RUN mvn package -Pnative -DskipTests -B -Dspring.native.buildargs="--gc=G1"
 
 # Stage 2: Minimal runtime
 FROM debian:bookworm-slim AS runtime

@@ -8,7 +8,7 @@ RUN mvn dependency:go-offline -B
 
 COPY src ./src
 
-RUN mvn package -Dpackager=native-image -DskipTests -B
+RUN mvn package -Dpackager=native-image -DskipTests -B -Dmicronaut.native.buildargs="--gc=G1"
 
 # Stage 2: Minimal runtime
 FROM debian:bookworm-slim

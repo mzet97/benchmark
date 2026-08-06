@@ -5,7 +5,7 @@ USER quarkus
 WORKDIR /code
 RUN mvn -B org.apache.maven.plugins:maven-dependency-plugin:3.6.1:go-offline
 COPY src /code/src
-RUN mvn package -Dnative -DskipTests
+RUN mvn package -Dnative -DskipTests -Dquarkus.native.additional-build-args="--gc=G1"
 
 ## Stage 2 : create the runtime image
 FROM quay.io/quarkus/quarkus-micro-image:2.0
