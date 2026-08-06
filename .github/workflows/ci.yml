@@ -74,6 +74,35 @@ jobs:
           fi
 
   # ─────────────────────────────────────────────
+  # 1b. Contract gates — always run, never optional.
+  #
+  # These three made the published results invalid by drifting silently:
+  # overlays stopped matching src/, config stopped matching overlays, and the
+  # reference payload was never checked against a running service. They are
+  # cheap (seconds, stdlib Python) and catch exactly the regressions a build
+  # matrix cannot. See docs/ACTION_PLAN.md, Fase 8.7.
+  # ─────────────────────────────────────────────
+  contract-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Overlays match src/ (1:1, no orphans)
+        run: python3 scripts/generate-overlays.py --check
+
+      - name: implementations.yaml matches src/
+        run: python3 scripts/generate-implementations.py --check
+
+      - name: Reference payload is reproducible
+        run: |
+          # --reference computes the canonical /json payload and its hash from
+          # first principles; a change here is a contract change and must be
+          # intentional. Pinning it in CI makes silent drift impossible.
+          python3 scripts/validate-parity.py --reference --n 2 > /tmp/ref.json
+          echo "Canonical payload:"
+          cat /tmp/ref.json
+
+  # ─────────────────────────────────────────────
   # 2. Lint & Security Scan (always runs)
   # ─────────────────────────────────────────────
   security-scan:

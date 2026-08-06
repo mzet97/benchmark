@@ -1,16 +1,31 @@
 name: Smoke Tests
 
+# Validates a built REST implementation against the benchmark contract
+# (contracts/rest/canonical-payloads.md), not against ad-hoc endpoints.
+#
+# Previously this workflow hit /api/json and /api/users?limit=1 -- endpoints the
+# benchmark does not measure -- with per-language ports (3000/5000/8000). A pass
+# here approved implementations against the wrong API, and a fail would reject
+# implementations that correctly follow the contract (/json, /db/simple, 8080).
+# See docs/ACTION_PLAN.md, Fase 8.9.
+#
+# The contract is enforced by scripts/validate-parity.py, the same gate the
+# benchmark runner uses. gRPC and GraphQL smoke is out of scope here until the
+# parity gate grows protocol support (Fase 6.11).
+
 on:
   workflow_dispatch:
     inputs:
       language:
-        description: 'Language to test (python, rust, go, etc.) or "all"'
+        description: 'Language (python, rust, go, ...) or "all"'
         required: false
         default: 'all'
+      framework:
+        description: 'Framework directory under src/<language>/ (e.g. fiber, actix-web)'
+        required: true
 
 env:
   PG_PASSWORD: ${{ secrets.PG_PASSWORD }}
-  REDIS_URL: redis://redis:6379
 
 jobs:
   smoke-test:
@@ -19,26 +34,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Python
-          - { language: python, framework: fastapi, port: 8000, health: /health }
-          - { language: python, framework: django, port: 8000, health: /health/ }
-          - { language: python, framework: flask, port: 5000, health: /health }
-          # Go
-          - { language: go, framework: fiber, port: 8080, health: /health }
-          # Rust
-          - { language: rust, framework: actix-web, port: 8080, health: /health }
-          # Node.js
-          - { language: nodejs, framework: fastify, port: 3000, health: /health }
-          # Bun
-          - { language: bun, framework: elysia, port: 3000, health: /health }
-          # Deno
-          - { language: deno, framework: oak, port: 8000, health: /health }
-          # Java
-          - { language: java, framework: spring, port: 8080, health: /health }
-          # Kotlin
-          - { language: kotlin, framework: ktor, port: 8080, health: /health }
-          # C#
-          - { language: csharp, framework: MinimalApi, port: 8080, health: /health }
+          - { language: python, framework: fastapi }
+          - { language: python, framework: flask }
+          - { language: python, framework: django }
+          - { language: go, framework: fiber }
+          - { language: go, framework: gin }
+          - { language: go, framework: echo }
+          - { language: go, framework: chi }
+          - { language: rust, framework: actix-web }
+          - { language: rust, framework: axum }
+          - { language: rust, framework: rocket }
+          - { language: rust, framework: warp }
+          - { language: nodejs, framework: fastify }
+          - { language: nodejs, framework: express }
+          - { language: nodejs, framework: nestjs }
+          - { language: bun, framework: elysia }
+          - { language: bun, framework: hono }
+          - { language: bun, framework: bun_serve }
+          - { language: deno, framework: oak }
+          - { language: deno, framework: hono }
+          - { language: deno, framework: deno_serve }
+          - { language: java, framework: spring }
+          - { language: java, framework: micronaut }
+          - { language: kotlin, framework: ktor }
+          - { language: kotlin, framework: spring }
+          - { language: kotlin, framework: http4k }
+          - { language: csharp, framework: MinimalApi }
 
     services:
       postgres:
@@ -68,79 +89,73 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Filter by language
+      - name: Filter
         id: filter
         run: |
-          if [ "${{ github.event.inputs.language }}" = "all" ] || [ -z "${{ github.event.inputs.language }}" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event.inputs.language }}" = "${{ matrix.language }}" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
+          LANG_IN="${{ github.event.inputs.language }}"
+          FW_IN="${{ github.event.inputs.framework }}"
+          RUN="false"
+          if [ "$LANG_IN" = "all" ] || [ "$LANG_IN" = "${{ matrix.language }}" ]; then
+            RUN="true"
           fi
+          # When a specific framework is given, only the matching matrix row runs.
+          if [ -n "$FW_IN" ] && [ "$FW_IN" != "${{ matrix.framework }}" ]; then
+            RUN="false"
+          fi
+          echo "run=$RUN" >> "$GITHUB_OUTPUT"
+
+      - name: Seed database
+        if: steps.filter.outputs.run == 'true'
+        run: |
+          PGPASSWORD="$PG_PASSWORD" psql -h localhost -U benchmark -d benchmark \
+            -f sql/01_schema.sql
+          PGPASSWORD="$PG_PASSWORD" psql -h localhost -U benchmark -d benchmark \
+            -f sql/02_seed.sql
+          PGPASSWORD="$PG_PASSWORD" psql -h localhost -U benchmark -d benchmark \
+            -f sql/03_indexes.sql
 
       - name: Build image
         if: steps.filter.outputs.run == 'true'
         working-directory: src/${{ matrix.language }}/${{ matrix.framework }}
-        run: |
-          docker build -t benchmark/${{ matrix.language }}-${{ matrix.framework }}:test .
+        run: docker build -t benchmark/${{ matrix.language }}-${{ matrix.framework }}:smoke .
 
       - name: Run container
         if: steps.filter.outputs.run == 'true'
         run: |
           docker run -d \
-            --name test-container \
+            --name sut \
             --network host \
             -e DATABASE_URL="postgresql://benchmark:${{ env.PG_PASSWORD }}@localhost:5432/benchmark" \
             -e REDIS_URL="redis://localhost:6379" \
-            -e PORT=${{ matrix.port }} \
-            benchmark/${{ matrix.language }}-${{ matrix.framework }}:test
+            -e PORT=8080 \
+            -e HOST=0.0.0.0 \
+            -e DB_POOL_MAX=4 \
+            -e BENCH_CPUS=2 \
+            benchmark/${{ matrix.language }}-${{ matrix.framework }}:smoke
 
       - name: Wait for startup
         if: steps.filter.outputs.run == 'true'
         run: |
-          echo "Waiting for container to start..."
           for i in $(seq 1 30); do
-            if curl -sf "http://localhost:${{ matrix.port }}${{ matrix.health }}" > /dev/null 2>&1; then
-              echo "✅ Health check passed"
+            if curl -sf "http://localhost:8080/health" > /dev/null 2>&1; then
+              echo "Service is up"
               exit 0
             fi
             sleep 2
           done
-          echo "::error::Health check failed after 60s"
-          docker logs test-container
+          echo "::error::Service did not become healthy on :8080/health within 60s"
+          docker logs sut
           exit 1
 
-      - name: Test endpoints
+      - name: Contract parity gate
         if: steps.filter.outputs.run == 'true'
         run: |
-          echo "Testing basic endpoints..."
+          python3 scripts/validate-parity.py --url http://localhost:8080
 
-          # Test /health
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/health")
-          if [ "$STATUS" != "200" ]; then
-            echo "::error::GET /health returned $STATUS"
-            exit 1
-          fi
-          echo "✅ GET /health -> 200"
-
-          # Test /api/json
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/api/json")
-          if [ "$STATUS" != "200" ]; then
-            echo "::warning::GET /api/json returned $STATUS (may not exist)"
-          else
-            echo "✅ GET /api/json -> 200"
-          fi
-
-          # Test /api/users (database endpoint)
-          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:${{ matrix.port }}/api/users?limit=1")
-          if [ "$STATUS" != "200" ]; then
-            echo "::warning::GET /api/users returned $STATUS (DB may not be seeded)"
-          else
-            echo "✅ GET /api/users -> 200"
-          fi
+      - name: Logs on failure
+        if: failure() && steps.filter.outputs.run == 'true'
+        run: docker logs sut || true
 
       - name: Cleanup
         if: always()
-        run: |
-          docker rm -f test-container 2>/dev/null || true
+        run: docker rm -f sut 2>/dev/null || true

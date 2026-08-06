@@ -52,7 +52,7 @@ Apurada nesta data contra a árvore de trabalho, não herdada da versão anterio
 | **5** | Runner | ✅ concluída | 0 |
 | **6** | Reconstrução e re-execução | ❌ não iniciada | 14 |
 | **7** | Publicação honesta | ❌ não iniciada | 9 |
-| **8** | Dívida estrutural | ❌ **9 itens reais** (a v2 listava 10; 1 era falso) | 9 |
+| **8** | Dívida estrutural | ✅ concluída (9 itens) | 0 |
 
 ### Fechado desde 2026-08-02 — verificado agora, não assumido
 
@@ -377,27 +377,28 @@ sai de 6.1 e pode ser maior.
 
 ---
 
-# Fase 8 — Dívida estrutural
+# Fase 8 — Dívida estrutural `[CONCLUÍDA]`
 
 Itens que nenhuma fase reivindicava e que hoje contradizem decisões já tomadas.
-**Independente das demais fases — pode começar imediatamente**, sem cluster,
-sem SSH e sem toolchain.
+**Independente das demais fases — executada integralmente em 2026-08-06**, sem
+cluster, sem SSH e sem toolchain.
 
 A versão anterior listava 10 itens. A reauditoria desta versão **removeu 1**
 (8.10 era falso — `build/` já está no `.gitignore`) e **corrigiu a contagem de
-outro** (8.1 referencia 18 scripts inexistentes, não 13). São **9 itens reais**.
+outro** (8.1 referencia 18 scripts inexistentes, não 13). São **9 itens reais,
+todos fechados**.
 
-| # | Item | Estado medido (2026-08-06) | Critério de saída |
+| # | Item | Estado medido (2026-08-06) | Resolução aplicada |
 |---|---|---|---|
-| 8.1 | `Makefile` referencia **18 scripts que não existem** (não 13, como dizia a v2): os 11 `benchmark-wrk-*.sh` + `scripts/deploy.sh`, `undeploy.sh`, `build-image.sh`, `collect-metrics.sh`, `list-implementations.sh`, `setup-database.sh`, `smoke-test.sh` — todos aposentados na Fase 4 | `grep -oE 'scripts/...\.sh' Makefile` contra `ls scripts/` confirma os 18 ausentes; `make deploy` quebra | todo alvo do Makefile executa ou não existe; alvos que dependem de scripts mortos são removidos ou reescritos sobre `run-benchmark-suite.py` / `generate-overlays.py` |
-| 8.2 | `run_all_benchmarks.py` **continua na raiz**, executável (`-rwxr-xr-x`, 1463 B), apesar de aposentado na Fase 5 | o caminho para reproduzir os números inválidos segue aberto | removido |
-| 8.3 | `deploy/k3s/loadgen/job-wrk.yaml` e `job-ghz.yaml` — gerador **dentro** do cluster, contra a decisão explícita da Fase 5 | ambos versionados (`ls deploy/k3s/loadgen/` confirma) | removidos, ou marcados como não utilizáveis com o motivo |
-| 8.4 | `config/implementations.yaml`: **99** entradas (`grep -c`) contra 100 overlays; **57** `maturity: planned` (+ 6 experimental, 2 missing, 1 placeholder); `defaults` com `cpu: "1"` / `memory: "512Mi"` / **5 réplicas** — o perfil que a Fase 4 eliminou | duas fontes de verdade divergentes | ou é gerado a partir de `src/`/overlays, ou deixa de ser chamado de fonte de verdade |
-| 8.5 | **~20 scripts órfãos na raiz**: `fix_rust.py`, `fix_rust2.py`, `fix_rust_final.py`, `fix_betterproto_*`, `fix_*_grpc_server.*`, `rebuild_rust.py`, `deploy_grpc.py`, `ssh_*.py`, `upload.py`, `test_k8s.py`, `generate_implementations.py`, `rerun_fiber.sh` | nenhum é referenciado pelo Makefile, pelos workflows ou pelo runner | removidos; o que for reutilizável vai para `scripts/` com propósito declarado |
-| 8.6 | Lixo de árvore: `teste` (arquivo vazio, 0 B), `src.mod` (6 B), `http.sln` (apontando para projetos de uma topologia antiga), `__pycache__/` e `scripts/__pycache__/` **não rastreados** em disco (a v2 dizia "versionados" — era falso) | ruído no diff local | removidos; `__pycache__/` confirmado como entrada do `.gitignore` para evitar reentrada |
-| 8.7 | **Nenhum gate das Fases 3 e 4 roda em CI**: nem `generate-overlays.py --check`, nem `validate-parity.py --reference` (conferido: `grep generate-overlays\|validate-parity .github/workflows/*.yml` retorna vazio) | a 1:1 é "verificável em CI" e não é verificada | os dois viram job obrigatório em `ci.yml` |
-| 8.8 | **`deploy.yml:87` tem fallback para `src/${LANG}/${FRAMEWORK}/k8s`** — os 101 diretórios que a Fase 4 removeu por serem a fonte de deploy errada | o workflow reintroduz, em runtime, exatamente a segunda fonte de configuração que a Fase 4 eliminou. Hoje o fallback só não dispara porque o diretório não existe mais | o fallback é removido; overlay ausente é **erro**, não caminho alternativo |
-| 8.9 | **`smoke-tests.yml` valida uma API que não é a do contrato**: bate em `/api/json` e `/api/users?limit=1`, com a porta vinda de `matrix.port` (8000, 5000, 3000 no matrix) | o contrato é `/json`, `/db/simple?id=1` e porta 8080 (`contracts/rest/canonical-payloads.md`). O smoke test em CI aprova implementações contra endpoints que o benchmark não mede — e reprovaria as que seguem o contrato | os 5 cenários do contrato, porta 8080, com `validate-parity.py` no lugar do `curl` de status |
+| 8.1 | `Makefile` referenciava **18 scripts que não existem**: os 11 `benchmark-wrk-*.sh` + `scripts/deploy.sh`, `undeploy.sh`, `build-image.sh`, `collect-metrics.sh`, `list-implementations.sh`, `setup-database.sh`, `smoke-test.sh` — todos aposentados na Fase 4 | `grep -oE 'scripts/...\.sh' Makefile` contra `ls scripts/` confirma os 18 ausentes; `make deploy` quebra | **Makefile reescrito.** Todo target executa ou não existe; deploy via overlays, benchmark via `run-benchmark-suite.py`. Os 7 scripts que existiam (`build-image.sh`, `smoke-test.sh`, `generate-overlays.py`, `validate-parity.py`, `run-benchmark-suite.py`, `collect-metrics.sh`, `setup-database.sh`) são referenciados; os 11 `benchmark-wrk-*.sh` e `deploy.sh`/`undeploy.sh` não são mais |
+| 8.2 | `run_all_benchmarks.py` **continuava na raiz**, executável (`-rwxr-xr-x`, 1463 B), apesar de aposentado na Fase 5 | o caminho para reproduzir os números inválidos seguia aberto | **removido** |
+| 8.3 | `deploy/k3s/loadgen/job-wrk.yaml` e `job-ghz.yaml` — gerador **dentro** do cluster, contra a decisão explícita da Fase 5 | ambos versionados | **removidos** (diretório `loadgen/` desapareceu por estar vazio) |
+| 8.4 | `config/implementations.yaml`: **99** entradas contra 100 overlays; **57** `maturity: planned`; `defaults` com `cpu: "1"` / `memory: "512Mi"` / **5 réplicas** — o perfil que a Fase 4 eliminou | duas fontes de verdade divergentes | **agora gerado** por `scripts/generate-implementations.py` a partir de `src/`, mesma descoberta do `generate-overlays.py`: 100 entradas, todas porta 8080, sem bloco `defaults`. Gate `--check` adicionado ao CI |
+| 8.5 | **22 scripts órfãos na raiz** (`fix_*.py`, `fix_*.sh`, `fix_*.js`, `fix_*.ts`, `fix_*.service.py`, `rebuild_rust.py`, `deploy_grpc.py`, `ssh_*.py`, `upload.py`, `test_k8s.py`, `generate_implementations.py` antigo, `rerun_fiber.sh`, `fix_and_deploy.py`) | nenhum era referenciado pelo Makefile, pelos workflows ou pelo runner | **removidos** |
+| 8.6 | Lixo de árvore: `teste` (0 B), `src.mod` (6 B), `http.sln`, `__pycache__/` e `scripts/__pycache__/` **não rastreados** em disco | ruído no diff local | **removidos** |
+| 8.7 | **Nenhum gate das Fases 3 e 4 rodava em CI**: nem `generate-overlays.py --check`, nem `validate-parity.py --reference` | a 1:1 era "verificável em CI" e não era verificada | **job `contract-gates` adicionado ao `ci.yml`**: roda `generate-overlays.py --check`, `generate-implementations.py --check` e `validate-parity.py --reference` em todo push/PR |
+| 8.8 | **`deploy.yml:87` tinha fallback para `src/${LANG}/${FRAMEWORK}/k8s`** — os 101 diretórios que a Fase 4 removeu | o workflow reintroduzia, em runtime, exatamente a segunda fonte de configuração que a Fase 4 eliminou | **fallback removido**; overlay ausente agora é erro. Input `replicas` morto também removido |
+| 8.9 | **`smoke-tests.yml` validava uma API que não era a do contrato**: batia em `/api/json` e `/api/users?limit=1`, portas 8000/5000/3000 | o smoke test em CI aprovava implementações contra endpoints que o benchmark não mede | **reescrito**: agora roda `validate-parity.py --url` contra os 5 cenários do contrato na porta 8080, com Postgres+Redis de service container e seed dos arquivos `sql/01..03` |
 
 > ~~**8.10**~~ — **removido nesta versão.** A v2 afirmava que `build/` não estava
 > no `.gitignore`. É falso: `**/build/` está na linha 48, e as negações Dart para

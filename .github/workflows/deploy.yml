@@ -13,10 +13,6 @@ on:
         description: 'K3s server IP'
         required: true
         default: '192.168.1.51'
-      replicas:
-        description: 'Number of replicas'
-        required: false
-        default: '5'
 
 env:
   IMAGE_NAME: benchmark/${{ github.event.inputs.language }}-${{ github.event.inputs.framework }}
@@ -78,19 +74,18 @@ jobs:
               fi
             done
 
-            # Apply with kustomize
+            # Apply with kustomize. No fallback: if the overlay is missing, the
+            # implementation is not deployable. Fase 4 removed src/*/k8s because
+            # it was a second, divergent deploy source (5 replicas @ 100m/500m,
+            # vs the base 1 replica @ 7 CPU). Reintroducing a fallback here
+            # would silently undo that decision if the directory ever returned.
             if [ -d "$OVERLAY_DIR" ]; then
               cd benchmark
               kubectl apply -k "$OVERLAY_DIR"
             else
-              # Fallback to raw manifests
-              MANIFEST_DIR="benchmark/src/${LANG}/${FRAMEWORK}/k8s"
-              if [ -d "$MANIFEST_DIR" ]; then
-                kubectl apply -f "$MANIFEST_DIR/"
-              else
-                echo "::error::No deployment manifests found"
-                exit 1
-              fi
+              echo "::error::No overlay found at $$OVERLAY_DIR. Generate with:"
+              echo "  python scripts/generate-overlays.py"
+              exit 1
             fi
 
             # Wait for rollout
