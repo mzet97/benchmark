@@ -1,0 +1,25 @@
+# K3s configuration for benchmark isolation (Fase 2).
+#
+# Applied by copying to /etc/rancher/k3s/config.yaml and restarting k3s.
+# See docs/K3S_TOPOLOGY_RUNBOOK.md for the exact procedure.
+#
+# The node has 48 vCPU / 62 GiB (KVM). Neighbors that run during measurement:
+#   argocd (~65m CPU, ~570 MiB) and redis (~61m CPU, ~122 MiB).
+# 4 CPU / 4 GiB reserved leaves 44 CPU / 58 GiB allocatable; the SUT pod
+# requests 40 CPU / 40 GiB (QoS Guaranteed, exclusive cores), leaving 4 CPU
+# of headroom for neighbors so they do not steal from the SUT's cgroup.
+
+node-label:
+  - "benchmark-role=server"
+
+# Disable components that add latency or compete for CPU during measurement.
+disable:
+  - traefik
+  - servicelb
+  - metrics-server
+
+kubelet-arg:
+  - "system-reserved=cpu=2000m,memory=2Gi"
+  - "kube-reserved=cpu=2000m,memory=2Gi"
+  - "cpu-manager-policy=static"
+  - "eviction-hard=memory.available<1Gi,nodefs.available<5%"

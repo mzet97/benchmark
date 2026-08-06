@@ -28,7 +28,7 @@ data:
   # instead of the cgroup quota (notably Go) need this to size their thread
   # pool correctly; single-threaded runtimes (Node, Deno, Bun, Python) use it
   # to fork that many workers.
-  BENCH_CPUS: "7"
+  BENCH_CPUS: "40"
 
   # Previously: Go REST used a single connection with no pool, Go GraphQL used
   # 10, Node/Kotlin/GraalVM used 25, Rust used the sqlx default. Sized against
@@ -40,7 +40,7 @@ data:
   # Runtime parallelism, set through the environment.
   #
   # An audit of all 100 implementations found 77 with no parallelism setting
-  # of any kind. In a pod with 7 CPUs that means a runtime either sizes its
+  # of any kind. In a pod with 40 CPUs that means a runtime either sizes its
   # pools from the *host* core count -- which is not the cgroup quota -- or
   # stays on one thread entirely. Either way the ranking would reward whoever
   # remembered to configure workers, not the framework.
@@ -52,7 +52,7 @@ data:
 
   # Go reads the host CPU count, not the cgroup quota. Since Go 1.21 the
   # runtime honours this variable, so no code change is needed.
-  GOMAXPROCS: "7"
+  GOMAXPROCS: "40"
 
   # The JVM sizes ForkJoinPool, GC threads and most framework thread pools
   # from availableProcessors(). Container awareness gets this right for CPU
@@ -67,14 +67,16 @@ data:
   # target is tuning, and tuning that only four implementations get is a ranking
   # of who edited their Dockerfile.
   #
-  # Does not reach the six GraalVM *native* images: a native executable does not
-  # read JAVA_TOOL_OPTIONS. See docs/ACTION_PLAN.md, Fase 3.1.
-  JAVA_TOOL_OPTIONS: "-XX:ActiveProcessorCount=7 -Xms8g -Xmx8g -XX:+UseG1GC"
+  # Heap sized at 32g of the 40 GiB container limit (80%, leaving room for
+  # non-heap). Does not reach the six GraalVM *native* images: a native
+  # executable does not read JAVA_TOOL_OPTIONS.
+  # See docs/ACTION_PLAN.md, Fase 3.1.
+  JAVA_TOOL_OPTIONS: "-XX:ActiveProcessorCount=40 -Xms32g -Xmx32g -XX:+UseG1GC"
 
   # Same idea for .NET's thread pool and GC heap count.
-  DOTNET_PROCESSOR_COUNT: "7"
+  DOTNET_PROCESSOR_COUNT: "40"
 
   # Tokio defaults to the number of available cores, which in a container is
   # usually right; pinned so it does not depend on the runtime's detection.
-  TOKIO_WORKER_THREADS: "7"
-  ROCKET_WORKERS: "7"
+  TOKIO_WORKER_THREADS: "40"
+  ROCKET_WORKERS: "40"

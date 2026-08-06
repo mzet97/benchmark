@@ -56,17 +56,18 @@ spec:
           # migration between cores, which is what makes saturation
           # measurements reproducible across the 5 repetitions.
           #
-          # 7 of the node's 8 vCPUs; the remaining one is reserved for K3s and
-          # the OS via --system-reserved/--kube-reserved. BENCH_CPUS in the
-          # ConfigMap must match the CPU value here.
-          # See docs/ACTION_PLAN.md, Fase 2 and Fase 4.
+          # 40 of the node's 48 vCPUs. The kubelet reserves 4 (2 system + 2
+          # kube), leaving 44 allocatable; 40 for the SUT leaves 4 for the
+          # neighbors (argocd ~65m, redis ~61m, measured in Fase 0).
+          # BENCH_CPUS in the ConfigMap must match the CPU value here.
+          # See docs/ACTION_PLAN.md, Fase 0 and Fase 2.
           resources:
             requests:
-              cpu: "7"
-              memory: "12Gi"
+              cpu: "40"
+              memory: "40Gi"
             limits:
-              cpu: "7"
-              memory: "12Gi"
+              cpu: "40"
+              memory: "40Gi"
           livenessProbe:
             tcpSocket:
               port: http

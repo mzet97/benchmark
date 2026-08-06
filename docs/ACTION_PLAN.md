@@ -46,7 +46,7 @@ Apurada nesta data contra a árvore de trabalho, não herdada da versão anterio
 |---|---|---|---:|
 | **0** | Tetos de infra | ✅ concluída — topologia medida difere da assumida | 0 |
 | **1** | Segurança | ⚠️ árvore limpa; rotação e histórico pendentes | 3 |
-| **2** | Topologia de teste | ❌ não aplicada | 6 |
+| **2** | Topologia de teste | ⚠️ parcial — manifestos + runbook prontos; config K3s precisa root | 1 |
 | **3** | Paridade entre implementações | ✅ concluída, com 3 resíduos | 3 |
 | **4** | Deploy unificado | ✅ concluída | 0 |
 | **5** | Runner | ✅ concluída | 0 |
@@ -199,25 +199,39 @@ Runbook: `docs/SECURITY_REMEDIATION.md`.
 
 ---
 
-# Fase 2 — Topologia de teste
+# Fase 2 — Topologia de teste `[PARCIAL]`
 
-Aplicar no cluster e na workstation a topologia já decidida. Enquanto esta fase
-não fecha, qualquer medição carrega CFS throttling, vizinhança de CPU e deriva
-de cliente que não são atribuíveis ao framework.
+Aplicar no cluster e na workstation a topologia recalculada contra os números
+da Fase 0 (48 vCPU / 62 GiB, ~95 Mbps). Enquanto esta fase não fecha, qualquer
+medição carrega CFS throttling, vizinhança de CPU e deriva de cliente que não
+são atribuíveis ao framework.
 
-| # | Tarefa | Critério de saída | Evidência |
+| # | Tarefa | Status | Evidência |
 |---|---|---|---|
-| 2.1 | Flags do kubelet no `.51`: `--system-reserved=cpu=500m,memory=1Gi`, `--kube-reserved=cpu=500m,memory=1Gi`, `--cpu-manager-policy=static`, `--disable traefik --disable servicelb` | `kubectl describe node` mostra allocatable = 7 CPU; pod Guaranteed recebe cores exclusivos | E5 |
-| 2.2 | Host Proxmox: governor `performance`, sem ballooning, 8 vCPU dedicados | steal ≈ 0 sob carga (cruza com 0.7) | E5 |
-| 2.3 | Workstation: `netsh int ipv4 set dynamicport tcp start=10000 num=55000`, `TcpTimedWaitDelay=30`, `powercfg /setactive SCHEME_MIN`, exclusão do Defender para o gerador, Wi-Fi desligado, sem VPN | esgotamento de portas efêmeras não aparece em corrida de 60 s | E5 |
-| 2.4 | Instalar e **registrar versão** de `bombardier`, `oha`, `k6`, `ghz` | versões no `BASELINE_CEILINGS.md`; sem WSL2 (o NAT adiciona latência e variância) | E5 |
-| 2.5 | Validar num pod de teste: QoS Guaranteed, cores exclusivos, sem throttling | `cat /sys/fs/cgroup/cpu.stat` com `nr_throttled = 0` sob carga | E5 |
-| 2.6 | Tuning do PostgreSQL no `.52`: `shared_buffers=4GB`, `effective_cache_size=12GB`, `max_connections=300`, `work_mem=16MB`, `random_page_cost=1.1`, huge pages | `pgbench -S` repetido (0.4) mostra o novo teto; `max_connections` ≥ 200 comporta `DB_POOL_MAX=32` | E5 |
+| 2.0 | Limpar namespace `benchmark` (43 deployments ativos competindo) | ✅ aplicado — todos scaled to 0, orphans removidos, 0 pods | E5 |
+| 2.1 | config.yaml do K3s: reservas (4 CPU/4 GiB), `cpu-manager-policy=static`, disable traefik/servicelb/metrics | ⚠️ config versionado em `deploy/k3s/config.yaml` + runbook em `docs/K3S_TOPOLOGY_RUNBOOK.md`; **precisa root para aplicar** (`k8s1` não tem sudo passwordless) | E1 |
+| 2.2 | Host: governor `performance` | n/a — VM KVM sem cpufreq; steal=0 confirmado na Fase 0.7 | E5 |
+| 2.3 | Workstation: portas efêmeras, power plan, TcpTimedWaitDelay | ⚠️ power plan aplicado (Alto desempenho); portas efêmeras e TcpTimedWaitDelay precisam admin | E5 |
+| 2.4 | Instalar `bombardier`, `oha`, `k6`, `ghz` | ⚠️ bombardier 2.0.2 instalado; oha/k6/ghz pendentes | E5 |
+| 2.5 | Validar QoS Guaranteed + cores exclusivos | ⚠️ depende do 2.1 (precisa config K3s aplicado) | — |
+| 2.6 | Tuning PostgreSQL | adiado — PG 18.3 tem `max_connections=100`/`shared_buffers=4GB`; 25.436 TPS medido. Tuning adicional fica para depois da 2.1 | E5 |
 
-> `max_connections=300` contra `DB_POOL_MAX=32` por pod só é folgado porque
-> **uma implementação roda por vez**. Se isso mudar, o número muda junto.
+### Dimensionamento aplicado (manifestos)
 
-**Estimativa**: ~1 dia.
+| Recurso | Antes | Depois | Por quê |
+|---|---|---|---|
+| Pod SUT CPU | 7 | **40** | 48 totais − 4 reservados (K3s/SO/vizinhos) = 44 allocatable; 40 para SUT, 4 folga |
+| Pod SUT memória | 12 GiB | **40 GiB** | 62 GiB totais, deixa 22 para SO/buffers |
+| `BENCH_CPUS` | 7 | **40** | alinhado ao CPU limit |
+| `GOMAXPROCS` | 7 | **40** | Go lê host, não cgroup |
+| `JAVA_TOOL_OPTIONS` heap | 8g | **32g** | 80% dos 40 GiB do contêiner |
+
+> **Bloqueio remanescente**: o passo 2.1 (config.yaml do K3s) exige root no nó.
+> Sem ele, `cpu-manager-policy=static` não está ativo e o pod SUT não recebe
+> cores exclusivos — as medições carregariam CFS throttling. O config está
+> pronto e versionado; falta a aplicação manual descrita no runbook.
+
+**Estimativa restante**: ~2h (aplicação do config K3s + validação 2.5).
 
 ---
 
