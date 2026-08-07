@@ -1,46 +1,57 @@
 # E4 Validation Status
 
-**Atualizado**: 2026-08-07
+**Atualizado**: 2026-08-07 (pós DB config + percent-decode + port fixes)
 
 ## Resumo
 
 | Status | Qtd | Implementações |
 |---|---|---|
-| ✅ **E4 PASS (7/7)** | **5** | go-rest-fiber, go-rest-chi, go-rest-echo, go-rest-gin, nodejs-rest-fastify |
-| ⚠️ Parcial (sobe, alguns checks fail) | 3 | rust-rest-warp (6/7), java-rest-spring (6/7), rust-rest-actix-web (4/7) |
-| ❌ TIMEOUT (não sobe) | ~29 | ver detalhe abaixo |
+| ✅ **E4 PASS (7/7)** | **6** | go-rest-fiber, go-rest-chi, go-rest-echo, go-rest-gin, nodejs-rest-fastify, kotlin-rest-http4k |
+| ⚠️ Parcial (sobe, 1-6 checks fail) | ~20 | ver detalhe abaixo |
+| ❌ TIMEOUT | ~6 | graalvm-rest-vertx, deno-rest-{oak,deno-serve,fresh,hono}, csharp-rest-minimalapi |
 
-## Causas raiz dos TIMEOUTs (identificadas)
+## E4 PASS (7/7) — 6 implementações
 
-### Resolvidas (impls agora passam ou estão parciais)
-- **Porta hardcoded :3000** em go/chi, go/echo, go/gin → corrigido para ler `PORT`
-- **DB config ausente** em java/spring → application.properties criado
-- **Pool min_size > max_size** em python/fastapi → divisão corrigida (ainda falha por senha)
-- **Percent-decode de senha** em rust/actix-web → `Config::from_str` (funciona, mas outros defeitos restam)
-- **Rust Dockerfile 1.82** → block-buffer parse error → atualizado para 1.95
+Todas passam no parity gate completo: /json (n=10/100/1000), /health,
+/db/simple, /db/complex, /cache.
 
-### Pendentes (impls ainda em TIMEOUT)
-- **rust-rest-axum**: provavelmente mesmo percent-decode bug (precisa rebuild)
-- **rust-rest-rocket**: provavelmente mesmo percent-decode bug
-- **python-rest-fastapi**: `password authentication failed` — mesmo percent-decode bug da senha
-- **python-rest-flask**: `App failed to load` — erro de import/path
-- **python-rest-django**: `No module named 'app.wsgi'` — path WSGI errado
-- **deno-rest-oak**: Redis connection ainda falhando (percent-decode pode não ter pego)
-- **JVM (kotlin×3, graalvm×4, java×2)**: todos CrashLoopBackOff — DB config (HikariPool/Hibernate não leem env vars)
-- **deno×3**: deno image base não existe (`denoland/deno:2.0-slim`)
+## Parciais (sobem e respondem, mas com divergências de payload)
 
-### Padrão dominante
-**Percent-decode da senha** — `Admin@123` encoded como `Admin%40123` no DATABASE_URL/REDIS_URL.
-Muitas implementações fazem parse manual da URL e não decodificam o `%40`. O fix é
-usar o parser nativo da biblioteca em vez de `split()`.
+| Impl | ok/7 | Falhas |
+|---|---|---|
+| rust-rest-warp | 6/7 | /db/simple |
+| java-rest-spring | 6/7 | 1 check |
+| graalvm-rest-gspring | 6/7 | 1 check |
+| kotlin-rest-ktor | 6/7 | 1 check |
+| python-rest-flask | 6/7 | 1 check |
+| nodejs-rest-express | 6/7 | /health version |
+| nodejs-rest-nestjs | 6/7 | /cache |
+| bun-rest-elysia | 6/7 | /cache |
+| kotlin-rest-spring | 5/7 | /db/* |
+| graalvm-rest-helidon | 5/7 | 2 checks |
+| rust-rest-actix-web | 4/7 | /json payload |
+| java-rest-quarkus | 4/7 | /health, /db/* |
+| python-rest-fastapi | 4/7 | 3 checks |
+| csharp-rest-controllers | 3/7 | /health, /db/* |
+| csharp-rest-fastendpoints | 3/7 | /health, /db/* |
+| dart-rest-vaden | 3/7 | /health, /db/* |
+| python-rest-django | 0/7 | connection refused (WSGI path?) |
+| java-rest-micronaut | 0/7 | connection refused |
+| graalvm-rest-micronaut | 0/7 | connection refused |
+| rust-rest-axum | 1/7 | /json payload |
+| rust-rest-rocket | 1/7 | /json payload |
 
-**DB config em JVM** — Spring/Micronaut/Quarkus/Hibernate não mapeiam `DB_HOST`/`DB_PASSWORD`
-para suas propriedades nativas. Cada framework precisa de config explícita.
+## Causas raiz restantes
+
+1. **Payload /json divergente** (Rust axum/rocket/actix): possível regressão dos fixes de compilação
+2. **/health sem version** (node-express): já corrigido em código, imagem pode ser stale
+3. **/cache sem ttl/cached** (bun/elysia, node/nestjs): campo faltante
+4. **/db/* falhando** (csharp, dart, java-quarkus, kotlin-spring): query ou conexão DB
+5. **Connection refused em 3 impls** (django, java-micronaut, graalvm-micronaut): pode ser startup lento ou crash após deploy
 
 ## Próximos passos
 
-1. **Percent-decode fix generalizado** para python (flask, django, fastapi) e rust (axum, rocket)
-2. **JVM DB config** para kotlin×3, graalvm×4, java×2 (cada framework precisa de mapping)
-3. **Python WSGI path** para flask e django
-4. **Deno Dockerfile** fix (imagem base `2.0-slim` não existe)
-5. Re-run E4 batch com todas as correções
+1. Fixar os defeitos de payload das ~20 parciais (1-3 checks cada)
+2. Investigar os 3 "0 ok" (django, java-micronaut, graalvm-micronaut)
+3. Fixar Deno Dockerfile/bootstrap (4 TIMEOUTs)
+4. Com 6+ impls PASS, já dá para iniciar a matriz de benchmark parcial
