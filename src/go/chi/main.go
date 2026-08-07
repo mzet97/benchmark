@@ -90,6 +90,10 @@ func main() {
 	r.Get("/db/complex", handlers.DatabaseComplexHandler(dbService))
 	r.Get("/cache", handlers.CacheHandler(cacheService))
 
-	log.Println("Starting server on :3000")
-	http.ListenAndServe(":3000", r)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Println("Starting server on :" + port)
+	http.ListenAndServe(":"+port, r)
 }

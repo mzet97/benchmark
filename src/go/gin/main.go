@@ -80,5 +80,9 @@ func main() {
 	r.GET("/db/complex", handlers.DatabaseComplexHandler(dbService))
 	r.GET("/cache", handlers.CacheHandler(cacheService))
 
-	r.Run(":3000")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run(":" + port)
 }
