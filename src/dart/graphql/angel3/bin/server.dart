@@ -5,6 +5,7 @@ import 'package:angel3_framework/angel3_framework.dart';
 import 'package:angel3_framework/http.dart';
 import 'package:angel3_graphql/angel3_graphql.dart';
 import 'package:angel3_cors/angel3_cors.dart';
+import 'package:graphql_server2/graphql_server2.dart';
 
 import 'package:graphql_angel3_benchmark/runtime.dart';
 import 'package:graphql_angel3_benchmark/schema.dart';
@@ -34,11 +35,12 @@ Future<void> _serve(int worker) async {
   final app = Angel();
 
   // CORS middleware
-  app.fallback(corsMiddleware());
+  app.fallback(cors());
 
-  // GraphQL endpoint
+  // GraphQL endpoint. graphQLHttp expects a graphql_server2 GraphQL instance
+  // (which wraps the GraphQLSchema), not the bare schema.
   final schema = buildSchema(db, cache);
-  app.all('/graphql', graphQLHttp(schema));
+  app.all('/graphql', graphQLHttp(GraphQL(schema)));
 
   // Health endpoint
   app.get('/health', (req, res) async {

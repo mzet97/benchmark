@@ -14,19 +14,19 @@ class CacheService {
   }
 
   Future<void> ping() async {
-    await _command.send('PING');
+    await _command.send_object(['PING']);
   }
 
   Future<dynamic> get(String key) async {
-    return await _command.send('GET', key);
+    return await _command.send_object(['GET', key]);
   }
 
   Future<void> set(String key, dynamic value, int ttlSeconds) async {
-    await _command.send('SET', key, value.toString(), 'EX', ttlSeconds.toString());
+    await _command.send_object(['SET', key, value.toString(), 'EX', ttlSeconds.toString()]);
   }
 
   Future<int> ttl(String key) async {
-    final result = await _command.send('TTL', key);
+    final result = await _command.send_object(['TTL', key]);
     if (result is int) return result;
     return int.tryParse(result.toString()) ?? -2;
   }
