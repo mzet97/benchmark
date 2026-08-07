@@ -1,8 +1,9 @@
 package benchmark;
 
-import benchmark.BenchmarkServiceGrpc;
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.BenchmarkServiceGrpc;
+import dev.benchmark.grpc.Benchmark.*;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.grpc.annotation.GrpcService;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -10,7 +11,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Singleton
-@io.grpc.GrpcService
+@GrpcService
 public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceImplBase {
 
     private static final String VERSION = "1.0.0";

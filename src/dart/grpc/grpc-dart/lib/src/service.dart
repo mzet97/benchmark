@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:benchmark_grpc_dart/canonical.dart';
 
 import 'package:grpc/grpc.dart';
+import 'package:postgres/postgres.dart';
 
 import 'benchmark.pbgrpc.dart';
 import 'cache.dart';
@@ -134,9 +135,9 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
     final cmd = await _cache.getCommand();
 
     // Try cache hit
-    final cached = await cmd.send(['GET', request.key]);
+    final cached = await cmd.send_object(['GET', request.key]);
     if (cached != null && cached is String && cached.isNotEmpty) {
-      final ttlRaw = await cmd.send(['TTL', request.key]);
+      final ttlRaw = await cmd.send_object(['TTL', request.key]);
       final ttl = (ttlRaw is int) ? (ttlRaw >= 0 ? ttlRaw : 0) : 0;
       return CacheResponse()
         ..key = request.key
@@ -152,7 +153,7 @@ class BenchmarkServiceImpl extends BenchmarkServiceBase {
     // others took a miss.
     final value = 'benchmark_value_${request.key}_'
         '${DateTime.now().millisecondsSinceEpoch}';
-    await cmd.send(['SETEX', request.key, '$_cacheTtlSeconds', value]);
+    await cmd.send_object(['SETEX', request.key, '$_cacheTtlSeconds', value]);
 
     return CacheResponse()
       ..key = request.key

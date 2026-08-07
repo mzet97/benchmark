@@ -27,7 +27,7 @@ function main() {
     GetUser: service.GetUser,
     GetComplexOrders: service.GetComplexOrders,
     GetCacheValue: service.GetCacheValue,
-  });
+  } as grpc.UntypedServiceImplementation);
 
   server.bindAsync(
     `0.0.0.0:${PORT}`,

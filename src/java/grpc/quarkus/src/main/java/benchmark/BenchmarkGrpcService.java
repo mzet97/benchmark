@@ -1,6 +1,6 @@
 package benchmark;
 
-import dev.benchmark.grpc.BenchmarkServiceGrpc;
+import dev.benchmark.grpc.MutinyBenchmarkServiceGrpc;
 import dev.benchmark.grpc.Benchmark;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @GrpcService
-public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceImplBase {
+public class BenchmarkGrpcService extends MutinyBenchmarkServiceGrpc.BenchmarkServiceImplBase {
 
     @Inject
     DatabaseService dbService;

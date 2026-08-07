@@ -2,7 +2,7 @@ import { Pool } from "postgres";
 
 const pool = new Pool(
   {
-    host: Deno.env.get("DB_HOST") || "localhost",
+    hostname: Deno.env.get("DB_HOST") || "localhost",
     port: parseInt(Deno.env.get("DB_PORT") || "5432"),
     database: Deno.env.get("DB_NAME") || "benchmark",
     user: Deno.env.get("DB_USER") || "benchmark",
@@ -54,7 +54,7 @@ export async function getComplexOrders(days: number) {
       [days.toString()]
     );
 
-    return result.rows.map((row: Record<string, unknown>) => ({
+    return (result.rows as Record<string, unknown>[]).map((row) => ({
       user_id: row.user_id as number,
       user_name: row.user_name as string,
       total_orders: parseInt(row.total_orders as string),

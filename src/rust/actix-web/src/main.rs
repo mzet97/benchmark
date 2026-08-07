@@ -172,7 +172,7 @@ async fn health(data: web::Data<AppState>) -> HttpResponse {
     let status = if db_ok && cache_ok { "healthy" } else { "unhealthy" };
     let code = if db_ok && cache_ok { 200 } else { 503 };
     HttpResponse::build(actix_web::http::StatusCode::from_u16(code).unwrap_or(actix_web::http::StatusCode::SERVICE_UNAVAILABLE))
-        .json(json!({"status": status, "database": if db_ok {"connected"} else {"disconnected"}, "cache": if cache_ok {"connected"} else {"disconnected"}, "timestamp": chrono::Utc::now().to_rfc3339()}))
+        .json(json!({"status": status, "version": "1.0.0", "database": if db_ok {"connected"} else {"disconnected"}, "cache": if cache_ok {"connected"} else {"disconnected"}, "timestamp": chrono::Utc::now().to_rfc3339()}))
 }
 
 async fn json_endpoint(query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {

@@ -76,7 +76,7 @@ export async function GetJsonItems(call: GrpcCall, callback: GrpcCallback): Prom
  */
 export async function GetUser(call: GrpcCall, callback: GrpcCallback): Promise<void> {
   try {
-    const user = await db.getUser(call.request.id as number);
+    const user = (await db.getUser(call.request.id as number)) as Record<string, unknown> | null;
     if (!user) {
       return callback({
         code: 5, // NOT_FOUND
@@ -91,7 +91,7 @@ export async function GetUser(call: GrpcCall, callback: GrpcCallback): Promise<v
       last_name: user.last_name,
       age: user.age,
       created_at: user.created_at instanceof Date
-        ? user.created_at.toISOString()
+        ? (user.created_at as Date).toISOString()
         : String(user.created_at),
     });
   } catch (err) {

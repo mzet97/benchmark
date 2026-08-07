@@ -1,6 +1,6 @@
 package benchmark;
 
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.Benchmark.*;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;

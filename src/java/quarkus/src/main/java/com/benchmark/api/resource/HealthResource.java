@@ -37,6 +37,7 @@ public class HealthResource {
 
                     Map<String, Object> response = new HashMap<>();
                     response.put("status", (dbOk && cacheOk) ? "healthy" : "unhealthy");
+                    response.put("version", "1.0.0");
                     response.put("database", dbOk ? "connected" : "disconnected");
                     response.put("cache", cacheOk ? "connected" : "disconnected");
                     response.put("timestamp", Instant.now().toString());

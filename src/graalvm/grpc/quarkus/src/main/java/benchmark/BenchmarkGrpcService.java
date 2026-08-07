@@ -1,7 +1,7 @@
 package benchmark;
 
-import benchmark.BenchmarkServiceGrpc;
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.Benchmark.*;
+import dev.benchmark.grpc.MutinyBenchmarkServiceGrpc;
 import io.quarkus.grpc.GrpcService;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 @GrpcService
-public class BenchmarkGrpcService extends BenchmarkServiceGrpc.BenchmarkServiceImplBase {
+public class BenchmarkGrpcService extends MutinyBenchmarkServiceGrpc.BenchmarkServiceImplBase {
 
     private static final String VERSION = "1.0.0";
 

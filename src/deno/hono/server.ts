@@ -5,7 +5,7 @@
 
 import { Hono } from "https://deno.land/x/hono@v4.3.0/mod.ts";
 import { Client } from "postgres";
-import { Redis } from "redis";
+import { connect, type Redis } from "redis";
 import { buildItems, itemCount } from "./canonical.ts";
 
 // The TTL is part of the response contract and must match what is written
@@ -78,7 +78,7 @@ class CacheService {
 
   async init() {
     const url = new URL(REDIS_URL);
-    this.redis = new Redis({
+    this.redis = await connect({
       hostname: url.hostname,
       port: parseInt(url.port || "6379"),
       password: url.password || undefined,

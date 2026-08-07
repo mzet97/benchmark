@@ -1,6 +1,7 @@
 package benchmark;
 
 import io.quarkus.redis.datasource.RedisDataSource;
+import io.quarkus.redis.datasource.keys.KeyCommands;
 import io.quarkus.redis.datasource.value.ValueCommands;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -26,22 +27,28 @@ public class CacheService {
 
     public Models.CacheEntry getCacheEntry(String key) {
         ValueCommands<String, String> commands = redisDataSource.value(String.class);
+        KeyCommands<String> keyCommands = redisDataSource.key();
 
         String value = commands.get(key);
         if (value != null) {
-            Long ttl = commands.ttl(key);
+            long ttl;
+            try {
+                ttl = keyCommands.ttl(key);
+            } catch (io.quarkus.redis.datasource.keys.RedisKeyNotFoundException e) {
+                ttl = -1;
+            }
             return new Models.CacheEntry(
                     key,
                     value,
                     true,
-                    ttl != null ? ttl.intValue() : -1
+                    (int) ttl
             );
         }
 
         // Generate a default value and cache it
         String defaultValue = "{\"key\": \"" + key + "\", \"generated\": true}";
         commands.set(key, defaultValue);
-        commands.expire(key, Duration.ofSeconds(300));
+        keyCommands.expire(key, Duration.ofSeconds(300));
 
         return new Models.CacheEntry(
                 key,

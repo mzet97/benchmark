@@ -28,7 +28,7 @@ class Cache {
   Future<String> checkCache() async {
     try {
       final cmd = await getCommand();
-      await cmd.send(['PING']);
+      await cmd.send_object(['PING']);
       return 'connected';
     } catch (e) {
       return 'error: $e';

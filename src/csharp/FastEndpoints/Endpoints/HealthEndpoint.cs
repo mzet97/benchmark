@@ -12,7 +12,7 @@ public class HealthEndpoint : EndpointWithoutRequest
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        await SendAsync(new { status = "ok", timestamp = DateTime.UtcNow }, cancellation: ct);
+        await SendAsync(new { status = "ok", version = "1.0.0", timestamp = DateTime.UtcNow }, cancellation: ct);
     }
 }
 

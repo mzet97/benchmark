@@ -3,6 +3,8 @@ package com.benchmark.vertx.services;
 import com.benchmark.vertx.config.Config;
 import io.vertx.core.Future;
 import io.vertx.core.Promise;
+import io.vertx.core.Vertx;
+import io.vertx.redis.client.Command;
 import io.vertx.redis.client.Redis;
 import io.vertx.redis.client.RedisOptions;
 import io.vertx.redis.client.Request;
@@ -21,28 +23,41 @@ public class CacheService {
     private final Redis redis;
 
     public CacheService(Config config) {
+        this(config, Vertx.vertx());
+    }
+
+    public CacheService(Config config, Vertx vertx) {
         this.config = config;
 
-        // Parse Redis URL
+        // RedisOptions in Vert.x 4 has no setPort/setPassword; configuration is
+        // done with a single connection string. Redis.createClient also needs
+        // the Vertx instance it will run on.
         URI redisUri = URI.create(config.getRedisUrl());
 
-        // Create Redis options
-        RedisOptions options = new RedisOptions()
-            .setEndpoint(redisUri.getHost())
-            .setPort(redisUri.getPort());
-
-        if (redisUri.getUserInfo() != null && !redisUri.getUserInfo().isEmpty()) {
-            options.setPassword(redisUri.getUserInfo().split(":")[1]);
+        // Rebuild a redis://[user:pass@]host:port[/db] endpoint. The input URL
+        // from the contract is already in this form, so use it directly when it
+        // carries the scheme; otherwise reconstruct host:port.
+        String endpoint = config.getRedisUrl();
+        if (endpoint == null || endpoint.isEmpty()) {
+            String host = redisUri.getHost();
+            int port = redisUri.getPort();
+            if (port == -1) {
+                port = 6379;
+            }
+            endpoint = "redis://" + host + ":" + port;
         }
 
+        RedisOptions options = new RedisOptions()
+            .setConnectionString(endpoint);
+
         // Create Redis client
-        redis = Redis.createClient(options);
+        redis = Redis.createClient(vertx, options);
     }
 
     public Future<String> get(String key) {
         Promise<String> promise = Promise.promise();
 
-        redis.send(Request.cmd(Request.Command.GET).arg(key))
+        redis.send(Request.cmd(Command.GET).arg(key))
             .onSuccess(response -> {
                 if (response != null) {
                     promise.complete(response.toString());
@@ -58,7 +73,7 @@ public class CacheService {
     public Future<Void> set(String key, String value, int ttl) {
         Promise<Void> promise = Promise.promise();
 
-        redis.send(Request.cmd(Request.Command.SETEX)
+        redis.send(Request.cmd(Command.SETEX)
             .arg(key)
             .arg(String.valueOf(ttl))
             .arg(value))
@@ -71,7 +86,7 @@ public class CacheService {
     public Future<Boolean> ping() {
         Promise<Boolean> promise = Promise.promise();
 
-        redis.send(Request.cmd(Request.Command.PING))
+        redis.send(Request.cmd(Command.PING))
             .onSuccess(response -> promise.complete(true))
             .onFailure(err -> {
                 logger.error("Redis health check failed", err);

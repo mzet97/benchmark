@@ -3,6 +3,7 @@ import { z } from 'zod';
 // HealthResponse model schema
 export const HealthResponseSchema = z.object({
   status: z.string(),
+  version: z.string(),
   database: z.string(),
   cache: z.string(),
   timestamp: z.string()
@@ -12,6 +13,7 @@ export const HealthResponseSchema = z.object({
 export function createHealthResponse(dbHealthy, cacheHealthy) {
   return {
     status: dbHealthy && cacheHealthy ? 'healthy' : 'unhealthy',
+    version: '1.0.0',
     database: dbHealthy ? 'connected' : 'disconnected',
     cache: cacheHealthy ? 'connected' : 'disconnected',
     timestamp: new Date().toISOString()

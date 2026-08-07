@@ -16,6 +16,7 @@ export async function healthHandler(req, res) {
 
     res.json({
       status,
+      version: '1.0.0',
       timestamp: new Date().toISOString(),
       database: dbHealthy ? 'healthy' : 'unhealthy',
       cache: cacheHealthy ? 'healthy' : 'unhealthy',

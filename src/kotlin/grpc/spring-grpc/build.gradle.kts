@@ -21,15 +21,16 @@ repositories {
 val grpcVersion = "1.61.0"
 val grpcKotlinVersion = "1.4.1"
 val protobufVersion = "3.25.2"
-val springGrpcVersion = "3.2.3"
+val grpcSpringBootStarterVersion = "3.1.0.RELEASE"
 
 dependencies {
     // Spring Boot
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
 
-    // Spring gRPC
-    implementation("io.grpc:grpc-spring-boot-starter:$springGrpcVersion")
+    // Spring gRPC (net.devh:grpc-spring-boot-starter auto-configures the gRPC
+    // server and registers @GrpcService/@Service BindableService beans).
+    implementation("net.devh:grpc-spring-boot-starter:$grpcSpringBootStarterVersion")
     implementation("io.grpc:grpc-kotlin-stub:$grpcKotlinVersion")
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")
     implementation("io.grpc:grpc-protobuf:$grpcVersion")

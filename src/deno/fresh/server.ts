@@ -5,7 +5,7 @@ import { buildItems, itemCount } from "./canonical.ts";
  */
 
 import { Client } from "postgres";
-import { Redis } from "redis";
+import { connect, type Redis } from "redis";
 
 const PORT = parseInt(Deno.env.get("PORT") || "8080");
 // The TTL is part of the response contract and must match what is written
@@ -80,7 +80,7 @@ class CacheService {
 
   async init() {
     const url = new URL(REDIS_URL);
-    this.redis = new Redis({
+    this.redis = await connect({
       hostname: url.hostname,
       port: parseInt(url.port || "6379"),
       password: url.password || undefined,

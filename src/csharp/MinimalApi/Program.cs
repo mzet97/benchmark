@@ -73,7 +73,7 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
 app.MapGet("/", () => Results.Redirect("/health"));
 
 // Endpoint 1: GET /health - Hello World (Simple)
-app.MapGet("/health", () => Results.Ok(new { status = "ok", timestamp = DateTime.UtcNow }));
+app.MapGet("/health", () => Results.Ok(new { status = "ok", version = "1.0.0", timestamp = DateTime.UtcNow }));
 
 // Endpoint 2: GET /json - Serialização JSON
 app.MapGet("/json", JsonHandler.GetJson);

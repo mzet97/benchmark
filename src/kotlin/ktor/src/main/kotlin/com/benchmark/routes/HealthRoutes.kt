@@ -15,7 +15,7 @@ fun Route.healthRoutes(dbService: DatabaseService, cacheService: CacheService) {
         val status = if (dbOk && cacheOk) "healthy" else "unhealthy"
         val code = if (dbOk && cacheOk) HttpStatusCode.OK else HttpStatusCode.ServiceUnavailable
         call.respondText(
-            """{"status":"$status","database":"${if (dbOk) "connected" else "disconnected"}","cache":"${if (cacheOk) "connected" else "disconnected"}","timestamp":"${Instant.now()}"}""",
+            """{"status":"$status","version":"1.0.0","database":"${if (dbOk) "connected" else "disconnected"}","cache":"${if (cacheOk) "connected" else "disconnected"}","timestamp":"${Instant.now()}"}""",
             ContentType.Application.Json, code
         )
     }

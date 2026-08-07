@@ -1,6 +1,6 @@
 package benchmark;
 
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.Benchmark.*;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

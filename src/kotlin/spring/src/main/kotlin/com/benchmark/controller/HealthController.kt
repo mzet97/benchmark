@@ -18,6 +18,7 @@ class HealthController(
 
         return mapOf(
             "status" to if (dbHealthy && cacheHealthy) "healthy" else "unhealthy",
+            "version" to "1.0.0",
             "timestamp" to Instant.now().toString(),
             "database" to if (dbHealthy) "healthy" else "unhealthy",
             "cache" to if (cacheHealthy) "healthy" else "unhealthy"

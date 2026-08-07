@@ -3,7 +3,6 @@ import 'dart:isolate';
 
 import 'package:grpc/grpc.dart';
 
-import '../lib/src/benchmark.pbgrpc.dart';
 import '../lib/src/cache.dart';
 import '../lib/src/db.dart';
 import '../lib/src/runtime.dart';

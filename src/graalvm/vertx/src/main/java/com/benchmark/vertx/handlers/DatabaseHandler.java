@@ -72,9 +72,19 @@ public class DatabaseHandler implements Handler<RoutingContext> {
                                 .put("message", "User not found")
                                 .encode());
                     } else {
+                        // Vert.x Row has no encode(); build the JSON from the
+                        // contract-aliased columns the prepared query selects.
+                        io.vertx.core.json.JsonObject userJson = new io.vertx.core.json.JsonObject()
+                            .put("id", user.getInteger("id"))
+                            .put("email", user.getString("email"))
+                            .put("firstName", user.getString("firstName"))
+                            .put("lastName", user.getString("lastName"))
+                            .put("age", user.getInteger("age"))
+                            .put("createdAt", user.getLocalDateTime("createdAt"));
+
                         ctx.response()
                             .putHeader("Content-Type", "application/json")
-                            .end(user.encode());
+                            .end(userJson.encode());
                     }
                 })
                 .onFailure(err -> {

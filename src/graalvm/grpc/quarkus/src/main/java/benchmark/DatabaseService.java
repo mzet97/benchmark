@@ -1,6 +1,6 @@
 package benchmark;
 
-import benchmark.Benchmark.*;
+import dev.benchmark.grpc.Benchmark.*;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.pgclient.PgPool;
 import io.vertx.mutiny.sqlclient.Row;

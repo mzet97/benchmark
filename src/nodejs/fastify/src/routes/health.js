@@ -12,6 +12,7 @@ export default async function healthRoutes(fastify, options) {
           type: 'object',
           properties: {
             status: { type: 'string' },
+            version: { type: 'string' },
             database: { type: 'string' },
             cache: { type: 'string' },
             timestamp: { type: 'string' }
@@ -21,6 +22,7 @@ export default async function healthRoutes(fastify, options) {
           type: 'object',
           properties: {
             status: { type: 'string' },
+            version: { type: 'string' },
             database: { type: 'string' },
             cache: { type: 'string' },
             timestamp: { type: 'string' }

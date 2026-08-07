@@ -15,8 +15,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <micronaut.version>4.7.6</micronaut.version>
-        <micronaut.grpc.version>4.7.0</micronaut.grpc.version>
-        <micronaut.data.version>4.11.3</micronaut.data.version>
+        <micronaut.data.version>4.10.5</micronaut.data.version>
         <grpc.version>1.69.0</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <protoc-gen-grpc.version>1.69.0</protoc-gen-grpc.version>
@@ -35,11 +34,10 @@
     </dependencyManagement>
 
     <dependencies>
-        <!-- Micronaut gRPC -->
+        <!-- Micronaut gRPC (version managed by micronaut-platform BOM) -->
         <dependency>
             <groupId>io.micronaut.grpc</groupId>
             <artifactId>micronaut-grpc-runtime</artifactId>
-            <version>${micronaut.grpc.version}</version>
         </dependency>
 
         <!-- Micronaut Data JDBC -->
@@ -93,6 +91,13 @@
             <version>${protobuf.version}</version>
         </dependency>
 
+        <!-- Annotation API (required by gRPC generated code: javax.annotation.Generated) -->
+        <dependency>
+            <groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.3.2</version>
+        </dependency>
+
         <!-- SLF4J -->
         <dependency>
             <groupId>ch.qos.logback</groupId>
@@ -127,6 +132,24 @@
                     <pluginArtifact>io.grpc:protoc-gen-grpc-java:${protoc-gen-grpc.version}:exe:${os.detected.classifier}</pluginArtifact>
                     <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
                 </configuration>
+                <!-- Override plexus-archiver. The version bundled with
+                     protobuf-maven-plugin 0.6.1 has a ZIP-SLIP path-validation
+                     guard that misfires on SMB/network shares ("entry is
+                     outside of the target dir") when unpacking
+                     proto-google-common-protos. 2.4.4 predates that guard and
+                     unpacks the protos correctly. -->
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-archiver</artifactId>
+                        <version>2.4.4</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>org.codehaus.plexus</groupId>
+                        <artifactId>plexus-utils</artifactId>
+                        <version>3.0.24</version>
+                    </dependency>
+                </dependencies>
                 <executions>
                     <execution>
                         <goals>

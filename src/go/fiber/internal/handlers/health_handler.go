@@ -36,6 +36,7 @@ func (hh *HealthHandler) HandleHealth(c *fiber.Ctx) error {
 
 	response := fiber.Map{
 		"status":    "healthy",
+		"version":   "1.0.0",
 		"database":  "disconnected",
 		"cache":     "disconnected",
 		"timestamp": time.Now().Format(time.RFC3339),

@@ -38,10 +38,11 @@ public class DatabaseService {
             .setPassword(dbUri.getUserInfo().split(":")[1])
             .setCachePreparedStatements(true);
 
-        // Create pool options
+        // Create pool options. Vert.x 4 PoolOptions has no setMinSize: the
+        // pool lazily opens connections up to maxSize, so the min/max from the
+        // contract collapse to a single maxSize.
         PoolOptions poolOptions = new PoolOptions()
-            .setMaxSize(config.getDbPoolMax())
-            .setMinSize(config.getDbPoolMin());
+            .setMaxSize(config.getDbPoolMax());
 
         // Create pool
         pool = PgPool.pool(connectOptions, poolOptions);

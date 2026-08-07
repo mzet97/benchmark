@@ -1,7 +1,6 @@
 package benchmark;
 
 import graphql.schema.DataFetchingEnvironment;
-import io.micronaut.graphql.GraphQL;
 
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;

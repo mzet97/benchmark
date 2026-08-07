@@ -12,6 +12,7 @@ class HealthStatus(str):
 class HealthResponse(BaseModel):
     """Health check response"""
     status: str
+    version: str
     database: str
     cache: str
     timestamp: str
@@ -25,6 +26,7 @@ class HealthResponse(BaseModel):
         status = HealthStatus.HEALTHY if db_healthy and cache_healthy else HealthStatus.UNHEALTHY
         return HealthResponse(
             status=status,
+            version="1.0.0",
             database="connected" if db_healthy else "disconnected",
             cache="connected" if cache_healthy else "disconnected",
             timestamp=datetime.now().isoformat()

@@ -5,7 +5,7 @@ import { buildItems, itemCount } from "./canonical.ts";
  */
 
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import { Redis } from "https://deno.land/x/redis@v0.32.1/mod.ts";
+import { connect, type Redis } from "https://deno.land/x/redis@v0.32.1/mod.ts";
 
 // The TTL is part of the response contract and must match what is written
 // to Redis. See contracts/rest/canonical-payloads.md.
@@ -77,7 +77,7 @@ class CacheService {
 
   async init() {
     const url = new URL(REDIS_URL);
-    this.redis = new Redis({
+    this.redis = await connect({
       hostname: url.hostname,
       port: parseInt(url.port || "6379"),
       password: url.password || undefined,

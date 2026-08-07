@@ -1,11 +1,11 @@
 package benchmark
 
-import benchmark.BenchmarkServiceGrpcKt
+import dev.benchmark.grpc.Benchmark
+import dev.benchmark.grpc.BenchmarkServiceGrpcKt
 import io.grpc.Status
 import io.grpc.StatusException
 import org.springframework.stereotype.Service
 import java.time.Instant
-import java.util.UUID
 
 @Service
 class BenchmarkServiceImpl(
@@ -16,11 +16,11 @@ class BenchmarkServiceImpl(
     private val version = System.getenv("APP_VERSION") ?: "1.0.0"
 
     // Scenario 1: Health check
-    override suspend fun health(request: benchmark.HealthRequest): benchmark.HealthResponse {
+    override suspend fun health(request: Benchmark.HealthRequest): Benchmark.HealthResponse {
         val dbStatus = dbService.healthCheck()
         val cacheStatus = cacheService.healthCheck()
 
-        return benchmark.HealthResponse.newBuilder()
+        return Benchmark.HealthResponse.newBuilder()
             .setStatus("ok")
             .setVersion(version)
             .setTimestamp(Instant.now().toString())
@@ -30,10 +30,10 @@ class BenchmarkServiceImpl(
     }
 
     // Scenario 2: JSON serialization (1000 items)
-    override suspend fun getJsonItems(request: benchmark.JsonItemsRequest): benchmark.JsonItemsResponse {
+    override suspend fun getJsonItems(request: Benchmark.JsonItemsRequest): Benchmark.JsonItemsResponse {
         val count = Canonical.itemCount(request.limit)
         val items = (0 until count).map { i ->
-            benchmark.JsonItem.newBuilder()
+            Benchmark.JsonItem.newBuilder()
                 .setId(i)
                 .setUuid(Canonical.uuid(i))
                 .setName(Canonical.name(i))
@@ -43,7 +43,7 @@ class BenchmarkServiceImpl(
                 .build()
         }
 
-        return benchmark.JsonItemsResponse.newBuilder()
+        return Benchmark.JsonItemsResponse.newBuilder()
             .addAllItems(items)
             .setCount(items.size)
             .setTimestamp(Instant.now().toString())
@@ -51,11 +51,11 @@ class BenchmarkServiceImpl(
     }
 
     // Scenario 3: Simple database query
-    override suspend fun getUser(request: benchmark.GetUserRequest): benchmark.UserResponse {
+    override suspend fun getUser(request: Benchmark.GetUserRequest): Benchmark.UserResponse {
         val user = dbService.getUser(request.id)
             ?: throw StatusException(Status.NOT_FOUND.withDescription("User with id ${request.id} not found"))
 
-        return benchmark.UserResponse.newBuilder()
+        return Benchmark.UserResponse.newBuilder()
             .setId(user.id)
             .setEmail(user.email)
             .setFirstName(user.firstName)
@@ -66,12 +66,12 @@ class BenchmarkServiceImpl(
     }
 
     // Scenario 4: Complex database query (JOIN + aggregation)
-    override suspend fun getComplexOrders(request: benchmark.ComplexOrdersRequest): benchmark.ComplexOrdersResponse {
+    override suspend fun getComplexOrders(request: Benchmark.ComplexOrdersRequest): Benchmark.ComplexOrdersResponse {
         val days = if (request.days > 0) request.days else 30
         val data = dbService.getComplexOrders(days)
 
         val orderStats = data.map { stat ->
-            benchmark.UserOrderStats.newBuilder()
+            Benchmark.UserOrderStats.newBuilder()
                 .setUserId(stat.userId)
                 .setUserName(stat.userName)
                 .setTotalOrders(stat.totalOrders)
@@ -80,7 +80,7 @@ class BenchmarkServiceImpl(
                 .build()
         }
 
-        return benchmark.ComplexOrdersResponse.newBuilder()
+        return Benchmark.ComplexOrdersResponse.newBuilder()
             .setPeriodDays(days)
             .setTotalUsers(orderStats.size)
             .addAllData(orderStats)
@@ -88,12 +88,12 @@ class BenchmarkServiceImpl(
     }
 
     // Scenario 5: Cache hit/miss
-    override suspend fun getCacheValue(request: benchmark.CacheRequest): benchmark.CacheResponse {
+    override suspend fun getCacheValue(request: Benchmark.CacheRequest): Benchmark.CacheResponse {
         val key = request.key
         val result = cacheService.get(key)
 
         return if (result.hit) {
-            benchmark.CacheResponse.newBuilder()
+            Benchmark.CacheResponse.newBuilder()
                 .setKey(key)
                 .setValue(result.value!!)
                 .setCached(true)
@@ -104,7 +104,7 @@ class BenchmarkServiceImpl(
             val value = "value-${System.currentTimeMillis()}"
             cacheService.set(key, value, 300)
 
-            benchmark.CacheResponse.newBuilder()
+            Benchmark.CacheResponse.newBuilder()
                 .setKey(key)
                 .setValue(value)
                 .setCached(false)

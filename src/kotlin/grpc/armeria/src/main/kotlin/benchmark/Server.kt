@@ -3,6 +3,7 @@ package benchmark
 import com.linecorp.armeria.common.grpc.GrpcSerializationFormats
 import com.linecorp.armeria.server.Server
 import com.linecorp.armeria.server.grpc.GrpcService
+import io.grpc.BindableService
 import io.grpc.protobuf.services.ProtoReflectionService
 import kotlinx.coroutines.runBlocking
 
@@ -12,11 +13,11 @@ fun main(): Unit = runBlocking {
     val dbService = DatabaseService()
     val cacheService = CacheService()
 
-    val serviceImpl = BenchmarkServiceImpl(dbService, cacheService)
+    val serviceImpl: BindableService = BenchmarkServiceImpl(dbService, cacheService)
 
     val grpcService = GrpcService.builder()
         .addService(serviceImpl)
-        .addService(ProtoReflectionService.newInstance())
+        .addService(ProtoReflectionService.newInstance() as BindableService)
         .supportedSerializationFormats(GrpcSerializationFormats.values())
         .enableUnframedRequests(true)
         .build()

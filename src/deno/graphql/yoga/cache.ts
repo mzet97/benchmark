@@ -1,4 +1,4 @@
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 
 const REDIS_URL = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
 

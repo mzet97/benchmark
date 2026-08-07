@@ -1,7 +1,6 @@
 package benchmark;
 
 import com.linecorp.armeria.common.grpc.GrpcSerializationFormats;
-import com.linecorp.armeria.server.Server;
 import com.linecorp.armeria.server.ServerBuilder;
 import com.linecorp.armeria.server.grpc.GrpcService;
 import com.linecorp.armeria.server.grpc.GrpcServiceBuilder;
@@ -24,11 +23,11 @@ public class Server {
                 .enableUnframedRequests(true)
                 .build();
 
-        ServerBuilder serverBuilder = Server.builder()
+        ServerBuilder serverBuilder = com.linecorp.armeria.server.Server.builder()
                 .http(port)
                 .service(grpcService);
 
-        Server server = serverBuilder.build();
+        com.linecorp.armeria.server.Server server = serverBuilder.build();
 
         // Graceful shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

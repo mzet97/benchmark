@@ -1,10 +1,9 @@
 package benchmark;
 
-import benchmark.Benchmark.CacheResponse;
+import dev.benchmark.grpc.Benchmark.CacheResponse;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import io.vertx.mutiny.redis.client.Response;
-import io.vertx.redis.client.ResponseType;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -23,7 +22,7 @@ public class CacheService {
     public Uni<CacheResponse> get(String key) {
         return redis.get(key)
                 .onItem().transform(response -> {
-                    if (response != null && response.type() != ResponseType.NIL) {
+                    if (response != null) {
                         return CacheResponse.newBuilder()
                                 .setKey(key)
                                 .setValue(response.toString())
