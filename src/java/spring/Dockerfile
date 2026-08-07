@@ -20,6 +20,6 @@ USER app
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
-    CMD curl -sf http://localhost:8080/actuator/health || exit 1
+    CMD curl -sf http://localhost:8080/healthz || exit 1
 
 CMD ["java", "-jar", "app.jar"]

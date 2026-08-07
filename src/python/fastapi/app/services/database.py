@@ -30,12 +30,21 @@ class DatabaseService:
                 host=parsed.hostname,
                 port=parsed.port or 5432,
                 database=parsed.path.lstrip('/'),
-                min_size=5,
                 # DB_POOL_MAX is the budget for the pod, divided across the
                 # BENCH_CPUS uvicorn workers. This was hardcoded at 25, which
                 # ignored the ConfigMap and, times seven workers, meant 175
                 # connections against the 32 every other implementation opens.
                 # See docs/ACTION_PLAN.md, Fase 3.2.
+                #
+                # The floor must be divided the same way: asyncpg rejects
+                # create_pool() with ValueError when min_size > max_size, and
+                # with BENCH_CPUS (40) > DB_POOL_MAX (32) the integer division
+                # floors max_size at 1 while min_size stayed at 5.
+                min_size=max(
+                    1,
+                    int(os.environ.get("DB_POOL_MIN", "5"))
+                    // max(1, int(os.environ.get("BENCH_CPUS", "1"))),
+                ),
                 max_size=max(
                     1,
                     int(os.environ.get("DB_POOL_MAX", "32"))

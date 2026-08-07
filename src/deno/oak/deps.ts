@@ -13,7 +13,7 @@ export {
 export { Client } from "postgres";
 
 // Redis client
-export { connect as redisConnect } from "redis";
+export { connect as redisConnect, parseURL as redisParseURL } from "redis";
 
 // Validation
 export { z } from "zod";

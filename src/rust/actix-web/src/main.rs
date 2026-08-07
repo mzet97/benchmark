@@ -30,20 +30,15 @@ struct DbService {
 
 impl DbService {
     async fn connect(database_url: &str) -> Self {
-        // Parse URL manually to handle @ in password
-        let after_scheme = database_url.split("://").nth(1).unwrap_or("");
-        let last_at = after_scheme.rfind('@').unwrap_or(0);
-        let user_pass = &after_scheme[..last_at];
-        let host_port_db = &after_scheme[last_at + 1..];
-        let user = user_pass.split(':').next().unwrap_or("app");
-        let password = user_pass.split(':').nth(1).unwrap_or("");
-        let host = host_port_db.split(':').next().unwrap_or("localhost");
-        let port_db = host_port_db.split(':').nth(1).unwrap_or("5432/benchmark_api");
-        let port: u16 = port_db.split('/').next().unwrap_or("5432").parse().unwrap_or(5432);
-        let database = port_db.split('/').nth(1).unwrap_or("benchmark_api");
-
-        let mut config = tokio_postgres::Config::new();
-        config.user(user).password(password).host(host).port(port).dbname(database);
+        // Use tokio_postgres's own URL parser (Config::from_str) instead of a
+        // hand-rolled split(). The manual parser here did not percent-decode
+        // the password, so DATABASE_URL with password Admin%40123 was sent to
+        // Postgres literally and authentication failed for db_admin.
+        // tokio_postgres's parser uses percent_encoding, which correctly yields
+        // Admin@123. It also accepts the `sslmode=disable` query parameter.
+        let config = database_url
+            .parse::<tokio_postgres::Config>()
+            .expect("Failed to parse DATABASE_URL");
 
         let manager = Manager::from_config(
             config,

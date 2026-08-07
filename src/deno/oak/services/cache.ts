@@ -1,29 +1,25 @@
-import { redisConnect } from "../deps.ts";
+import { redisConnect, redisParseURL } from "../deps.ts";
 
 export class CacheService {
   private redis: any = null;
-  private host: string = "";
-  private port: number = 6379;
-  private password: string | undefined;
+  private options: { hostname: string; port: number; password?: string };
 
   constructor() {
     const redisUrl = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
-    // Parse redis://:password@host:port manually (handle @ in password)
-    const afterScheme = redisUrl.split("://")[1] || "";
-    const lastAt = afterScheme.lastIndexOf("@");
-    const password = afterScheme.substring(1, lastAt); // skip leading ':'
-    const hostPort = afterScheme.substring(lastAt + 1);
-    this.host = hostPort.split(":")[0];
-    this.port = parseInt(hostPort.split(":")[1] || "6379");
-    this.password = password || undefined;
+    // Use the redis library's own parseURL (backed by the standard URL parser)
+    // instead of a hand-rolled split(). The manual parser did not percent-decode
+    // the password, so REDIS_URL with password Admin%40123 was sent to Redis
+    // literally and auth failed. parseURL yields the decoded password (Admin@123).
+    const parsed = redisParseURL(redisUrl);
+    this.options = {
+      hostname: parsed.hostname,
+      port: typeof parsed.port === "string" ? parseInt(parsed.port, 10) : (parsed.port ?? 6379),
+      password: parsed.password,
+    };
   }
 
   async init() {
-    this.redis = await redisConnect({
-      hostname: this.host,
-      port: this.port,
-      password: this.password,
-    });
+    this.redis = await redisConnect(this.options);
     console.log("Redis connected");
   }
 
