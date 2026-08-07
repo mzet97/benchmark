@@ -164,7 +164,7 @@ def check_json_scenario(base: str, res: Result) -> None:
 
 EXPECTED_KEYS = {
     "/health": {"status", "version", "timestamp", "database", "cache"},
-    "/db/simple?id=1": {"id", "email", "firstName", "lastName", "age", "createdAt"},
+    "/db/simple": {"id", "email", "firstName", "lastName", "age", "createdAt"},
     "/db/complex?days=30": {"periodDays", "totalUsers", "data"},
     "/cache?key=benchmark": {"key", "value", "cached", "ttl", "timestamp"},
 }
@@ -172,36 +172,46 @@ EXPECTED_KEYS = {
 
 def check_key_sets(base: str, res: Result) -> None:
     for path, expected in EXPECTED_KEYS.items():
+        # For /db/simple, probe a few IDs: the seed's SERIAL may not start at 1
+        # if the table was seeded more than once.
+        paths_to_try = [path]
+        if path == "/db/simple":
+            paths_to_try = [f"/db/simple?id={i}" for i in (1, 2, 3, 5, 10)]
         label = f"{path} key set matches contract"
-        try:
-            status, raw = fetch(f"{base}{path}")
-        except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
-            res.check(False, label, f"request failed: {exc}")
-            continue
-        if status != 200:
-            res.check(False, label, f"HTTP {status}")
-            continue
-        try:
-            body = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            res.check(False, label, f"invalid JSON: {exc}")
-            continue
-        if not isinstance(body, dict):
-            res.check(False, label, "expected a JSON object")
-            continue
+        last_detail = ""
+        for actual_path in paths_to_try:
+            try:
+                status, raw = fetch(f"{base}{actual_path}")
+            except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+                last_detail = f"request failed: {exc}"
+                continue
+            if status != 200:
+                last_detail = f"HTTP {status} for {actual_path}"
+                continue
+            try:
+                body = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                last_detail = f"invalid JSON: {exc}"
+                continue
+            if not isinstance(body, dict):
+                last_detail = "expected a JSON object"
+                continue
 
-        actual = set(body.keys())
-        if actual == expected:
-            res.check(True, label)
+            actual_keys = set(body.keys())
+            if actual_keys == expected:
+                res.check(True, label)
+                break
+            else:
+                detail = []
+                missing = expected - actual_keys
+                extra = actual_keys - expected
+                if missing:
+                    detail.append(f"missing: {sorted(missing)}")
+                if extra:
+                    detail.append(f"unexpected: {sorted(extra)}")
+                last_detail = "\n".join(detail)
         else:
-            detail = []
-            missing = expected - actual
-            extra = actual - expected
-            if missing:
-                detail.append(f"missing: {sorted(missing)}")
-            if extra:
-                detail.append(f"unexpected: {sorted(extra)}")
-            res.check(False, label, "\n".join(detail))
+            res.check(False, label, last_detail)
 
 
 def validate(base: str) -> Result:
