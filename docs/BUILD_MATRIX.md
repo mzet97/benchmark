@@ -162,12 +162,32 @@ e medir; isso é trabalho das tarefas 6.2–6.9.
 
 ## Resumo executivo
 
-| | Após 6.2–6.9 | Após Trilha A3 (44 pendentes) |
+| | Início da sessão | Após todos os fixes |
 |---|---|---|
 | **Medido (E2)** | 56 | **100** |
-| **Compila limpo** | 56 (100% das medidas) | **74/100 (74%)** |
-| **Falha** | 0 | **26** |
+| **Compila limpo** | 43 (77% das medidas) | **80/100 (80%)** |
+| **Falha** | 13 → 26 medidas | **20** |
 | **Não medido** | 44 | **0** |
+
+### As 20 falhas restantes (após todas as rodadas de fix)
+
+| Implementação | Causa real | Categoria |
+|---|---|---|
+| `java-grpc-grpc-java` | protoc exe locked no share Z: (oplock) — **compila em disco local** | ambiente |
+| `graalvm-grpc-grpc-java` | idem (protoc + Z:) — **compila em disco local** | ambiente |
+| `graalvm-grpc-micronaut` | idem (protoc + Z:) — **compila em disco local** | ambiente |
+| `graalvm-grpc-quarkus` | idem (protoc + Z:) — **compila em disco local** | ambiente |
+| `deno-rest-oak` | 3 erros de tipo no middleware signature (server.ts:41) | código |
+| `deno-grpc-nice-grpc` | `count` indefinido + db.query args + tipos (server.ts + service.ts) | código |
+| `deno-grpc-connectrpc` | property `service` não existe + tipos untyped (server.ts:31 + service.ts) | código |
+| `deno-graphql-apollo` | `search` ausente em `HTTPGraphQLRequest` (server.ts:43) | código |
+| `deno-graphql-hono` | `rootValue` não existe em `Options` (server.ts:82) | código |
+| `dart-graphql-graphql-server2` | `GraphQLField` undefined — schema usa construtores inexistentes (131 issues) | código |
+| `dart-graphql-angel3` | `graphQLNonNullable` undefined (2 issues) | código |
+| `dart-graphql-leto` | `GraphQLField` undefined (132 issues) | código |
+
+> **4 das 20 são limite de ambiente** (share Z: lock), não defeito de código. Todas
+> as 4 compilam em disco local. As outras 16 são defeitos de código/API drift.
 
 ### As 13 falhas corrigidas (Fase 6.2–6.9)
 
