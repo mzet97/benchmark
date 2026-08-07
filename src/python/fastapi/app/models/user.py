@@ -57,7 +57,6 @@ class UserStatsResponse(BaseModel):
     periodDays: int
     totalUsers: int
     data: list[UserStats]
-    timestamp: str
 
     class Config:
         from_attributes = True

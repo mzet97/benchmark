@@ -70,10 +70,10 @@ class DatabaseService:
         try:
             conn = self._get_conn()
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                # Normative SQL, see contracts/rest/canonical-payloads.md. The previous
+                # query wrote INTERVAL '%s days': inside the quotes there is no
+                # placeholder, so Postgres read the literal string "%s days".
                 cur.execute("""
-                    # Normative SQL, see contracts/rest/canonical-payloads.md. The previous
-                    # query wrote INTERVAL '%s days': inside the quotes there is no
-                    # placeholder, so Postgres read the literal string "%s days".
                     SELECT
                         u.id AS "userId",
                         u.first_name || ' ' || u.last_name AS "userName",

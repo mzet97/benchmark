@@ -87,7 +87,12 @@ pub struct User {
     pub first_name: String,
     pub last_name: String,
     pub age: Option<i32>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    // The schema (sql/01_schema.sql) declares created_at as TIMESTAMP, not
+    // TIMESTAMPTZ. sqlx decodes TIMESTAMP into NaiveDateTime; using
+    // DateTime<Utc> here errors at runtime, so get_user() returned Err and
+    // /db/simple 500'd for every id. serde still serializes the field as
+    // "createdAt" via rename_all above.
+    pub created_at: chrono::NaiveDateTime,
 }
 
 /// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. The wire names

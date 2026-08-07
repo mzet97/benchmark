@@ -2,11 +2,10 @@ package com.benchmark.model
 
 data class ComplexResult(
     val userId: Int,
-    val userEmail: String,
+    val userName: String,
     val totalOrders: Long,
     val totalValue: Double,
-    val averageOrderValue: Double,
-    val daysSinceFirstOrder: Double
+    val averageOrderValue: Double
 )
 
 data class ComplexResponse(

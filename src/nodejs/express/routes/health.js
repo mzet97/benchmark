@@ -19,8 +19,7 @@ export async function healthHandler(req, res) {
       version: '1.0.0',
       timestamp: new Date().toISOString(),
       database: dbHealthy ? 'healthy' : 'unhealthy',
-      cache: cacheHealthy ? 'healthy' : 'unhealthy',
-      uptime: process.uptime()
+      cache: cacheHealthy ? 'healthy' : 'unhealthy'
     });
   } catch (error) {
     logger.error('Health check failed', error);

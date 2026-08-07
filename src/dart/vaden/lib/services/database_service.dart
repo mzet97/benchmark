@@ -68,10 +68,10 @@ class DatabaseService {
     return {
       'id': row[0] as int,
       'email': row[1] as String,
-      'first_name': row[2] as String,
-      'last_name': row[3] as String,
+      'firstName': row[2] as String,
+      'lastName': row[3] as String,
       'age': row[4] as int,
-      'created_at': (row[5] as DateTime).toIso8601String(),
+      'createdAt': (row[5] as DateTime).toIso8601String(),
     };
   }
 

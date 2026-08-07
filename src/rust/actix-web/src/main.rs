@@ -71,7 +71,7 @@ impl DbService {
                 "firstName": row.get::<_, String>(2),
                 "lastName": row.get::<_, String>(3),
                 "age": row.get::<_, Option<i32>>(4),
-                "createdAt": row.get::<_, chrono::DateTime<chrono::Utc>>(5).to_rfc3339()
+                "createdAt": row.get::<_, chrono::NaiveDateTime>(5).and_utc().to_rfc3339()
             })),
             _ => None,
         }
@@ -193,7 +193,7 @@ async fn db_simple(data: web::Data<AppState>, query: web::Query<std::collections
 async fn db_complex(data: web::Data<AppState>, query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {
     let days: i32 = query.get("days").and_then(|s| s.parse().ok()).unwrap_or(30);
     let results = data.db.get_complex(days).await;
-    HttpResponse::Ok().json(json!({"periodDays": days, "totalUsers": results.len(), "data": results, "timestamp": chrono::Utc::now().to_rfc3339()}))
+    HttpResponse::Ok().json(json!({"periodDays": days, "totalUsers": results.len(), "data": results}))
 }
 
 async fn cache_handler(data: web::Data<AppState>, query: web::Query<std::collections::HashMap<String, String>>) -> HttpResponse {

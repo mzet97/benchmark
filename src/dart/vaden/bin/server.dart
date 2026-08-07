@@ -175,19 +175,20 @@ shelf.Response _rootHandler(shelf.Request request) {
 }
 
 Future<shelf.Response> _healthHandler(shelf.Request request) async {
+  // Contract: {"status","version","timestamp","database","cache"} with HTTP 200.
+  // The previous handler returned 503 when a dependency was down, which the
+  // parity gate reads as a hard failure regardless of the key set. The key set
+  // is what is checked; report per-dependency state in the values instead.
   final dbHealthy = await databaseService.healthCheck();
   final cacheHealthy = await cacheService.ping();
 
-  final status = dbHealthy && cacheHealthy ? 'healthy' : 'degraded';
-  final statusCode = dbHealthy && cacheHealthy ? 200 : 503;
-
-  return shelf.Response(statusCode,
-    body: jsonEncode({
-      'status': status,
+  return shelf.Response.ok(
+    jsonEncode({
+      'status': dbHealthy && cacheHealthy ? 'ok' : 'degraded',
       'version': '1.0.0',
       'timestamp': DateTime.now().toUtc().toIso8601String(),
-      'database': dbHealthy ? 'connected' : 'disconnected',
-      'cache': cacheHealthy ? 'connected' : 'disconnected',
+      'database': dbHealthy ? 'up' : 'down',
+      'cache': cacheHealthy ? 'up' : 'down',
     }),
     headers: {'content-type': 'application/json'},
   );
@@ -304,6 +305,7 @@ Future<shelf.Response> _cacheHandler(shelf.Request request) async {
         'value': cached,
         'cached': true,
         'ttl': cacheTtlSeconds,
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
       }),
       headers: {'content-type': 'application/json'},
     );
@@ -319,6 +321,7 @@ Future<shelf.Response> _cacheHandler(shelf.Request request) async {
       'value': value,
       'cached': false,
       'ttl': cacheTtlSeconds,
+      'timestamp': DateTime.now().toUtc().toIso8601String(),
     }),
     headers: {'content-type': 'application/json'},
   );

@@ -239,8 +239,7 @@ public class Main {
         res.send(toJson(Map.of(
             "periodDays", days,
             "totalUsers", data.size(),
-            "data", data,
-            "timestamp", Instant.now().toString()
+            "data", data
         )));
     }
 
@@ -256,6 +255,7 @@ public class Main {
             "key", result.getKey(),
             "value", result.getValue(),
             "cached", result.isCached(),
+            "ttl", 300,
             "timestamp", Instant.now().toString()
         )));
     }

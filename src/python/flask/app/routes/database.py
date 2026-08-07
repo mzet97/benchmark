@@ -55,8 +55,7 @@ def db_complex():
         return jsonify({
             'periodDays': days,
             'totalUsers': len(data),
-            'data': data,
-            'timestamp': datetime.utcnow().isoformat()
+            'data': data
         })
     except Exception as e:
         current_app.logger.error(f"Database complex query failed: {str(e)}")

@@ -12,6 +12,7 @@
   <properties>
     <java.version>21</java.version>
     <maven.compiler.release>21</maven.compiler.release>
+    <micronaut.version>4.5.0</micronaut.version>
   </properties>
   <dependencies>
     <dependency>
@@ -51,6 +52,32 @@
   </dependencies>
   <build>
     <plugins>
+      <!-- Micronaut needs its annotation processor (micronaut-inject-java)
+           to run at compile time: it generates the bean introspection and
+           route metadata ($Definition / @Executable classes) that let the
+           runtime discover @Controller, @Singleton and @Inject beans.
+           Without it, every request returns "No matching route" because no
+           controllers are registered. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <release>21</release>
+          <annotationProcessorPaths combine.children="append">
+            <path>
+              <groupId>io.micronaut</groupId>
+              <artifactId>micronaut-inject-java</artifactId>
+              <version>${micronaut.version}</version>
+            </path>
+            <path>
+              <groupId>io.micronaut.validation</groupId>
+              <artifactId>micronaut-validation-processor</artifactId>
+              <version>${micronaut.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-dependency-plugin</artifactId>

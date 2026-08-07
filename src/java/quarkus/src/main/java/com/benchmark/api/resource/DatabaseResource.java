@@ -12,7 +12,6 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,10 +36,8 @@ public class DatabaseResource {
                         error.put("id", id);
                         return Response.status(404).entity(error).build();
                     }
-                    Map<String, Object> response = new HashMap<>();
-                    response.put("user", user);
-                    response.put("timestamp", Instant.now().toString());
-                    return Response.ok(response).build();
+                    // Contract returns the user object itself, not an envelope.
+                    return Response.ok(user).build();
                 });
     }
 
@@ -52,10 +49,9 @@ public class DatabaseResource {
         return databaseService.findComplexOrders(days)
                 .map(orders -> {
                     Map<String, Object> response = new HashMap<>();
-                    response.put("orders", orders);
-                    response.put("count", orders.size());
-                    response.put("days", days);
-                    response.put("timestamp", Instant.now().toString());
+                    response.put("periodDays", days);
+                    response.put("totalUsers", orders.size());
+                    response.put("data", orders);
                     return Response.ok(response).build();
                 })
                 .onFailure().recoverWithItem(t -> {

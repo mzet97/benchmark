@@ -11,9 +11,25 @@ class DatabaseService(
     private val jdbcTemplate: JdbcTemplate
 ) {
     fun getUserById(id: Int): User? {
-        val sql = "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = ?"
+        val sql = """
+            SELECT id, email, first_name AS "firstName", last_name AS "lastName",
+                   age, created_at AS "createdAt"
+            FROM users
+            WHERE id = ?
+        """
 
-        return jdbcTemplate.queryForObject(sql, User::class.java, id)
+        val users = jdbcTemplate.query(sql, { rs, _ ->
+            User(
+                id = rs.getInt("id"),
+                email = rs.getString("email"),
+                firstName = rs.getString("firstName"),
+                lastName = rs.getString("lastName"),
+                age = rs.getObject("age") as? Int,
+                createdAt = rs.getTimestamp("createdAt").toLocalDateTime()
+            )
+        }, id)
+
+        return users.firstOrNull()
     }
 
     fun getComplexQuery(days: Int): List<ComplexResult> {
@@ -36,16 +52,15 @@ class DatabaseService(
             LIMIT 100
         """
 
-        return jdbcTemplate.query(sql) { rs, _ ->
+        return jdbcTemplate.query(sql, { rs, _ ->
             ComplexResult(
                 userId = rs.getInt("userId"),
-                userEmail = rs.getString("user_email"),
+                userName = rs.getString("userName"),
                 totalOrders = rs.getLong("totalOrders"),
                 totalValue = rs.getDouble("totalValue"),
-                averageOrderValue = rs.getDouble("averageOrderValue"),
-                daysSinceFirstOrder = rs.getDouble("days_since_first_order")
+                averageOrderValue = rs.getDouble("averageOrderValue")
             )
-        }
+        }, days)
     }
 
     fun healthCheck(): Boolean {

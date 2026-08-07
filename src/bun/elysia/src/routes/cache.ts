@@ -27,6 +27,7 @@ export const cacheRoutes = new Elysia()
         value: cached,
         cached: true,
         ttl: CACHE_TTL_SECONDS,
+        timestamp: new Date().toISOString(),
       };
 
       return new Response(JSON.stringify(response), {
@@ -46,6 +47,7 @@ export const cacheRoutes = new Elysia()
       value,
       cached: false,
       ttl: CACHE_TTL_SECONDS,
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {

@@ -19,6 +19,7 @@ export class CacheController {
         value: cachedValue,
         cached: true,
         ttl: parsedTtl,
+        timestamp: new Date().toISOString(),
       };
     }
 
@@ -30,6 +31,7 @@ export class CacheController {
       value,
       cached: false,
       ttl: parsedTtl,
+      timestamp: new Date().toISOString(),
     };
   }
 }

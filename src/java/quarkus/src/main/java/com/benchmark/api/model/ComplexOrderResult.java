@@ -2,47 +2,45 @@ package com.benchmark.api.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. Wire names are
+// camelCase, matching the proto3 JSON mapping of the snake_case proto fields.
+// See contracts/rest/canonical-payloads.md.
 public class ComplexOrderResult {
 
     @JsonProperty
     public Integer userId;
 
     @JsonProperty
-    public String email;
+    public String userName;
 
     @JsonProperty
-    public Long orderCount;
+    public Long totalOrders;
 
     @JsonProperty
-    public Double totalAmount;
+    public Double totalValue;
 
     @JsonProperty
-    public Double avgAmount;
-
-    @JsonProperty
-    public Long daysSinceFirstOrder;
+    public Double averageOrderValue;
 
     public ComplexOrderResult() {}
 
-    public ComplexOrderResult(Integer userId, String email, Long orderCount,
-                            Double totalAmount, Double avgAmount, Long daysSinceFirstOrder) {
+    public ComplexOrderResult(Integer userId, String userName, Long totalOrders,
+                            Double totalValue, Double averageOrderValue) {
         this.userId = userId;
-        this.email = email;
-        this.orderCount = orderCount;
-        this.totalAmount = totalAmount;
-        this.avgAmount = avgAmount;
-        this.daysSinceFirstOrder = daysSinceFirstOrder;
+        this.userName = userName;
+        this.totalOrders = totalOrders;
+        this.totalValue = totalValue;
+        this.averageOrderValue = averageOrderValue;
     }
 
     @Override
     public String toString() {
         return "ComplexOrderResult{" +
                 "userId=" + userId +
-                ", email='" + email + '\'' +
-                ", orderCount=" + orderCount +
-                ", totalAmount=" + totalAmount +
-                ", avgAmount=" + avgAmount +
-                ", daysSinceFirstOrder=" + daysSinceFirstOrder +
+                ", userName='" + userName + '\'' +
+                ", totalOrders=" + totalOrders +
+                ", totalValue=" + totalValue +
+                ", averageOrderValue=" + averageOrderValue +
                 '}';
     }
 }

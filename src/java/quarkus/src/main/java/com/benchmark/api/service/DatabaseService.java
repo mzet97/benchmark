@@ -95,11 +95,10 @@ public class DatabaseService {
         for (Row row : rows) {
             results.add(new ComplexOrderResult(
                     row.getInteger("userId"),
-                    row.getString("email"),
-                    row.getLong("order_count"),
-                    row.getDouble("total_amount"),
-                    row.getDouble("avg_amount"),
-                    row.getLong("days_since_first_order")
+                    row.getString("userName"),
+                    row.getLong("totalOrders"),
+                    row.getDouble("totalValue"),
+                    row.getDouble("averageOrderValue")
             ));
         }
         return results;

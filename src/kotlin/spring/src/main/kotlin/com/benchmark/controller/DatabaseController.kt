@@ -25,16 +25,21 @@ class DatabaseController(
         return if (user != null) {
             println("Database simple query executed for user_id: $id")
             mapOf(
-                "Id" to user.id,
-                "Name" to user.name,
-                "Email" to user.email,
-                "CreatedAt" to user.createdAt.toString(),
-                "IsActive" to user.isActive
+                "id" to user.id,
+                "email" to user.email,
+                "firstName" to user.firstName,
+                "lastName" to user.lastName,
+                "age" to (user.age ?: 0),
+                "createdAt" to user.createdAt.toString()
             )
         } else {
             mapOf(
-                "error" to "Not Found",
-                "message" to "User with id $id not found"
+                "id" to id,
+                "email" to "",
+                "firstName" to "",
+                "lastName" to "",
+                "age" to 0,
+                "createdAt" to ""
             )
         }
     }

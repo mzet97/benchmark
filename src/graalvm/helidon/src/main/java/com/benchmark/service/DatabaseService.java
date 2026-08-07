@@ -67,7 +67,6 @@ public class DatabaseService {
                  LIMIT 100
                  """)) {
             stmt.setInt(1, days);
-            stmt.setInt(2, days);
             ResultSet rs = stmt.executeQuery();
 
             while (rs.next()) {
