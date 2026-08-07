@@ -45,7 +45,7 @@ export default {
 
   // Scenario 2: JSON serialization (1000 items)
   async getJsonItems(request: Record<string, unknown>, _context: unknown) {
-    const limit = (request.limit as number) > 0 ? (request.limit as number) : 1000;
+    const count = itemCount(request.limit);
     const items = [];
 
     for (let i = 0; i < count; i++) {
@@ -110,7 +110,8 @@ export default {
       GROUP BY u.id, u.first_name, u.last_name
       HAVING COUNT(o.id) > 0
       ORDER BY total_value DESC
-      LIMIT 100`
+      LIMIT 100`,
+      []
     );
 
     const data = result.rows.map((row: Record<string, unknown>) => ({

@@ -65,14 +65,14 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
           'jsonItems',
           objectType('JsonItemsResult', fields: [
             _leaf('items',
-                listOf(graphQLNonNullable(objectType('JsonItem', fields: [
+                listOf(objectType('JsonItem', fields: [
               _leaf('id', graphQLInt.nonNullable()),
               _leaf('uuid', graphQLString.nonNullable()),
               _leaf('name', graphQLString.nonNullable()),
               _leaf('email', graphQLString.nonNullable()),
               _leaf('createdAt', graphQLString.nonNullable()),
               _leaf('isActive', graphQLBoolean.nonNullable()),
-            ])))),
+            ]).nonNullable())),
             _leaf('count', graphQLInt.nonNullable()),
             _leaf('timestamp', graphQLString.nonNullable()),
           ]).nonNullable(),
@@ -121,13 +121,13 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
             _leaf('totalUsers', graphQLInt.nonNullable()),
             _leaf(
               'data',
-              listOf(graphQLNonNullable(objectType('UserOrderStats', fields: [
+              listOf(objectType('UserOrderStats', fields: [
                 _leaf('userId', graphQLInt.nonNullable()),
                 _leaf('userName', graphQLString.nonNullable()),
                 _leaf('totalOrders', graphQLInt.nonNullable()),
                 _leaf('totalValue', graphQLFloat.nonNullable()),
                 _leaf('averageOrderValue', graphQLFloat.nonNullable()),
-              ]))),
+              ]).nonNullable()),
             ),
           ]).nonNullable(),
           arguments: [

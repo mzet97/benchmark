@@ -32,7 +32,7 @@ Future<void> _serve(int worker) async {
   // Built once. This used to run inside the request handler, so every request
   // paid for building and validating the whole schema -- work no other GraphQL
   // implementation in this benchmark does per request.
-  final schema = buildSchema();
+  final schema = buildSchema(resolvers);
 
   final router = Router();
 
@@ -44,13 +44,10 @@ Future<void> _serve(int worker) async {
     final variables = payload['variables'] as Map<String, dynamic>?;
     final operationName = payload['operationName'] as String?;
 
-    final context = GraphQLContext(resolvers);
-
-    final result = await schema.execute(
+    final result = await schema.parseAndExecute(
       query,
-      variableValues: variables,
+      variableValues: variables ?? const {},
       operationName: operationName,
-      contextValue: context,
     );
 
     return shelf.Response.ok(

@@ -28,7 +28,7 @@ async function main() {
 
   server.add(
     (proto as Record<string, { BenchmarkService: unknown }>).BenchmarkService as never,
-    service
+    service as never,
   );
 
   const address = `0.0.0.0:${PORT}`;

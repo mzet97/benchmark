@@ -1,4 +1,4 @@
-import { ApolloServer } from "@apollo/server";
+import { ApolloServer, HeaderMap } from "@apollo/server";
 import { typeDefs } from "./typeDefs.ts";
 import { resolvers } from "./resolvers.ts";
 
@@ -28,15 +28,16 @@ Deno.serve({ port: PORT, reusePort: true }, async (req: Request) => {
   // GraphQL endpoint
   if (url.pathname === "/graphql" && req.method === "POST") {
     const body = await req.text();
-    const headers: Record<string, string> = {};
+    const headers = new HeaderMap();
     req.headers.forEach((value, key) => {
-      headers[key] = value;
+      headers.set(key, value);
     });
 
     const httpGraphQLRequest = {
       method: "POST" as const,
       headers,
       body: JSON.parse(body),
+      search: url.search,
     };
 
     const response = await server.executeHTTPGraphQLRequest({

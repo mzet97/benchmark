@@ -79,7 +79,7 @@ app.get("/health", (c) => {
 });
 
 // GraphQL endpoint
-app.post("/graphql", graphqlServer({ schema, rootValue }));
+app.post("/graphql", graphqlServer({ schema, rootResolver: () => rootValue }));
 
 // 404 for all other routes
 app.all("*", (c) => {

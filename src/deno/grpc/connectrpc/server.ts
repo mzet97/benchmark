@@ -21,14 +21,16 @@ const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
 });
 
 const proto = (grpc.loadPackageDefinition(packageDefinition) as Record<string, unknown>)
-  .benchmark as Record<string, { BenchmarkService: { service: unknown } }>;
+  .benchmark as unknown as {
+    BenchmarkService: { service: grpc.ServiceDefinition },
+  };
 
 // ConnectRPC on Deno: use a raw gRPC-js server with connect-style service methods
 // Since @connectrpc/connect-node requires Node.js http2, we use the grpc-js adapter pattern
 function main() {
   const server = new grpc.Server();
 
-  server.addService(proto.BenchmarkService.service as grpc.ServiceDefinition, {
+  server.addService(proto.BenchmarkService.service, {
     Health: service.Health,
     GetJsonItems: service.GetJsonItems,
     GetUser: service.GetUser,

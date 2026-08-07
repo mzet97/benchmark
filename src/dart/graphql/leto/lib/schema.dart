@@ -1,68 +1,89 @@
-import 'package:leto/leto.dart';
+// Builds the GraphQL schema using the leto_schema API.
+//
+// leto_schema exposes field/object construction via the `field()` and
+// `objectType()` factories (in gen.dart), which infer generics and accept a
+// bare resolver function. The GraphQLObjectField constructor, by contrast,
+// expects a FieldResolver wrapper, so the factories are the idiomatic entry
+// point. API mappings from the classic graphql builder that this file used
+// before:
+//   GraphQLField(name, type:, args:, resolve:) -> field(name, type, inputs:, resolve:)
+//   GraphQLFieldArg  -> GraphQLFieldInput
+//   GraphQLNonNull(t)-> t.nonNull()
+//   GraphQLList(t)   -> listOf(t)
+//   GraphQLString/Int/Float/Boolean -> graphQLString/graphQLInt/...
+//
+// leto invokes a resolver as (parent, ctx): two parameters, with arguments
+// reached via ctx.args rather than a third positional parameter.
 import 'package:graphql_leto_benchmark/canonical.dart';
+import 'package:leto_schema/leto_schema.dart';
 
 import 'db.dart';
 import 'cache.dart';
 
+/// Leaf scalar field: resolves to parent[fieldName].
+GraphQLObjectField<Object?, Object?, Object?> _leaf(
+        String name, GraphQLType type) =>
+    field(name, type, resolve: (obj, _) => (obj is Map) ? obj[name] : null);
+
 GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
-  final healthType = GraphQLObjectType('Health', fields: [
-    GraphQLField('status', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('version', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('timestamp', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('database', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('cache', type: GraphQLNonNull(GraphQLString)),
+  final healthType = objectType('Health', fields: [
+    _leaf('status', graphQLString.nonNull()),
+    _leaf('version', graphQLString.nonNull()),
+    _leaf('timestamp', graphQLString.nonNull()),
+    _leaf('database', graphQLString.nonNull()),
+    _leaf('cache', graphQLString.nonNull()),
   ]);
 
-  final jsonItemType = GraphQLObjectType('JsonItem', fields: [
-    GraphQLField('id', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('uuid', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('name', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('email', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('createdAt', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('isActive', type: GraphQLNonNull(GraphQLBoolean)),
+  final jsonItemType = objectType('JsonItem', fields: [
+    _leaf('id', graphQLInt.nonNull()),
+    _leaf('uuid', graphQLString.nonNull()),
+    _leaf('name', graphQLString.nonNull()),
+    _leaf('email', graphQLString.nonNull()),
+    _leaf('createdAt', graphQLString.nonNull()),
+    _leaf('isActive', graphQLBoolean.nonNull()),
   ]);
 
-  final jsonItemsResultType = GraphQLObjectType('JsonItemsResult', fields: [
-    GraphQLField('items', type: GraphQLNonNull(GraphQLList(GraphQLNonNull(jsonItemType)))),
-    GraphQLField('count', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('timestamp', type: GraphQLNonNull(GraphQLString)),
+  final jsonItemsResultType = objectType('JsonItemsResult', fields: [
+    _leaf('items', listOf(jsonItemType.nonNull())),
+    _leaf('count', graphQLInt.nonNull()),
+    _leaf('timestamp', graphQLString.nonNull()),
   ]);
 
-  final userType = GraphQLObjectType('User', fields: [
-    GraphQLField('id', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('email', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('firstName', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('lastName', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('age', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('createdAt', type: GraphQLNonNull(GraphQLString)),
+  final userType = objectType('User', fields: [
+    _leaf('id', graphQLInt.nonNull()),
+    _leaf('email', graphQLString.nonNull()),
+    _leaf('firstName', graphQLString.nonNull()),
+    _leaf('lastName', graphQLString.nonNull()),
+    _leaf('age', graphQLInt.nonNull()),
+    _leaf('createdAt', graphQLString.nonNull()),
   ]);
 
-  final userOrderStatsType = GraphQLObjectType('UserOrderStats', fields: [
-    GraphQLField('userId', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('userName', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('totalOrders', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('totalValue', type: GraphQLNonNull(GraphQLFloat)),
-    GraphQLField('averageOrderValue', type: GraphQLNonNull(GraphQLFloat)),
+  final userOrderStatsType = objectType('UserOrderStats', fields: [
+    _leaf('userId', graphQLInt.nonNull()),
+    _leaf('userName', graphQLString.nonNull()),
+    _leaf('totalOrders', graphQLInt.nonNull()),
+    _leaf('totalValue', graphQLFloat.nonNull()),
+    _leaf('averageOrderValue', graphQLFloat.nonNull()),
   ]);
 
-  final complexOrdersResultType = GraphQLObjectType('ComplexOrdersResult', fields: [
-    GraphQLField('periodDays', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('totalUsers', type: GraphQLNonNull(GraphQLInt)),
-    GraphQLField('data', type: GraphQLNonNull(GraphQLList(GraphQLNonNull(userOrderStatsType)))),
+  final complexOrdersResultType = objectType('ComplexOrdersResult', fields: [
+    _leaf('periodDays', graphQLInt.nonNull()),
+    _leaf('totalUsers', graphQLInt.nonNull()),
+    _leaf('data', listOf(userOrderStatsType.nonNull())),
   ]);
 
-  final cacheEntryType = GraphQLObjectType('CacheEntry', fields: [
-    GraphQLField('key', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('value', type: GraphQLNonNull(GraphQLString)),
-    GraphQLField('cached', type: GraphQLNonNull(GraphQLBoolean)),
-    GraphQLField('ttl', type: GraphQLNonNull(GraphQLInt)),
+  final cacheEntryType = objectType('CacheEntry', fields: [
+    _leaf('key', graphQLString.nonNull()),
+    _leaf('value', graphQLString.nonNull()),
+    _leaf('cached', graphQLBoolean.nonNull()),
+    _leaf('ttl', graphQLInt.nonNull()),
   ]);
 
-  final queryType = GraphQLObjectType('Query', fields: [
-    GraphQLField(
+  final queryType = objectType('Query', fields: [
+    field(
       'health',
-      type: GraphQLNonNull(healthType),
-      resolve: (obj, args, ctx) async {
+      healthType.nonNull(),
+      resolve: (obj, ctx) async {
         var dbStatus = 'ok';
         var cacheStatus = 'ok';
         try { await db.ping(); } catch (_) { dbStatus = 'error'; }
@@ -76,12 +97,12 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
         };
       },
     ),
-    GraphQLField(
+    field(
       'jsonItems',
-      type: GraphQLNonNull(jsonItemsResultType),
-      args: [GraphQLFieldArg('limit', GraphQLInt, defaultValue: 1000)],
-      resolve: (obj, args, ctx) {
-        final count = itemCount(args['limit'] as int?);
+      jsonItemsResultType.nonNull(),
+      inputs: [GraphQLFieldInput('limit', graphQLInt, defaultValue: 1000)],
+      resolve: (obj, ctx) {
+        final count = itemCount(ctx.args['limit'] as int?);
         final now = DateTime.now().toUtc().toIso8601String();
         final items = List.generate(count, (i) => {
           'id': i,
@@ -98,20 +119,20 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
         };
       },
     ),
-    GraphQLField(
+    field(
       'user',
-      type: userType,
-      args: [GraphQLFieldArg('id', GraphQLNonNull(GraphQLInt))],
-      resolve: (obj, args, ctx) async {
-        return await db.getUser(args['id'] as int);
+      userType,
+      inputs: [GraphQLFieldInput('id', graphQLInt.nonNull())],
+      resolve: (obj, ctx) async {
+        return await db.getUser(ctx.args['id'] as int);
       },
     ),
-    GraphQLField(
+    field(
       'complexOrders',
-      type: GraphQLNonNull(complexOrdersResultType),
-      args: [GraphQLFieldArg('days', GraphQLInt, defaultValue: 30)],
-      resolve: (obj, args, ctx) async {
-        final days = args['days'] as int? ?? 30;
+      complexOrdersResultType.nonNull(),
+      inputs: [GraphQLFieldInput('days', graphQLInt, defaultValue: 30)],
+      resolve: (obj, ctx) async {
+        final days = ctx.args['days'] as int? ?? 30;
         final data = await db.getComplexOrders(days);
         return {
           'periodDays': days,
@@ -120,12 +141,12 @@ GraphQLSchema buildSchema(DatabaseService db, CacheService cache) {
         };
       },
     ),
-    GraphQLField(
+    field(
       'cache',
-      type: GraphQLNonNull(cacheEntryType),
-      args: [GraphQLFieldArg('key', GraphQLNonNull(GraphQLString))],
-      resolve: (obj, args, ctx) async {
-        final key = args['key'] as String;
+      cacheEntryType.nonNull(),
+      inputs: [GraphQLFieldInput('key', graphQLString.nonNull())],
+      resolve: (obj, ctx) async {
+        final key = ctx.args['key'] as String;
         final value = await cache.get(key);
         if (value != null) {
           final ttlVal = await cache.ttl(key);

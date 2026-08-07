@@ -38,7 +38,7 @@ rootRouter.use(cacheRouter.routes());
 const app = new Application();
 
 // Logger middleware
-app.use(async (ctx: Context, next: () => Promise<void>) => {
+app.use(async (ctx, next) => {
   const start = Date.now();
   await next();
   const processTime = Date.now() - start;
@@ -53,7 +53,7 @@ app.use(async (ctx: Context, next: () => Promise<void>) => {
 });
 
 // CORS middleware
-app.use(async (ctx: Context, next: () => Promise<void>) => {
+app.use(async (ctx, next) => {
   ctx.response.headers.set("Access-Control-Allow-Origin", "*");
   ctx.response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   ctx.response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -68,7 +68,7 @@ app.use(async (ctx: Context, next: () => Promise<void>) => {
 });
 
 // Error handler
-app.use(async (ctx: Context, next: () => Promise<void>) => {
+app.use(async (ctx, next) => {
   try {
     await next();
   } catch (error) {
@@ -78,7 +78,9 @@ app.use(async (ctx: Context, next: () => Promise<void>) => {
     ctx.response.headers.set("Content-Type", "application/json");
     ctx.response.body = JSON.stringify({
       error: "Internal server error",
-      message: Deno.env.get("DEBUG") === "true" ? error.message : "An error occurred",
+      message: Deno.env.get("DEBUG") === "true"
+        ? (error instanceof Error ? error.message : String(error))
+        : "An error occurred",
     });
   }
 });

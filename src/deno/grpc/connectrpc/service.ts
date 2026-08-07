@@ -70,7 +70,7 @@ export async function GetJsonItems(call: GrpcCall, callback: GrpcCallback): Prom
 
 export async function GetUser(call: GrpcCall, callback: GrpcCallback): Promise<void> {
   try {
-    const user = await db.getUser(call.request.id as number);
+    const user = await db.getUser(call.request.id as number) as Record<string, unknown> | null;
     if (!user) {
       return callback({
         code: 5, // NOT_FOUND
