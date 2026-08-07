@@ -37,4 +37,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # "Flask beats FastAPI" result. BENCH_CPUS comes from the shared ConfigMap.
 # Shell form (not exec form) so the variable is expanded at runtime.
 # See docs/ACTION_PLAN.md, Fase 3.1.
-CMD gunicorn -b 0.0.0.0:8080 --workers ${BENCH_CPUS:-4} --threads 1 app.wsgi:application
+CMD gunicorn -b 0.0.0.0:8080 --workers ${BENCH_CPUS:-4} --threads 1 app:application

@@ -46,23 +46,53 @@ public class Main {
     public static void main(String[] args) {
         // A missing variable aborts startup: silently falling back to
         // localhost would have the benchmark measure a connection failure
-        // instead of a database.
-        String databaseUrl = requireEnv("DATABASE_URL");
-        String dbUsername = requireEnv("DB_USERNAME");
-        String dbPassword = requireEnv("DB_PASSWORD");
+        // instead of a database. Prefer the component ConfigMap/Secret variables
+        // (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD) -- DATABASE_URL is
+        // percent-encoded and lacks the "jdbc:" prefix the PostgreSQL JDBC
+        // driver requires.
+        String dbHost = System.getenv("DB_HOST");
+        String dbPort = System.getenv("DB_PORT");
+        String dbName = System.getenv("DB_NAME");
+        String dbUser = System.getenv("DB_USER");
+        String dbPassword = System.getenv("DB_PASSWORD");
 
-        // Redis configuration (format: host:port:password)
+        String jdbcUrl;
+        if (dbHost != null && dbName != null && dbUser != null && dbPassword != null) {
+            jdbcUrl = "jdbc:postgresql://" + dbHost + ":" + (dbPort != null ? dbPort : "5432") + "/" + dbName;
+        } else {
+            // Fallback: derive a JDBC URL from DATABASE_URL by swapping the
+            // scheme and trusting the (already-encoded) userinfo verbatim.
+            String databaseUrl = requireEnv("DATABASE_URL");
+            jdbcUrl = databaseUrl.startsWith("jdbc:")
+                ? databaseUrl
+                : "jdbc:" + databaseUrl.replaceFirst("^postgresql(ql)?://", "postgresql://");
+            if (dbUser == null || dbPassword == null) {
+                throw new IllegalStateException("DB_USER and DB_PASSWORD are required when DB_HOST/DB_NAME are absent");
+            }
+        }
+
+        // Redis. REDIS_URL has the form redis://:password@host:port; parse it
+        // with java.net.URI so the (percent-encoded) password is decoded.
         String redisUrl = requireEnv("REDIS_URL");
-        String[] redisParts = redisUrl.split(":");
-        String redisHost = redisParts.length > 0 ? redisParts[0] : "localhost";
-        int redisPort = redisParts.length > 1 ? Integer.parseInt(redisParts[1]) : 6379;
-        String redisPassword = redisParts.length > 2 ? redisParts[2] : "";
+        java.net.URI redisUri = java.net.URI.create(redisUrl);
+        String redisHost = redisUri.getHost() != null ? redisUri.getHost() : "localhost";
+        int redisPort = redisUri.getPort() > 0 ? redisUri.getPort() : 6379;
+        String redisUserInfo = redisUri.getUserInfo();
+        String redisPassword = null;
+        if (redisUserInfo != null && !redisUserInfo.isEmpty()) {
+            // userInfo is ":password" or "user:password"; take the part after
+            // the first colon and percent-decode it.
+            String decoded = java.net.URLDecoder.decode(redisUserInfo, java.nio.charset.StandardCharsets.UTF_8);
+            redisPassword = decoded.contains(":") ? decoded.substring(decoded.indexOf(':') + 1) : decoded;
+            if (redisPassword.isEmpty()) redisPassword = null;
+        }
 
         // Initialize PostgreSQL connection pool
         HikariConfig hikariConfig = new HikariConfig();
-        hikariConfig.setJdbcUrl(databaseUrl);
-        hikariConfig.setUsername(dbUsername);
+        hikariConfig.setJdbcUrl(jdbcUrl);
+        hikariConfig.setUsername(dbUser);
         hikariConfig.setPassword(dbPassword);
+        hikariConfig.setDriverClassName("org.postgresql.Driver");
         // Pool size is part of the benchmark contract, not a per-implementation
         // choice: every implementation reads DB_POOL_MAX from the same
         // ConfigMap so the data access layer stops being a hidden variable.
@@ -74,7 +104,7 @@ public class Main {
         // Initialize Redis connection pool
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         poolConfig.setMaxTotal(envInt("REDIS_POOL_MAX", 32));
-        jedisPool = new JedisPool(poolConfig, redisHost, redisPort, 2000, redisPassword.isEmpty() ? null : redisPassword);
+        jedisPool = new JedisPool(poolConfig, redisHost, redisPort, 2000, redisPassword);
 
         // Initialize services
         databaseService = new DatabaseService(dataSource);

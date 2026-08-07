@@ -18,25 +18,49 @@ class Db {
     private val dataSource: HikariDataSource
 
     init {
-        val databaseUrl = System.getenv("DATABASE_URL") ?: error("DATABASE_URL is required")
+        // Prefer the component ConfigMap/Secret variables (DB_HOST, DB_PORT,
+        // DB_NAME, DB_USER, DB_PASSWORD). DATABASE_URL is percent-encoded, so a
+        // manual split of the connection string yields a literally-encoded
+        // password (e.g. "Admin%40123" instead of "Admin@123") and auth fails.
+        // The component variables carry the raw, un-encoded values.
+        val host = System.getenv("DB_HOST")
+        val port = System.getenv("DB_PORT")
+        val database = System.getenv("DB_NAME")
+        val user = System.getenv("DB_USER")
+        val password = System.getenv("DB_PASSWORD")
 
-        // Parse postgresql://user:password@host:port/database, splitting at the
-        // last @ so a password containing one still parses.
-        val lastAt = databaseUrl.lastIndexOf('@')
-        val schemeEnd = databaseUrl.indexOf("://")
-        val userPass = databaseUrl.substring(schemeEnd + 3, lastAt)
-        val hostPortDb = databaseUrl.substring(lastAt + 1)
-        val user = userPass.substringBefore(':')
-        val password = userPass.substringAfter(':')
-        val host = hostPortDb.substringBefore(':')
-        val portDb = hostPortDb.substringAfter(':')
-        val port = portDb.substringBefore('/').toIntOrNull() ?: 5432
-        val database = portDb.substringAfter('/')
+        val jdbcUrl: String
+        val jdbcUser: String
+        val jdbcPassword: String
+        if (host != null && database != null && user != null && password != null) {
+            jdbcUrl = "jdbc:postgresql://$host:${port ?: "5432"}/$database"
+            jdbcUser = user
+            jdbcPassword = password
+        } else {
+            // Fallback: parse postgresql://user:password@host:port/database from
+            // DATABASE_URL. Split at the last @ so a password containing one
+            // still parses. Percent-decode the userinfo so an encoded password
+            // (e.g. %40 for @) is restored before it reaches Postgres.
+            val databaseUrl = System.getenv("DATABASE_URL")
+                ?: error("DB_HOST/DB_NAME/DB_USER/DB_PASSWORD (or DATABASE_URL) is required")
+            val lastAt = databaseUrl.lastIndexOf('@')
+            val schemeEnd = databaseUrl.indexOf("://")
+            require(schemeEnd in 0..<lastAt) { "DATABASE_URL is not a valid postgresql:// URL" }
+            val userPass = databaseUrl.substring(schemeEnd + 3, lastAt)
+            val hostPortDb = databaseUrl.substring(lastAt + 1)
+            jdbcUser = java.net.URLDecoder.decode(userPass.substringBefore(':'), Charsets.UTF_8)
+            jdbcPassword = java.net.URLDecoder.decode(userPass.substringAfter(':'), Charsets.UTF_8)
+            val hostPart = hostPortDb.substringBefore(':')
+            val portDb = hostPortDb.substringAfter(':')
+            val portPart = portDb.substringBefore('/').toIntOrNull() ?: 5432
+            val dbPart = portDb.substringAfter('/')
+            jdbcUrl = "jdbc:postgresql://$hostPart:$portPart/$dbPart"
+        }
 
         val config = HikariConfig().apply {
-            jdbcUrl = "jdbc:postgresql://$host:$port/$database"
-            username = user
-            this.password = password
+            this.jdbcUrl = jdbcUrl
+            username = jdbcUser
+            this.password = jdbcPassword
             driverClassName = "org.postgresql.Driver"
             // Pool size is part of the benchmark contract: every implementation
             // reads DB_POOL_MAX from the same ConfigMap.

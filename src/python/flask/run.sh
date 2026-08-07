@@ -5,4 +5,4 @@ export FLASK_APP=app
 export FLASK_ENV=production
 
 # Run with gunicorn
-exec gunicorn -b 0.0.0.0:8000 --workers 4 app:app
+exec gunicorn -b 0.0.0.0:8000 --workers 4 "app:create_app()"

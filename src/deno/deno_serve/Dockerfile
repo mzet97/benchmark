@@ -1,9 +1,9 @@
-FROM denoland/deno:2.0 AS builder
+FROM denoland/deno:latest AS builder
 WORKDIR /app
 COPY . .
 RUN deno cache server.ts
 
-FROM denoland/deno:2.0-slim
+FROM denoland/deno:latest
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 RUN groupadd --system --gid 1001 denoapp && useradd --system --uid 1001 --gid 1001 denoapp
 WORKDIR /app

@@ -11,10 +11,12 @@ micronaut:
 datasources:
   default:
     driver-class-name: org.postgresql.Driver
-    # No default: a missing DATABASE_URL must abort startup, not silently
-    # point the benchmark at localhost.
-    url: ${DATABASE_URL}
-    username: ${DB_USERNAME}
+    # Build the JDBC URL from the component ConfigMap variables so we avoid the
+    # missing "jdbc:" prefix in DATABASE_URL and sidestep the percent-encoded
+    # password in the URL string. The ConfigMap exposes
+    # DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD.
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    username: ${DB_USER}
     password: ${DB_PASSWORD}
     maximum-pool-size: ${DB_POOL_MAX:32}
     minimum-idle: ${DB_POOL_MAX:32}

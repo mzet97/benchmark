@@ -26,17 +26,54 @@ public class DatabaseService {
     public DatabaseService(Config config) {
         this.config = config;
 
-        // Parse database URL
-        URI dbUri = URI.create(config.getDatabaseUrl());
-
-        // Create connection options
-        PgConnectOptions connectOptions = new PgConnectOptions()
-            .setHost(dbUri.getHost())
-            .setPort(dbUri.getPort())
-            .setDatabase(dbUri.getPath().substring(1))
-            .setUser(dbUri.getUserInfo().split(":")[0])
-            .setPassword(dbUri.getUserInfo().split(":")[1])
-            .setCachePreparedStatements(true);
+        // Prefer the component ConfigMap/Secret variables (DB_HOST, DB_PORT,
+        // DB_NAME, DB_USER, DB_PASSWORD). DATABASE_URL is percent-encoded, so
+        // URI.getUserInfo() returns a literally-encoded password (e.g.
+        // "Admin%40123" instead of "Admin@123") and auth fails. The component
+        // variables carry the raw, un-encoded values.
+        PgConnectOptions connectOptions;
+        String dbHost = config.getDbHost();
+        String dbName = config.getDbName();
+        String dbUser = config.getDbUser();
+        String dbPassword = config.getDbPassword();
+        if (dbHost != null && dbName != null && dbUser != null && dbPassword != null) {
+            connectOptions = new PgConnectOptions()
+                .setHost(dbHost)
+                .setPort(config.getDbPort())
+                .setDatabase(dbName)
+                .setUser(dbUser)
+                .setPassword(dbPassword)
+                .setCachePreparedStatements(true);
+        } else {
+            // Fallback: parse postgresql://user:password@host:port/database from
+            // DATABASE_URL and percent-decode the userinfo so an encoded
+            // password (e.g. %40 for @) is restored before it reaches Postgres.
+            String databaseUrl = config.getDatabaseUrl();
+            if (databaseUrl == null || databaseUrl.isEmpty()) {
+                throw new IllegalStateException(
+                    "DB_HOST/DB_NAME/DB_USER/DB_PASSWORD (or DATABASE_URL) is required");
+            }
+            URI dbUri = URI.create(databaseUrl);
+            String userInfo = dbUri.getUserInfo();
+            if (userInfo == null) {
+                throw new IllegalStateException("DATABASE_URL must contain user:password userinfo");
+            }
+            String[] parts = userInfo.split(":", 2);
+            String user = java.net.URLDecoder.decode(parts[0], java.nio.charset.StandardCharsets.UTF_8);
+            String pass = parts.length > 1
+                ? java.net.URLDecoder.decode(parts[1], java.nio.charset.StandardCharsets.UTF_8)
+                : "";
+            int port = dbUri.getPort() > 0 ? dbUri.getPort() : 5432;
+            String db = dbUri.getPath() != null && dbUri.getPath().startsWith("/")
+                ? dbUri.getPath().substring(1) : "";
+            connectOptions = new PgConnectOptions()
+                .setHost(dbUri.getHost())
+                .setPort(port)
+                .setDatabase(db)
+                .setUser(user)
+                .setPassword(pass)
+                .setCachePreparedStatements(true);
+        }
 
         // Create pool options. Vert.x 4 PoolOptions has no setMinSize: the
         // pool lazily opens connections up to maxSize, so the min/max from the

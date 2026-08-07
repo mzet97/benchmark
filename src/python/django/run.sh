@@ -17,5 +17,5 @@ python manage.py migrate --run-syncdb 2>/dev/null || true
 if [ "$1" = "dev" ]; then
     python manage.py runserver ${HOST}:${PORT}
 else
-    gunicorn -b ${HOST}:${PORT} --workers 4 --threads 2 app.wsgi:application
+    gunicorn -b ${HOST}:${PORT} --workers 4 --threads 2 app:application
 fi

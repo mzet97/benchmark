@@ -21,12 +21,17 @@ class DatabaseService:
             logger.info("Initializing database connection pool")
             # Parse connection string manually to handle special chars in password
             # Format: postgresql://user:password@host:port/database
-            from urllib.parse import urlparse
+            # urlparse does NOT percent-decode the userinfo: for a password of
+            # Admin%40123, parsed.password is the literal "Admin%40123", which
+            # asyncpg sends verbatim and Postgres rejects. unquote() yields the
+            # real "Admin@123". (Passing the whole URL to asyncpg would also
+            # work, but we decompose it here to set the pool sizing below.)
+            from urllib.parse import urlparse, unquote
             parsed = urlparse(self.connection_string)
-            
+
             self._pool = await asyncpg.create_pool(
-                user=parsed.username,
-                password=parsed.password,
+                user=unquote(parsed.username) if parsed.username else None,
+                password=unquote(parsed.password) if parsed.password else None,
                 host=parsed.hostname,
                 port=parsed.port or 5432,
                 database=parsed.path.lstrip('/'),
