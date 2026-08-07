@@ -1,5 +1,5 @@
 # Multi-stage build for Rust Axum
-FROM rust:1.75 AS builder
+FROM rust:1.95-bookworm AS builder
 
 WORKDIR /app
 

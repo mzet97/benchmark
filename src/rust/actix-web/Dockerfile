@@ -1,12 +1,12 @@
 # Stage 1: Build dependencies (cached layer)
-FROM rust:1.82-bookworm AS deps
+FROM rust:1.95-bookworm AS deps
 WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN cargo build --release && rm -rf src
 
 # Stage 2: Build application
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.95-bookworm AS builder
 WORKDIR /app
 COPY --from=deps /app/target target
 COPY --from=deps /app/Cargo.toml ./
