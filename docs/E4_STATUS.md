@@ -7,61 +7,43 @@
 | Status | Qtd |
 |---|---|
 | ✅ **E4 PASS (7/7)** | **29** |
-| ⚠️ Parcial | 1 |
-| ❌ TIMEOUT | 7 |
+| ⚠️ Parcial (6/7) | 3 |
+| ⚠️ Parcial (3-4/7) | 2 |
+| ❌ TIMEOUT | 3 |
 
 ### ✅ E4 PASS (7/7) — 29 implementações, 10 ambientes
 
-| # | Impl | Ambiente |
-|---|---|---|
-| 1 | `bun-rest-bun-serve` | Bun |
-| 2 | `bun-rest-elysia` | Bun |
-| 3 | `bun-rest-hono` | Bun |
-| 4 | `go-rest-chi` | Go |
-| 5 | `go-rest-echo` | Go |
-| 6 | `go-rest-fiber` | Go |
-| 7 | `go-rest-gin` | Go |
-| 8 | `graalvm-rest-helidon` | GraalVM |
-| 9 | `graalvm-rest-gspring` | GraalVM |
-| 10 | `graalvm-rest-micronaut` | GraalVM |
-| 11 | `java-rest-spring` | Java |
-| 12 | `java-rest-quarkus` | Java |
-| 13 | `java-rest-micronaut` | Java |
-| 14 | `kotlin-rest-http4k` | Kotlin |
-| 15 | `kotlin-rest-ktor` | Kotlin |
-| 16 | `kotlin-rest-spring` | Kotlin |
-| 17 | `nodejs-rest-express` | Node.js |
-| 18 | `nodejs-rest-fastify` | Node.js |
-| 19 | `nodejs-rest-nestjs` | Node.js |
-| 20 | `python-rest-flask` | Python |
-| 21 | `python-rest-fastapi` | Python |
-| 22 | `python-rest-django` | Python |
-| 23 | `dart-rest-vaden` | Dart |
-| 24 | `rust-rest-actix-web` | Rust |
-| 25 | `rust-rest-axum` | Rust |
-| 26 | `rust-rest-rocket` | Rust |
-| 27 | `rust-rest-warp` | Rust |
-| 28 | `csharp-rest-controllers` | C# |
-| 29 | `csharp-rest-fastendpoints` | C# |
+| Ambiente | Implementações E4 PASS |
+|---|---|
+| **Go** (4) | fiber, chi, echo, gin |
+| **Rust** (4) | actix-web, axum, rocket, warp |
+| **Node.js** (3) | fastify, express, nestjs |
+| **Bun** (3) | elysia, bun-serve, hono |
+| **Python** (3) | flask, fastapi, django |
+| **Kotlin** (3) | http4k, ktor, spring |
+| **C#** (2) | controllers, fastendpoints |
+| **Java** (3) | spring, quarkus, micronaut |
+| **GraalVM** (3) | helidon, gspring, micronaut |
+| **Dart** (1) | vaden |
 
-**10 dos 11 ambientes representados** (só falta Deno, que tem 1 parcial).
+**10 dos 11 ambientes representados** (Deno parcial a 6/7).
 
-### ⚠️ Parcial — 1 implementação
+### ⚠️ Parciais
 
 | Impl | ok/7 | Falha |
 |---|---|---|
-| `deno-rest-oak` | 6/7 | 1 check |
+| `deno-rest-oak` | 6/7 | /db/complex (query interna falha) |
+| `deno-rest-deno-serve` | 6/7 | /db/complex |
+| `deno-rest-fresh` | 6/7 | /db/complex |
+| `csharp-rest-minimalapi` | 3/7 | payload (PublishAot fix pode não ter pegado) |
+| `deno-rest-hono` | 3/7 | download de deps no startup (cache) |
 
-### ❌ TIMEOUT — 7 implementações
+### ❌ TIMEOUT
 
 | Impl | Causa |
 |---|---|
-| `deno-rest-deno-serve` | `--unstable-net` flag needed |
-| `deno-rest-fresh` | Redis workers crash (code 70) |
-| `deno-rest-hono` | ImagePullBackOff (import pendente) |
-| `csharp-rest-minimalapi` | ImagePullBackOff (import pendente) |
-| `graalvm-rest-gmicronaut` | Build fail (micronaut-data) |
-| `graalvm-rest-vertx` | Wrapper script may not work |
+| `graalvm-rest-gmicronaut` | Build fail (micronaut-data-processor) |
+| `graalvm-rest-vertx` | wrapper script unset JAVA_TOOL_OPTIONS |
 | `graalvm-rest-spring` | Native image build fails |
 
 ## Progressão da sessão
@@ -76,4 +58,10 @@
 | Após payload batch 2 | 18 |
 | Após payload batch 3 | 25 |
 | Após Rust touch + NaiveDateTime | 27 |
-| **Após Micronaut DatasourceFactory** | **29** |
+| Após Micronaut DatasourceFactory | 29 |
+
+## Próximos passos
+
+1. **Iniciar matriz de benchmark** com as 29 impls que passam E4
+2. Os 3 Deno a 6/7 precisam de 1 fix de `/db/complex` cada
+3. Os 5 restantes precisam de debug individual
