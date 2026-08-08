@@ -32,7 +32,10 @@ databaseRoutes.get('/db/simple', async (c) => {
       }, 404);
     }
 
-    return c.json({ user });
+    // Contract: the user object itself is the response body, not an envelope
+    // {user: ...}. The previous wrapper failed the /db/simple key-set check
+    // (extra "user" key, missing id/email/firstName/...).
+    return c.json(user);
   } catch (error) {
     return c.json({
       error: 'Internal Server Error',
@@ -56,11 +59,13 @@ databaseRoutes.get('/db/complex', async (c) => {
 
     const results = await databaseService.getComplexQuery(days);
 
+    // Contract: {periodDays, totalUsers, data}. The previous response added a
+    // timestamp field, which made the key set not match the contract and the
+    // parity check fail.
     return c.json({
       periodDays: days,
       totalUsers: results.length,
       data: results,
-      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return c.json({

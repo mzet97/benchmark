@@ -1,37 +1,77 @@
 using BenchmarkFastEndpoints.Services;
 using FastEndpoints;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Parse DATABASE_URL to Npgsql format
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
-if (databaseUrl.StartsWith("postgresql://"))
+// Build the Npgsql connection string from the component ConfigMap/Secret
+// variables (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD). The previous code
+// hand-parsed DATABASE_URL without percent-decoding the userinfo, so the
+// literal "Admin%40123" reached Postgres and auth failed for db_admin -- every
+// /db/* came back empty and /health reported database:down.
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+var dbPoolMax = Environment.GetEnvironmentVariable("DB_POOL_MAX") ?? "32";
+
+if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
 {
-    var lastAt = databaseUrl.LastIndexOf('@');
-    var schemeEnd = databaseUrl.IndexOf("://");
-    var userPass = databaseUrl.Substring(schemeEnd + 3, lastAt - schemeEnd - 3);
-    var hostPortDb = databaseUrl.Substring(lastAt + 1);
-    var user = userPass.Split(':')[0];
-    var password = userPass.Contains(':') ? userPass.Substring(userPass.IndexOf(':') + 1) : "";
-    var host = hostPortDb.Split(':')[0];
-    var portDb = hostPortDb.Substring(hostPortDb.IndexOf(':') + 1);
-    var port = portDb.Split('/')[0];
-    var database = portDb.Contains('/') ? portDb.Substring(portDb.IndexOf('/') + 1) : "";
-    var npgsqlConn = $"Host={host};Port={port};Database={database};Username={user};Password={password};Maximum Pool Size=25;Connection Timeout=30";
+    var npgsqlConn = new NpgsqlConnectionStringBuilder
+    {
+        Host = dbHost,
+        Port = int.Parse(dbPort),
+        Database = dbName,
+        Username = dbUser,
+        Password = dbPassword,
+        Pooling = true,
+        MaxPoolSize = int.Parse(dbPoolMax),
+        Timeout = 30,
+    }.ToString();
     builder.Configuration["ConnectionStrings:DefaultConnection"] = npgsqlConn;
 }
-
-// Parse REDIS_URL to StackExchange.Redis format
-var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "";
-if (redisUrl.StartsWith("redis://"))
+else
 {
-    var lastAt = redisUrl.LastIndexOf('@');
-    var schemeEnd = redisUrl.IndexOf("://");
-    var password = redisUrl.Substring(schemeEnd + 4, lastAt - schemeEnd - 4);
-    var hostPort = redisUrl.Substring(lastAt + 1);
-    var host = hostPort.Split(':')[0];
-    var port = hostPort.Contains(':') ? hostPort.Split(':')[1] : "6379";
-    builder.Configuration["Redis:ConnectionString"] = $"{host}:{port},password={password},abortConnect=false";
+    // Fall back to DATABASE_URL for local dev. Npgsql's builder parses the URL
+    // and percent-decodes the userinfo correctly.
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
+    if (!string.IsNullOrEmpty(databaseUrl))
+    {
+        try
+        {
+            var npgsqlConn = new NpgsqlConnectionStringBuilder(databaseUrl)
+            {
+                Pooling = true,
+                MaxPoolSize = int.Parse(dbPoolMax),
+                Timeout = 30,
+            }.ToString();
+            builder.Configuration["ConnectionStrings:DefaultConnection"] = npgsqlConn;
+        }
+        catch
+        {
+            builder.Configuration["ConnectionStrings:DefaultConnection"] = databaseUrl;
+        }
+    }
+}
+
+// Parse REDIS_URL to StackExchange.Redis format. Use Uri so the
+// percent-encoded password is decoded.
+var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "";
+if (redisUrl.StartsWith("redis://") || redisUrl.StartsWith("rediss://"))
+{
+    var uri = new Uri(redisUrl);
+    var password = uri.UserInfo;
+    if (uri.UserInfo.Contains(':'))
+    {
+        password = uri.UserInfo.Substring(uri.UserInfo.IndexOf(':') + 1);
+    }
+    var host = uri.Host;
+    var port = uri.Port != 0 ? uri.Port : 6379;
+    builder.Configuration["Redis:ConnectionString"] =
+        string.IsNullOrEmpty(password)
+            ? $"{host}:{port},abortConnect=false"
+            : $"{host}:{port},password={password},abortConnect=false";
 }
 
 // Add FastEndpoints

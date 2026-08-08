@@ -20,30 +20,30 @@ public class CacheService : ICacheService
 
     public CacheService(IConfiguration configuration)
     {
-        var redisUrl = configuration.GetValue<string>("Redis:ConnectionString")
-            ?? Environment.GetEnvironmentVariable("REDIS_URL")
-            ?? "redis:6379";
-
-        // Simple parsing: handle redis://host:port or just host:port
-        string host, port, password;
-        if (redisUrl.StartsWith("redis://"))
+        // Prefer the connection string Program.cs already built. REDIS_URL is
+        // percent-encoded and the previous hand-rolled parser passed the raw
+        // encoded password to Redis.
+        var configured = configuration.GetValue<string>("Redis:ConnectionString");
+        if (!string.IsNullOrEmpty(configured))
         {
-            var afterScheme = redisUrl.Substring("redis://".Length);
-            var lastAt = afterScheme.LastIndexOf('@');
-            if (lastAt >= 0)
+            var connection = ConnectionMultiplexer.Connect(configured);
+            _database = connection.GetDatabase();
+            return;
+        }
+
+        var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis:6379";
+
+        string host, port, password;
+        if (redisUrl.StartsWith("redis://") || redisUrl.StartsWith("rediss://"))
+        {
+            // Use Uri so the percent-encoded password is decoded correctly.
+            var uri = new Uri(redisUrl);
+            host = uri.Host;
+            port = (uri.Port != 0 ? uri.Port : 6379).ToString();
+            password = uri.UserInfo;
+            if (uri.UserInfo.Contains(':'))
             {
-                password = afterScheme.Substring(0, lastAt).TrimStart(':');
-                var hostPort = afterScheme.Substring(lastAt + 1);
-                var parts = hostPort.Split(':');
-                host = parts[0];
-                port = parts.Length > 1 ? parts[1] : "6379";
-            }
-            else
-            {
-                password = "";
-                var parts = afterScheme.Split(':');
-                host = parts[0];
-                port = parts.Length > 1 ? parts[1] : "6379";
+                password = uri.UserInfo.Substring(uri.UserInfo.IndexOf(':') + 1);
             }
         }
         else
@@ -57,8 +57,8 @@ public class CacheService : ICacheService
         var redisConfig = string.IsNullOrEmpty(password)
             ? $"{host}:{port},abortConnect=false"
             : $"{host}:{port},password={password},abortConnect=false";
-        var connection = ConnectionMultiplexer.Connect(redisConfig);
-        _database = connection.GetDatabase();
+        var conn = ConnectionMultiplexer.Connect(redisConfig);
+        _database = conn.GetDatabase();
     }
 
     public async Task<string?> GetAsync(string key)

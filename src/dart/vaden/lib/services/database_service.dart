@@ -12,34 +12,73 @@ class DatabaseService {
   bool _initialized = false;
 
   Future<void> init() async {
-    final databaseUrl = Platform.environment['DATABASE_URL'];
-    if (databaseUrl == null) {
-      throw Exception('DATABASE_URL is required');
-    }
+    // Prefer the component ConfigMap/Secret variables (DB_HOST/DB_PORT/
+    // DB_NAME/DB_USER/DB_PASSWORD). DATABASE_URL is percent-encoded and
+    // Uri.parse does not decode the userinfo, so the literal "Admin%40123"
+    // reached Postgres and authentication failed for db_admin -- every /db/*
+    // came back empty and /health reported database:down.
+    final host = Platform.environment['DB_HOST'];
+    final port = int.tryParse(Platform.environment['DB_PORT'] ?? '') ?? 5432;
+    final database = Platform.environment['DB_NAME'];
+    final username = Platform.environment['DB_USER'];
+    final password = Platform.environment['DB_PASSWORD'];
 
+    if (host == null || database == null || username == null) {
+      // Fall back to DATABASE_URL for local dev.
+      final databaseUrl = Platform.environment['DATABASE_URL'];
+      if (databaseUrl == null) {
+        throw Exception('DB_HOST/DB_NAME/DB_USER (or DATABASE_URL) is required');
+      }
+      _initFromUrl(databaseUrl);
+    } else {
+      _pool = Pool.withEndpoints(
+        [
+          Endpoint(
+            host: host,
+            database: database,
+            username: username,
+            password: password ?? '',
+            port: port,
+          ),
+        ],
+        settings: PoolSettings(
+          maxConnectionCount: dbPoolPerWorker(),
+          connectTimeout: Duration(seconds: int.parse(Platform.environment['DB_TIMEOUT'] ?? '30')),
+          // The other four Dart implementations already disable TLS. Leaving it
+          // on the driver default here would have put a handshake and per-query
+          // encryption on this implementation alone.
+          sslMode: SslMode.disable,
+        ),
+      );
+      _initialized = true;
+      logger.info('Database pool opened against $host:$port');
+    }
+  }
+
+  void _initFromUrl(String databaseUrl) {
     final uri = Uri.parse(databaseUrl);
+    // Uri.parse keeps the userinfo percent-encoded; package:postgres needs the
+    // decoded password, so use Uri.decodeComponent explicitly.
     final userInfo = uri.userInfo.split(':');
+    final password = userInfo.length > 1 ? Uri.decodeComponent(userInfo.last) : '';
+    final username = Uri.decodeComponent(userInfo.first);
 
     _pool = Pool.withEndpoints(
       [
         Endpoint(
           host: uri.host,
           database: uri.path.substring(1),
-          username: userInfo.first,
-          password: userInfo.length > 1 ? userInfo.last : '',
+          username: username,
+          password: password,
           port: uri.port,
         ),
       ],
       settings: PoolSettings(
         maxConnectionCount: dbPoolPerWorker(),
         connectTimeout: Duration(seconds: int.parse(Platform.environment['DB_TIMEOUT'] ?? '30')),
-        // The other four Dart implementations already disable TLS. Leaving it
-        // on the driver default here would have put a handshake and per-query
-        // encryption on this implementation alone.
         sslMode: SslMode.disable,
       ),
     );
-
     _initialized = true;
     logger.info('Database pool opened against ${uri.host}:${uri.port}');
   }

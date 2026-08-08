@@ -14,10 +14,22 @@ class CacheService {
     }
 
     final uri = Uri.parse(redisUrl);
-    final password = uri.userInfo.isNotEmpty ? uri.userInfo.split(':').last : null;
+    // Uri.parse keeps the userinfo percent-encoded; the Redis driver needs the
+    // decoded password, so use Uri.decodeComponent explicitly. The previous
+    // code sent the raw "Admin%40123"-style value to Redis and auth failed,
+    // so /cache came back empty and /health reported cache:down.
+    final password = uri.userInfo.isNotEmpty
+        ? Uri.decodeComponent(uri.userInfo.split(':').last)
+        : null;
 
     _connection = RedisConnection();
     _command = await _connection.connect(uri.host, uri.port);
+
+    // Authenticate now that the connection exists. RESP3 AUTH must be the first
+    // command after connect when Redis requires a password.
+    if (password != null && password.isNotEmpty) {
+      await _command.send_object(['AUTH', password]);
+    }
 
     _initialized = true;
     logger.info('Redis connected to ${uri.host}:${uri.port}');

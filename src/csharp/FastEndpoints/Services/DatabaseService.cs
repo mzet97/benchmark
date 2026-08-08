@@ -15,26 +15,33 @@ public class DatabaseService : IDatabaseService
 
     public DatabaseService(IConfiguration configuration)
     {
+        // Prefer the connection string Program.cs already built from the
+        // component ConfigMap/Secret variables (DB_HOST/DB_PORT/DB_NAME/
+        // DB_USER/DB_PASSWORD). The previous code read DATABASE_URL first and
+        // hand-parsed it without percent-decoding the userinfo, so the literal
+        // "Admin%40123" reached Postgres and every query failed auth.
+        var configured = configuration.GetConnectionString("DefaultConnection");
+        if (!string.IsNullOrEmpty(configured))
+        {
+            _connectionString = configured;
+            return;
+        }
+
         var url = Environment.GetEnvironmentVariable("DATABASE_URL")
-            ?? configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection string not found");
 
-        // Parse postgresql://user:password@host:port/database
-        // Handle @ in password by splitting from last @
-        if (url.StartsWith("postgresql://"))
+        // Npgsql's own builder parses the URL and percent-decodes the password
+        // (the hand-rolled split() here did not, which broke auth for the
+        // encoded @ in the password).
+        if (url.StartsWith("postgresql://") || url.StartsWith("postgres://"))
         {
-            var lastAt = url.LastIndexOf('@');
-            var schemeEnd = url.IndexOf("://");
-            var userPass = url.Substring(schemeEnd + 3, lastAt - schemeEnd - 3);
-            var hostPortDb = url.Substring(lastAt + 1);
-            var user = userPass.Split(':')[0];
-            var password = userPass.Contains(':') ? userPass.Substring(userPass.IndexOf(':') + 1) : "";
-            var host = hostPortDb.Split(':')[0];
-            var portDb = hostPortDb.Substring(hostPortDb.IndexOf(':') + 1);
-            var port = portDb.Split('/')[0];
-            var database = portDb.Contains('/') ? portDb.Substring(portDb.IndexOf('/') + 1) : "";
-
-            _connectionString = $"Host={host};Port={port};Database={database};Username={user};Password={password};Maximum Pool Size=25;Connection Timeout=30";
+            var builder = new NpgsqlConnectionStringBuilder(url)
+            {
+                Pooling = true,
+                MaxPoolSize = int.Parse(Environment.GetEnvironmentVariable("DB_POOL_MAX") ?? "32"),
+                Timeout = 30,
+            };
+            _connectionString = builder.ToString();
         }
         else
         {

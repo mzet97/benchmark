@@ -20,6 +20,7 @@ cacheRoutes.get('/cache', async (c) => {
         value: cached,
         cached: true,
         ttl: CACHE_TTL_SECONDS,
+        timestamp: new Date().toISOString(),
       };
 
       return c.json(response);
@@ -33,6 +34,7 @@ cacheRoutes.get('/cache', async (c) => {
       value,
       cached: false,
       ttl: CACHE_TTL_SECONDS,
+      timestamp: new Date().toISOString(),
     };
 
     return c.json(response);

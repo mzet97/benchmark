@@ -20,21 +20,34 @@ public class CacheService : ICacheService
 
     public CacheService(IConfiguration configuration)
     {
-        var redisUrl = configuration.GetValue<string>("Redis:ConnectionString")
-            ?? Environment.GetEnvironmentVariable("REDIS_URL")
+        // Prefer the connection string Program.cs already built. REDIS_URL is
+        // percent-encoded and the previous hand-rolled parser passed the raw
+        // encoded password to Redis.
+        var configured = configuration.GetValue<string>("Redis:ConnectionString");
+        if (!string.IsNullOrEmpty(configured))
+        {
+            var connection = ConnectionMultiplexer.Connect(configured);
+            _database = connection.GetDatabase();
+            return;
+        }
+
+        var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL")
             ?? throw new InvalidOperationException("Redis connection string not found");
 
-        // Parse redis://:password@host:port to StackExchange.Redis format
-        var lastAt = redisUrl.LastIndexOf('@');
-        var schemeEnd = redisUrl.IndexOf("://");
-        var password = redisUrl.Substring(schemeEnd + 4, lastAt - schemeEnd - 4); // skip ://:
-        var hostPort = redisUrl.Substring(lastAt + 1);
-        var host = hostPort.Split(':')[0];
-        var port = hostPort.Contains(':') ? hostPort.Split(':')[1] : "6379";
+        // Parse redis://:password@host:port using Uri, which decodes the
+        // percent-encoded password correctly.
+        var uri = new Uri(redisUrl);
+        var password = uri.UserInfo;
+        if (uri.UserInfo.Contains(':'))
+        {
+            password = uri.UserInfo.Substring(uri.UserInfo.IndexOf(':') + 1);
+        }
+        var host = uri.Host;
+        var port = uri.Port != 0 ? uri.Port : 6379;
 
         var redisConfig = $"{host}:{port},password={password},abortConnect=false";
-        var connection = ConnectionMultiplexer.Connect(redisConfig);
-        _database = connection.GetDatabase();
+        var conn = ConnectionMultiplexer.Connect(redisConfig);
+        _database = conn.GetDatabase();
     }
 
     public async Task<string?> GetAsync(string key)

@@ -7,6 +7,7 @@ import io.micronaut.http.annotation.Get;
 import jakarta.inject.Inject;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Controller("/health")
@@ -22,30 +23,35 @@ public class HealthController {
 
     @Get
     public Map<String, Object> health() {
-        String dbStatus = "disconnected";
-        String cacheStatus = "disconnected";
+        // Contract: {"status","version","timestamp","database","cache"} with HTTP 200.
+        // The parity gate uses `curl -sf`, which treats any non-200 as a hard
+        // failure. Catch Throwable (not Exception) so a failing Hikari pool or
+        // Redis client cannot surface as 500 and make the endpoint look dead;
+        // per-dependency state is reported in the values.
+        String dbStatus = "down";
+        String cacheStatus = "down";
 
         try {
             databaseService.getUserById(1);
-            dbStatus = "connected";
-        } catch (Exception e) {
-            dbStatus = "disconnected";
+            dbStatus = "up";
+        } catch (Throwable t) {
+            dbStatus = "down";
         }
 
         try {
-            cacheService.getOrSet("test");
-            cacheStatus = "connected";
-        } catch (Exception e) {
-            cacheStatus = "disconnected";
+            cacheService.getOrSet("__healthcheck__");
+            cacheStatus = "up";
+        } catch (Throwable t) {
+            cacheStatus = "down";
         }
 
-        return Map.of(
-            "status", dbStatus.equals("connected") && cacheStatus.equals("connected") ? "healthy" : "unhealthy",
-            "version", "1.0.0",
-            "timestamp", Instant.now().toString(),
-            "database", dbStatus,
-            "cache", cacheStatus
-        );
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("status", "up".equals(dbStatus) && "up".equals(cacheStatus) ? "ok" : "degraded");
+        response.put("version", "1.0.0");
+        response.put("timestamp", Instant.now().toString());
+        response.put("database", dbStatus);
+        response.put("cache", cacheStatus);
+        return response;
     }
 
     @Get("/healthz")
