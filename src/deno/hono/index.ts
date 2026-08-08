@@ -38,7 +38,7 @@ if (workers > 1 && !Deno.env.get("BENCH_WORKER")) {
 
   const spawn = (index: number) => {
     const child = new Deno.Command(Deno.execPath(), {
-      args: ["run", "--allow-net", "--allow-env", "--allow-read", "server.ts"],
+      args: ["run", "--unstable-net", "--allow-net", "--allow-env", "--allow-read", "server.ts"],
       // Deno.Command inherits the parent environment unless clearEnv is set,
       // so the worker still sees PORT, BENCH_CPUS and the rest of the ConfigMap.
       env: { ...poolEnv, BENCH_WORKER: String(index) },
