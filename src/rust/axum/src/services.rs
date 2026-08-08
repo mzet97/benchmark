@@ -203,7 +203,7 @@ pub struct User {
     pub first_name: String,
     pub last_name: String,
     pub age: Option<i32>,
-    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::NaiveDateTime,
 }
 
 /// Mirrors UserOrderStats in contracts/grpc/benchmark.proto. The wire names
