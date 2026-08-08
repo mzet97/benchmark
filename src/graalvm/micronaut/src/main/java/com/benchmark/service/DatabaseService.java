@@ -3,6 +3,7 @@ package com.benchmark.service;
 import com.benchmark.model.User;
 import com.benchmark.model.UserStats;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 import javax.sql.DataSource;
@@ -16,8 +17,15 @@ import java.util.Optional;
 public class DatabaseService {
     private final DataSource dataSource;
 
+    // micronaut-jdbc-hikari registers each configured datasource under its
+    // config key ("default") with @Named("default"), but none is marked
+    // @Primary. Injecting an unqualified DataSource therefore has no unique
+    // candidate and Micronaut throws "Failed to inject value for parameter
+    // [dataSource]" -- which took down /health, /db/simple and /db/complex
+    // while /json and /cache (no DataSource) kept working. Qualifying the
+    // injection point resolves the default pool.
     @Inject
-    public DatabaseService(DataSource dataSource) {
+    public DatabaseService(@Named("default") DataSource dataSource) {
         this.dataSource = dataSource;
     }
 

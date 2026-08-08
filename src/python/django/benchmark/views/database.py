@@ -2,7 +2,6 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from benchmark.services.database_service import DatabaseService
-from datetime import datetime
 
 @api_view(['GET'])
 def db_simple(request):
@@ -37,11 +36,12 @@ def db_complex(request):
 
     try:
         data = DatabaseService.get_complex_query(days)
+        # Contract: exactly {periodDays, totalUsers, data}. A stray 'timestamp'
+        # key here failed the parity key-set check.
         return Response({
             'periodDays': days,
             'totalUsers': len(data),
             'data': data,
-            'timestamp': datetime.utcnow().isoformat()
         })
     except Exception as e:
         return Response({'error': 'Internal Server Error', 'message': str(e)}, status=500)

@@ -55,12 +55,14 @@
 
   <build>
     <plugins>
-      <!-- Explicitly declare the compiler plugin so the micronaut-inject-java
-           annotation processor (configured by micronaut-parent via
-           pluginManagement using ${micronaut.core.version}) is guaranteed to
-           run. It generates the bean/route introspection metadata that lets
-           the runtime discover @Controller, @Singleton and @Inject beans.
-           Without it every request returns "No matching route". -->
+      <!-- Explicitly declare the compiler plugin so the annotation processors
+           are guaranteed to run. micronaut-inject-java generates the bean/route
+           introspection metadata that lets the runtime discover @Controller,
+           @Singleton and @Inject beans. micronaut-data-processor generates the
+           implementations of @Repository / @JdbcRepository interfaces at
+           compile time; without it the generated repository is missing and
+           every /db/* call throws "Micronaut Data method is missing
+           compilation". -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -70,6 +72,11 @@
               <groupId>io.micronaut</groupId>
               <artifactId>micronaut-inject-java</artifactId>
               <version>${micronaut.core.version}</version>
+            </path>
+            <path>
+              <groupId>io.micronaut.data</groupId>
+              <artifactId>micronaut-data-processor</artifactId>
+              <version>${micronaut.data.version}</version>
             </path>
           </annotationProcessorPaths>
         </configuration>

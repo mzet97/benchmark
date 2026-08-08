@@ -80,13 +80,20 @@ public class DatabaseService {
     }
 
     private User mapUser(Row row) {
+        // created_at is TIMESTAMP WITHOUT TIME ZONE (see sql/01_schema.sql),
+        // which the vertx pg client returns as LocalDateTime. The previous code
+        // called getOffsetDateTime("created_at"), which throws because the
+        // value is not an OffsetDateTime -- findUserById swallowed that via
+        // recoverWithItem(null), so /db/simple always reported "User not found"
+        // even for ids that exist.
+        java.time.LocalDateTime createdAt = row.getLocalDateTime("created_at");
         return new User(
                 row.getInteger("id"),
                 row.getString("email"),
                 row.getString("first_name"),
                 row.getString("last_name"),
                 row.getInteger("age"),
-                row.getOffsetDateTime("created_at").toString()
+                createdAt != null ? createdAt.toString() : null
         );
     }
 

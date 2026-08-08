@@ -20,45 +20,33 @@ public class CacheService : ICacheService
 
     public CacheService(IConfiguration configuration)
     {
-        // Prefer the connection string Program.cs already built. REDIS_URL is
-        // percent-encoded and the previous hand-rolled parser passed the raw
-        // encoded password to Redis.
-        var configured = configuration.GetValue<string>("Redis:ConnectionString");
-        if (!string.IsNullOrEmpty(configured))
-        {
-            var connection = ConnectionMultiplexer.Connect(configured);
-            _database = connection.GetDatabase();
-            return;
-        }
+        // Build the connection from the component ConfigMap variables
+        // (REDIS_HOST/REDIS_PORT/REDIS_PASSWORD). REDIS_URL is percent-encoded
+        // (redis://:Admin%40123@host:6379) and neither Uri.UserInfo nor the
+        // earlier hand-rolled parser decoded "%40" -> "@", so the literal
+        // "Admin%40123" was sent to Redis and auth failed -- cache:down.
+        // Reading the already-decoded REDIS_PASSWORD sidesteps URL parsing.
+        var host = Environment.GetEnvironmentVariable("REDIS_HOST");
+        var port = Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379";
+        var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
 
-        var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "redis:6379";
-
-        string host, port, password;
-        if (redisUrl.StartsWith("redis://") || redisUrl.StartsWith("rediss://"))
+        string redisConfig;
+        if (!string.IsNullOrEmpty(host))
         {
-            // Use Uri so the percent-encoded password is decoded correctly.
-            var uri = new Uri(redisUrl);
-            host = uri.Host;
-            port = (uri.Port != 0 ? uri.Port : 6379).ToString();
-            password = uri.UserInfo;
-            if (uri.UserInfo.Contains(':'))
-            {
-                password = uri.UserInfo.Substring(uri.UserInfo.IndexOf(':') + 1);
-            }
+            redisConfig = string.IsNullOrEmpty(password)
+                ? $"{host}:{port},abortConnect=false"
+                : $"{host}:{port},password={password},abortConnect=false";
         }
         else
         {
-            password = "";
-            var parts = redisUrl.Split(':');
-            host = parts[0];
-            port = parts.Length > 1 ? parts[1] : "6379";
+            // Fall back to a configured connection string / REDIS_URL for local dev.
+            redisConfig = configuration.GetValue<string>("Redis:ConnectionString")
+                ?? Environment.GetEnvironmentVariable("REDIS_URL")
+                ?? "redis:6379,abortConnect=false";
         }
 
-        var redisConfig = string.IsNullOrEmpty(password)
-            ? $"{host}:{port},abortConnect=false"
-            : $"{host}:{port},password={password},abortConnect=false";
-        var conn = ConnectionMultiplexer.Connect(redisConfig);
-        _database = conn.GetDatabase();
+        var connection = ConnectionMultiplexer.Connect(redisConfig);
+        _database = connection.GetDatabase();
     }
 
     public async Task<string?> GetAsync(string key)

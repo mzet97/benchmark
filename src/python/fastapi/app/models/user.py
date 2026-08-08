@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
 
@@ -11,7 +11,14 @@ from datetime import datetime
 
 class UserBase(BaseModel):
     """Base user model with common fields"""
-    email: EmailStr
+    # NOTE: deliberately a plain str, not pydantic EmailStr. EmailStr runs
+    # email_validator.validate_email(), whose deliverability check does live DNS
+    # lookups (MX). The seed data uses @example.com, which that check flags as
+    # undeliverable -> EmailUndeliverableError is raised while constructing the
+    # User, the route catches it and returns 500 "Database error". This is a
+    # response DTO mirroring a DB row, not user input, so no email validation is
+    # appropriate here.
+    email: str
     firstName: str = Field(..., min_length=1, max_length=100)
     lastName: str = Field(..., min_length=1, max_length=100)
     # Nullable in the schema, and the reference implementation carries it as a
