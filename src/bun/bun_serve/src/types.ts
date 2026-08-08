@@ -19,6 +19,7 @@ export interface CacheResponse {
   value: string;
   cached: boolean;
   ttl: number;
+  timestamp: string;
 }
 
 export interface DatabaseConfig {

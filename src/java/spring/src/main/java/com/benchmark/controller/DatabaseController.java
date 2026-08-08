@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Instant;
 import java.util.*;
 
 @RestController
@@ -74,8 +73,7 @@ public class DatabaseController {
         return ResponseEntity.ok(Map.of(
             "periodDays", days,
             "totalUsers", data.size(),
-            "data", data,
-            "timestamp", Instant.now().toString()
+            "data", data
         ));
     }
 }

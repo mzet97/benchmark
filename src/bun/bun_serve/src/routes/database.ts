@@ -45,7 +45,10 @@ export async function dbSimpleHandler(request: Request): Promise<Response> {
       });
     }
 
-    return new Response(JSON.stringify({ user }), {
+    // Contract returns the user object itself, not an envelope. The service
+    // query aliases columns to the contract names (id, email, firstName,
+    // lastName, age, createdAt), so the row is the response body.
+    return new Response(JSON.stringify(user), {
       status: 200,
       headers: {
         'Content-Type': 'application/json',

@@ -9,7 +9,6 @@ import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.QueryValue;
 import jakarta.inject.Inject;
 
-import java.time.Instant;
 import java.util.*;
 
 @Controller("/db")
@@ -84,8 +83,7 @@ public class DatabaseController {
         return HttpResponse.ok(Map.of(
             "periodDays", days,
             "totalUsers", data.size(),
-            "data", data,
-            "timestamp", Instant.now().toString()
+            "data", data
         ));
     }
 }

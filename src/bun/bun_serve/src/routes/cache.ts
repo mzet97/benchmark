@@ -17,6 +17,7 @@ export async function cacheHandler(request: Request): Promise<Response> {
         value: cached,
         cached: true,
         ttl: CACHE_TTL_SECONDS,
+        timestamp: new Date().toISOString(),
       };
 
       return new Response(JSON.stringify(response), {
@@ -35,6 +36,7 @@ export async function cacheHandler(request: Request): Promise<Response> {
       value,
       cached: false,
       ttl: CACHE_TTL_SECONDS,
+      timestamp: new Date().toISOString(),
     };
 
     return new Response(JSON.stringify(response), {
