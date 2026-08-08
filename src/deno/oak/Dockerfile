@@ -36,4 +36,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
 
 # index.ts forks BENCH_CPUS workers, which needs --allow-run for
 # Deno.execPath(). The workers themselves keep the original permissions.
-CMD ["deno", "run", "--allow-net", "--allow-env", "--allow-read", "--allow-run", "index.ts"]
+CMD ["deno", "run", "--unstable-net", "--allow-net", "--allow-env", "--allow-read", "--allow-run", "index.ts"]
