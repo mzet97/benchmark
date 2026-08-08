@@ -1,57 +1,73 @@
-# E4 Validation Status
+# E4 Validation Status — FINAL
 
-**Atualizado**: 2026-08-07 (pós DB config + percent-decode + port fixes)
+**Atualizado**: 2026-08-07 (pós todos os fixes de runtime — batch final)
 
-## Resumo
+## Resultado: 13/37 PASS 7/7
 
-| Status | Qtd | Implementações |
+| Status | Qtd |
+|---|---|
+| ✅ **E4 PASS (7/7)** | **13** |
+| ⚠️ Parcial (1-4 checks fail) | 15 |
+| ❌ TIMEOUT | 9 |
+
+### ✅ E4 PASS (7/7) — 13 implementações
+
+| # | Impl | Ambiente |
 |---|---|---|
-| ✅ **E4 PASS (7/7)** | **6** | go-rest-fiber, go-rest-chi, go-rest-echo, go-rest-gin, nodejs-rest-fastify, kotlin-rest-http4k |
-| ⚠️ Parcial (sobe, 1-6 checks fail) | ~20 | ver detalhe abaixo |
-| ❌ TIMEOUT | ~6 | graalvm-rest-vertx, deno-rest-{oak,deno-serve,fresh,hono}, csharp-rest-minimalapi |
+| 1 | `bun-rest-elysia` | Bun |
+| 2 | `go-rest-chi` | Go |
+| 3 | `go-rest-echo` | Go |
+| 4 | `go-rest-fiber` | Go |
+| 5 | `go-rest-gin` | Go |
+| 6 | `graalvm-rest-helidon` | GraalVM |
+| 7 | `kotlin-rest-http4k` | Kotlin |
+| 8 | `nodejs-rest-express` | Node.js |
+| 9 | `nodejs-rest-fastify` | Node.js |
+| 10 | `nodejs-rest-nestjs` | Node.js |
+| 11 | `python-rest-flask` | Python |
+| 12 | `rust-rest-actix-web` | Rust |
+| 13 | `rust-rest-warp` | Rust |
 
-## E4 PASS (7/7) — 6 implementações
+Todas passam o parity gate completo: `/json` (n=10/100/1000), `/health`,
+`/db/simple`, `/db/complex`, `/cache`.
 
-Todas passam no parity gate completo: /json (n=10/100/1000), /health,
-/db/simple, /db/complex, /cache.
-
-## Parciais (sobem e respondem, mas com divergências de payload)
+### ⚠️ Parciais — 15 implementações
 
 | Impl | ok/7 | Falhas |
 |---|---|---|
-| rust-rest-warp | 6/7 | /db/simple |
-| java-rest-spring | 6/7 | 1 check |
-| graalvm-rest-gspring | 6/7 | 1 check |
-| kotlin-rest-ktor | 6/7 | 1 check |
-| python-rest-flask | 6/7 | 1 check |
-| nodejs-rest-express | 6/7 | /health version |
-| nodejs-rest-nestjs | 6/7 | /cache |
-| bun-rest-elysia | 6/7 | /cache |
-| kotlin-rest-spring | 5/7 | /db/* |
-| graalvm-rest-helidon | 5/7 | 2 checks |
-| rust-rest-actix-web | 4/7 | /json payload |
-| java-rest-quarkus | 4/7 | /health, /db/* |
-| python-rest-fastapi | 4/7 | 3 checks |
-| csharp-rest-controllers | 3/7 | /health, /db/* |
-| csharp-rest-fastendpoints | 3/7 | /health, /db/* |
-| dart-rest-vaden | 3/7 | /health, /db/* |
-| python-rest-django | 0/7 | connection refused (WSGI path?) |
-| java-rest-micronaut | 0/7 | connection refused |
-| graalvm-rest-micronaut | 0/7 | connection refused |
-| rust-rest-axum | 1/7 | /json payload |
-| rust-rest-rocket | 1/7 | /json payload |
+| `graalvm-rest-gspring` | 6/7 | /db/complex |
+| `java-rest-spring` | 6/7 | /db/complex |
+| `kotlin-rest-ktor` | 6/7 | /health (stale image?) |
+| `python-rest-fastapi` | 5/7 | /db/* |
+| `kotlin-rest-spring` | 5/2 | /db/* |
+| `java-rest-quarkus` | 5/2 | /db/* |
+| `bun-rest-bun-serve` | 5/2 | /db/*, /cache |
+| `graalvm-rest-micronaut` | 4/3 | /json, /health, /db/* |
+| `java-rest-micronaut` | 4/3 | /json, /health, /db/* |
+| `dart-rest-vaden` | 4/3 | /health, /db/* |
+| `csharp-rest-fastendpoints` | 4/3 | /health, /db/* |
+| `bun-rest-hono` | 4/3 | /db/*, /cache |
+| `csharp-rest-controllers` | 3/4 | /health, /db/*, /cache |
+| `graalvm-rest-gmicronaut` | 0/7 | não responde |
+| `python-rest-django` | 0/7 | não responde |
 
-## Causas raiz restantes
+### ❌ TIMEOUT — 9 implementações
 
-1. **Payload /json divergente** (Rust axum/rocket/actix): possível regressão dos fixes de compilação
-2. **/health sem version** (node-express): já corrigido em código, imagem pode ser stale
-3. **/cache sem ttl/cached** (bun/elysia, node/nestjs): campo faltante
-4. **/db/* falhando** (csharp, dart, java-quarkus, kotlin-spring): query ou conexão DB
-5. **Connection refused em 3 impls** (django, java-micronaut, graalvm-micronaut): pode ser startup lento ou crash após deploy
+| Impl | Causa provável |
+|---|---|
+| `deno-rest-deno-serve` | Deno bootstrap/image |
+| `deno-rest-fresh` | idem |
+| `deno-rest-hono` | idem |
+| `deno-rest-oak` | idem |
+| `csharp-rest-minimalapi` | .NET AOT startup |
+| `graalvm-rest-spring` | Native image build falha |
+| `graalvm-rest-vertx` | Vert.x API issues |
+| `rust-rest-axum` | sqlx DB connection |
+| `rust-rest-rocket` | sqlx DB connection |
 
 ## Próximos passos
 
-1. Fixar os defeitos de payload das ~20 parciais (1-3 checks cada)
-2. Investigar os 3 "0 ok" (django, java-micronaut, graalvm-micronaut)
-3. Fixar Deno Dockerfile/bootstrap (4 TIMEOUTs)
-4. Com 6+ impls PASS, já dá para iniciar a matriz de benchmark parcial
+1. **Iniciar matriz de benchmark** com as 13 impls que passam E4 — já é um
+   ranking defensável de 13 implementações em 7 ambientes
+2. Fixar os 15 parciais (cada um precisa de 1-3 fixes de payload)
+3. Investigar os 9 TIMEOUTs
