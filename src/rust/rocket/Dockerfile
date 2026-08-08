@@ -9,7 +9,7 @@ RUN cargo build --release && rm src/main.rs
 COPY src ./src
 COPY .env* ./
 
-RUN cargo build --release
+RUN touch src/main.rs && cargo build --release
 
 FROM debian:bookworm-slim AS production
 

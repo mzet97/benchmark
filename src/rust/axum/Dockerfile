@@ -15,8 +15,9 @@ RUN cargo build --release && rm src/main.rs
 # Copy source code
 COPY src ./src
 
-# Build application
-RUN cargo build --release
+# Build application (touch ensures cargo sees the source as changed
+# from the dummy main.rs used for dependency caching)
+RUN touch src/main.rs && cargo build --release
 
 # Production stage
 FROM debian:bookworm-slim AS production
