@@ -1,4 +1,4 @@
-use sqlx::{PgPool, Row};
+use sqlx::{PgPool, Row, postgres::PgConnectOptions};
 use anyhow::{Result, Context};
 use serde::Serialize;
 
@@ -14,6 +14,38 @@ fn db_pool_max() -> u32 {
         .unwrap_or(32)
 }
 
+/// Build a PgConnectOptions from the component env vars (DB_HOST, DB_PORT,
+/// DB_NAME, DB_USER, DB_PASSWORD) instead of passing DATABASE_URL straight to
+/// sqlx. The secret's DATABASE_URL carries a percent-encoded password
+/// (e.g. Admin%40123); sqlx does not percent-decode userinfo, so it sent the
+/// literal "%40" to Postgres and authentication failed -- the .expect() then
+/// panicked inside #[launch] before the server bound its port, producing
+/// CrashLoopBackOff with no logs. Building the options from DB_PASSWORD
+/// sidesteps percent-encoding entirely. Falls back to DATABASE_URL only if the
+/// component vars are absent.
+fn build_pg_options() -> PgConnectOptions {
+    let host = std::env::var("DB_HOST");
+    if let Ok(host) = host {
+        let port = std::env::var("DB_PORT")
+            .ok()
+            .and_then(|p| p.parse::<u16>().ok())
+            .unwrap_or(5432);
+        let db = std::env::var("DB_NAME").unwrap_or_else(|_| "benchmark_api".to_string());
+        let user = std::env::var("DB_USER").unwrap_or_else(|_| "app".to_string());
+        let pass = std::env::var("DB_PASSWORD").expect("DB_PASSWORD is required when DB_HOST is set");
+        return PgConnectOptions::new()
+            .host(&host)
+            .port(port)
+            .database(&db)
+            .username(&user)
+            .password(&pass);
+    }
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL or DB_HOST is required");
+    database_url
+        .parse::<PgConnectOptions>()
+        .expect("Failed to parse DATABASE_URL as PgConnectOptions")
+}
+
 
 #[derive(Debug)]
 pub struct Database {
@@ -21,12 +53,17 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn new(database_url: &str) -> Self {
+    pub async fn new() -> Self {
+        let options = build_pg_options();
+
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(db_pool_max())
-            .connect(database_url)
+            .connect_with(options)
             .await
-            .expect("Failed to connect to database");
+            .unwrap_or_else(|e| {
+                eprintln!("FATAL: Failed to connect to database: {e}");
+                panic!("Failed to connect to database: {e}");
+            });
 
         Self { pool }
     }

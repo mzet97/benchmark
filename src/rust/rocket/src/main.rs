@@ -125,11 +125,13 @@ async fn cache_endpoint(cache: &State<Cache>, key: Option<String>) -> Result<Jso
 #[launch]
 async fn rocket() -> _ {
     dotenvy::dotenv().ok();
-    
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL is required");
+
+    // Database::new() builds the connection from DB_HOST/DB_PORT/DB_NAME/
+    // DB_USER/DB_PASSWORD rather than DATABASE_URL, to sidestep the
+    // percent-encoded password that sqlx does not decode. See db.rs.
     let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
 
-    let database = Database::new(&database_url).await;
+    let database = Database::new().await;
     let cache = Cache::new(&redis_url).await;
 
     rocket::build()
