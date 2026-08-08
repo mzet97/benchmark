@@ -33,12 +33,9 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
 # the dependencies have to be named explicitly.
 #
 # Heap override: the shared ConfigMap sets JAVA_TOOL_OPTIONS with
-# `-Xms32g -Xmx32g` for the JVM implementations. That heap is sized for the
-# full-server JVM stacks (Spring/Micronaut/Quarkus) which run as -jar apps;
-# this Vert.x launch is a plain `java -cp` and reserving 32 GiB at startup
-# pushes the 40 GiB container into OOMKill during the JVM's initial commit.
-# Explicit `-Xms4g -Xmx4g` on the command line wins over JAVA_TOOL_OPTIONS
-# (last-wins for the same flag), keeping the GC/processor-count tuning while
-# capping the heap to a value the container survives. This is NOT a native
-# image, so it does read JAVA_TOOL_OPTIONS and does need the override.
-ENTRYPOINT ["java", "-Xms4g", "-Xmx4g", "-cp", "app.jar:lib/*", "com.benchmark.vertx.Main"]
+# `-Xms32g -Xmx32g`. JAVA_TOOL_OPTIONS is applied by the JVM *in addition*
+# to command-line args, and when both specify -Xms the env var wins on
+# some JVM versions. Clearing it here and passing the correct flags on the
+# command line is the reliable way to override.
+ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC"
+ENTRYPOINT ["java", "-Xms4g", "-Xmx4g", "-XX:ActiveProcessorCount=40", "-cp", "app.jar:lib/*", "com.benchmark.vertx.Main"]
