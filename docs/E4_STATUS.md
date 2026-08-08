@@ -2,15 +2,15 @@
 
 **Atualizado**: 2026-08-08
 
-## Resultado: 25/37 PASS 7/7 (68%)
+## Resultado: 27/37 PASS 7/7 (73%)
 
 | Status | Qtd |
 |---|---|
-| ✅ **E4 PASS (7/7)** | **25** |
+| ✅ **E4 PASS (7/7)** | **27** |
 | ⚠️ Parcial | 3 |
-| ❌ TIMEOUT / build fail | 9 |
+| ❌ TIMEOUT | 7 |
 
-### ✅ E4 PASS (7/7) — 25 implementações, 10 ambientes
+### ✅ E4 PASS (7/7) — 27 implementações, 10 ambientes
 
 | # | Impl | Ambiente |
 |---|---|---|
@@ -36,46 +36,40 @@
 | 20 | `python-rest-django` | Python |
 | 21 | `dart-rest-vaden` | Dart |
 | 22 | `rust-rest-actix-web` | Rust |
-| 23 | `rust-rest-warp` | Rust |
-| 24 | `csharp-rest-controllers` | C# |
-| 25 | `csharp-rest-fastendpoints` | C# |
+| 23 | `rust-rest-axum` | Rust |
+| 24 | `rust-rest-rocket` | Rust |
+| 25 | `rust-rest-warp` | Rust |
+| 26 | `csharp-rest-controllers` | C# |
+| 27 | `csharp-rest-fastendpoints` | C# |
 
-**10 dos 11 ambientes representados** (só falta Deno, que tem 4 TIMEOUTs).
+**10 dos 11 ambientes representados** (só falta Deno).
 
-### ⚠️ Parciais — 3 implementações
+### ⚠️ Parciais — 3 implementações (Micronaut DataSource injection)
 
 | Impl | ok/7 | Falha |
 |---|---|---|
-| `graalvm-rest-gmicronaut` | 5/2 | micronaut-data-processor (build fail) |
-| `graalvm-rest-micronaut` | 4/3 | DataSource @Named injection |
-| `java-rest-micronaut` | 4/3 | DataSource @Named injection |
+| `graalvm-rest-gmicronaut` | 5/2 | /db/* — micronaut-data-processor |
+| `graalvm-rest-micronaut` | 4/3 | /health, /db/* — DataSource @Named |
+| `java-rest-micronaut` | 4/3 | /health, /db/* — DataSource @Named |
 
-### ❌ TIMEOUT — 9 implementações
+### ❌ TIMEOUT — 7 implementações
 
 | Impl | Causa |
 |---|---|
-| `deno-rest-{oak,deno-serve,fresh,hono}` | Deno bootstrap/image (4) |
-| `csharp-rest-minimalapi` | .NET AOT startup |
-| `graalvm-rest-spring` | Native image build falha |
-| `graalvm-rest-vertx` | Runtime crash |
-| `rust-rest-axum` | sqlx crash sem logs |
-| `rust-rest-rocket` | sqlx crash sem logs |
+| `deno-rest-{oak,deno-serve,fresh,hono}` | Deno Redis auth (4) |
+| `csharp-rest-minimalapi` | .NET listening on wrong port / payload |
+| `graalvm-rest-spring` | Native image build fails |
+| `graalvm-rest-vertx` | JAVA_TOOL_OPTIONS heap OOM |
 
 ## Progressão da sessão
 
-| Rodada | PASS | Parcial | TIMEOUT |
-|---|---|---|---|
-| Início | 0 | 2 | 35 |
-| Após porta fix | 5 | 15 | 17 |
-| Após DB config | 6 | 20 | 11 |
-| Após payload batch 1 | 13 | 15 | 9 |
-| Após stale rebuild | 15 | 13 | 9 |
-| Após payload batch 2 | 18 | 10 | 9 |
-| Após payload batch 3 | 18 | 13 | 6 |
-| **Após payload batch 4** | **25** | **3** | **9** |
-
-## Próximos passos
-
-1. **Iniciar matriz de benchmark** com as 25 impls que passam E4
-2. Investigar os 3 Micronaut parciais (DataSource @Named)
-3. Investigar os 9 TIMEOUTs (Deno, Rust, GraalVM, C#)
+| Rodada | PASS |
+|---|---|
+| Início | 0 |
+| Após porta fix | 5 |
+| Após DB config | 6 |
+| Após payload batch 1 | 13 |
+| Após stale rebuild | 15 |
+| Após payload batch 2 | 18 |
+| Após payload batch 3 | 25 |
+| **Após Rust touch + NaiveDateTime** | **27** |
