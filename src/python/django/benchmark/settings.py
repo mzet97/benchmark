@@ -6,7 +6,16 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-benchmark-key')
 
 ALLOWED_HOSTS = ['*']
 
+# django.contrib.contenttypes and django.contrib.auth are required by DRF.
+# DRF's default UNAUTHENTICATED_USER (django.contrib.auth.models.AnonymousUser)
+# and DEFAULT_AUTHENTICATION_CLASSES (Session/Basic) import django.contrib.auth,
+# which imports django.contrib.contenttypes. perform_authentication() runs on
+# every request, so without these apps every endpoint raised
+# "RuntimeError: ... doesn't declare an explicit app_label and isn't in an
+# application in INSTALLED_APPS" -> HTTP 500.
 INSTALLED_APPS = [
+    'django.contrib.contenttypes',
+    'django.contrib.auth',
     'rest_framework',
     'benchmark',
 ]
