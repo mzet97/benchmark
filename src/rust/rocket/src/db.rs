@@ -1,6 +1,23 @@
 use sqlx::{PgPool, Row, postgres::PgConnectOptions};
 use anyhow::{Result, Context};
 use serde::Serialize;
+use std::io::Write;
+
+/// Print a FATAL message to stderr (flushing so it is not lost when the
+/// process aborts) and exit non-zero immediately.
+///
+/// Why this exists: Cargo.toml sets `[profile.release] panic = "abort"` plus
+/// `strip = true`. A panic hook's message can be truncated or never flushed
+/// before abort runs, so on a real crash the container died with *zero* log
+/// output -- CrashLoopBackOff with nothing to diagnose. Going through
+/// `eprintln!` + an explicit `stderr().flush()` + `process::exit(1)` instead
+/// of `panic!`/`expect()`/`unwrap()` guarantees the message reaches the
+/// container logs before the process is torn down.
+fn die(msg: impl AsRef<str>) -> ! {
+    eprintln!("FATAL: {}", msg.as_ref());
+    let _ = std::io::stderr().flush();
+    std::process::exit(1);
+}
 
 /// Pool size is part of the benchmark contract, not a per-implementation
 /// choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
@@ -32,7 +49,10 @@ fn build_pg_options() -> PgConnectOptions {
             .unwrap_or(5432);
         let db = std::env::var("DB_NAME").unwrap_or_else(|_| "benchmark_api".to_string());
         let user = std::env::var("DB_USER").unwrap_or_else(|_| "app".to_string());
-        let pass = std::env::var("DB_PASSWORD").expect("DB_PASSWORD is required when DB_HOST is set");
+        let pass = match std::env::var("DB_PASSWORD") {
+            Ok(p) => p,
+            Err(_) => die("DB_PASSWORD is required when DB_HOST is set"),
+        };
         return PgConnectOptions::new()
             .host(&host)
             .port(port)
@@ -40,10 +60,14 @@ fn build_pg_options() -> PgConnectOptions {
             .username(&user)
             .password(&pass);
     }
-    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL or DB_HOST is required");
-    database_url
-        .parse::<PgConnectOptions>()
-        .expect("Failed to parse DATABASE_URL as PgConnectOptions")
+    let database_url = match std::env::var("DATABASE_URL") {
+        Ok(u) => u,
+        Err(_) => die("Neither DB_HOST nor DATABASE_URL is set; cannot connect to the database"),
+    };
+    match database_url.parse::<PgConnectOptions>() {
+        Ok(opts) => opts,
+        Err(e) => die(format!("Failed to parse DATABASE_URL as PgConnectOptions: {e}")),
+    }
 }
 
 
@@ -61,8 +85,7 @@ impl Database {
             .connect_with(options)
             .await
             .unwrap_or_else(|e| {
-                eprintln!("FATAL: Failed to connect to database: {e}");
-                panic!("Failed to connect to database: {e}");
+                die(format!("Failed to connect to database: {e}"));
             });
 
         Self { pool }

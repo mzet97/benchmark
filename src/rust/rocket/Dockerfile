@@ -30,6 +30,13 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Tokio (and Rocket) size their worker pool from the environment, so the
 # contract-level BENCH_CPUS drives it without touching the source.
-# Shell form so the variable is expanded at runtime.
+# ROCKET_PORT/ROCKET_ADDRESS are set explicitly: Rocket 0.5 defaults to
+# 127.0.0.1:8000, but the readiness probe checks TCP 8080 and the container
+# must listen on 0.0.0.0.
+# Shell form so the variables are expanded at runtime.
 # See docs/ACTION_PLAN.md, Fase 3.1.
-CMD TOKIO_WORKER_THREADS=${BENCH_CPUS:-4} ROCKET_WORKERS=${BENCH_CPUS:-4} ./benchmark-rocket
+CMD TOKIO_WORKER_THREADS=${BENCH_CPUS:-4} \
+    ROCKET_WORKERS=${BENCH_CPUS:-4} \
+    ROCKET_ADDRESS=0.0.0.0 \
+    ROCKET_PORT=${PORT:-8080} \
+    ./benchmark-rocket

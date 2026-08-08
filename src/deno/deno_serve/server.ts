@@ -5,7 +5,7 @@ import { buildItems, itemCount } from "./canonical.ts";
  */
 
 import { Client } from "https://deno.land/x/postgres@v0.19.3/mod.ts";
-import { connect, type Redis } from "https://deno.land/x/redis@v0.32.1/mod.ts";
+import { connect, parseURL, type Redis } from "https://deno.land/x/redis@v0.32.1/mod.ts";
 
 // The TTL is part of the response contract and must match what is written
 // to Redis. See contracts/rest/canonical-payloads.md.
@@ -76,11 +76,18 @@ class CacheService {
   private redis: Redis | null = null;
 
   async init() {
-    const url = new URL(REDIS_URL);
+    // Use the redis library's own parseURL rather than `new URL(...)` +
+    // manual field copying. parseURL percent-decodes the userinfo, so a
+    // password like Admin%40123 in REDIS_URL is sent to Redis as Admin@123.
+    // The previous `new URL()` path forwarded the still-encoded password
+    // and Redis auth failed with "WRONGPASS", crashing the worker.
+    const parsed = parseURL(REDIS_URL);
     this.redis = await connect({
-      hostname: url.hostname,
-      port: parseInt(url.port || "6379"),
-      password: url.password || undefined,
+      hostname: parsed.hostname,
+      port: typeof parsed.port === "string"
+        ? parseInt(parsed.port, 10)
+        : (parsed.port ?? 6379),
+      password: parsed.password,
     });
     await this.redis.ping();
     console.log("Redis connected");

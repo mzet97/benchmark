@@ -7,6 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
+use std::io::Write;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -57,18 +58,30 @@ async fn main() {
         .with_state(state);
 
     // Parse address
-    let addr = SocketAddr::from((
-        [0, 0, 0, 0],
-        std::env::var("PORT")
-            .unwrap_or_else(|_| "8080".to_string())
-            .parse::<u16>()
-            .unwrap(),
-    ));
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .unwrap_or_else(|e| {
+            eprintln!("FATAL: Invalid PORT env var: {e}");
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        });
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
 
     // Start server
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(&addr)
+        .await
+        .unwrap_or_else(|e| {
+            eprintln!("FATAL: Failed to bind {addr}: {e}");
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        });
     println!("🚀 Server listening on http://{}", addr);
-    axum::serve(listener, app).await.unwrap();
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("FATAL: Server error: {e}");
+        let _ = std::io::stderr().flush();
+        std::process::exit(1);
+    }
 }
 
 async fn root() -> Json<serde_json::Value> {

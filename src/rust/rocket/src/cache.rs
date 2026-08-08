@@ -1,5 +1,16 @@
 use redis::Client as RedisClient;
 use anyhow::Result;
+use std::io::Write;
+
+/// Print a FATAL message to stderr (flushing so it is not lost when the
+/// process aborts) and exit non-zero. See db.rs for the rationale (the
+/// release profile uses `panic = "abort"` + `strip = true`, which can lose
+/// the panic message before it reaches the container logs).
+fn die(msg: impl AsRef<str>) -> ! {
+    eprintln!("FATAL: {}", msg.as_ref());
+    let _ = std::io::stderr().flush();
+    std::process::exit(1);
+}
 
 #[derive(Debug)]
 pub struct Cache {
@@ -9,7 +20,7 @@ pub struct Cache {
 impl Cache {
     pub async fn new(redis_url: &str) -> Self {
         let client = RedisClient::open(redis_url)
-            .expect("Failed to connect to Redis");
+            .unwrap_or_else(|e| die(format!("Failed to build Redis client: {e}")));
 
         Self { client }
     }

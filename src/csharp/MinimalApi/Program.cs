@@ -63,6 +63,22 @@ builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
+// Kestrel defaults to http://localhost:5000, which is unreachable from outside
+// the pod: the Kubernetes readiness/liveness probes connect to TCP :8080 over
+// the pod network and saw "connection refused", so the app ran (logs showed
+// "Application started") but the pod never went Ready. Bind explicitly to
+// 0.0.0.0 on the PORT the ConfigMap provides (default 8080).
+var listenPort = Environment.GetEnvironmentVariable("PORT");
+if (string.IsNullOrWhiteSpace(listenPort))
+{
+    listenPort = builder.Configuration["PORT"];
+}
+if (string.IsNullOrWhiteSpace(listenPort))
+{
+    listenPort = "8080";
+}
+app.Urls.Add($"http://0.0.0.0:{listenPort}");
+
 // Health checks (Kubernetes compatible)
 app.MapHealthChecks("/healthz", new HealthCheckOptions
 {

@@ -9,6 +9,7 @@ use rocket::{
 };
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
+use std::io::Write;
 
 mod canonical;
 mod db;
@@ -129,7 +130,14 @@ async fn rocket() -> _ {
     // Database::new() builds the connection from DB_HOST/DB_PORT/DB_NAME/
     // DB_USER/DB_PASSWORD rather than DATABASE_URL, to sidestep the
     // percent-encoded password that sqlx does not decode. See db.rs.
-    let redis_url = std::env::var("REDIS_URL").expect("REDIS_URL is required");
+    let redis_url = match std::env::var("REDIS_URL") {
+        Ok(u) => u,
+        Err(_) => {
+            eprintln!("FATAL: REDIS_URL is required");
+            let _ = std::io::stderr().flush();
+            std::process::exit(1);
+        }
+    };
 
     let database = Database::new().await;
     let cache = Cache::new(&redis_url).await;
