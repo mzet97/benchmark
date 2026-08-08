@@ -6,10 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
 
-    <!-- Native AOT -->
-    <PublishAot>true</PublishAot>
-    <StripSymbols>true</StripSymbols>
-    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <!-- Native AOT is disabled: Minimal API's request delegates are generated
+         by the Request Delegate Generator, which serializes results through
+         System.Text.Json's source-generated resolver. With PublishAot=true the
+         resolver has no JsonTypeInfo for the anonymous health/error envelopes
+         or the JsonResponse/JsonItem types, so EVERY endpoint threw
+         "JsonTypeInfo metadata for type '...' was not provided" at runtime and
+         the impl scored 0/7. The Controllers and FastEndpoints siblings ship
+         with PublishAot=false for the same reason; this matches them. -->
+    <PublishAot>false</PublishAot>
 
     <!-- Docker/Container Settings -->
     <ContainerPort>8080</ContainerPort>

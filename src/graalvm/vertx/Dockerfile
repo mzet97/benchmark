@@ -32,10 +32,23 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
 # -cp rather than -jar: the jar plugin writes a Main-Class but no Class-Path, so
 # the dependencies have to be named explicitly.
 #
-# Heap override: the shared ConfigMap sets JAVA_TOOL_OPTIONS with
-# `-Xms32g -Xmx32g`. JAVA_TOOL_OPTIONS is applied by the JVM *in addition*
-# to command-line args, and when both specify -Xms the env var wins on
-# some JVM versions. Clearing it here and passing the correct flags on the
-# command line is the reliable way to override.
-ENV JAVA_TOOL_OPTIONS="-XX:+UseG1GC"
-ENTRYPOINT ["java", "-Xms4g", "-Xmx4g", "-XX:ActiveProcessorCount=40", "-cp", "app.jar:lib/*", "com.benchmark.vertx.Main"]
+# Heap override: the shared ConfigMap sets JAVA_TOOL_OPTIONS to
+# "-XX:ActiveProcessorCount=40 -Xms32g -Xmx32g -XX:+UseG1GC". 32g of heap in a
+# 40 GiB container (with a native metaspace + direct buffers for Vert.x's
+# Netty) leaves no room and the JVM spends the measurement window thrashing the
+# GC, which is what made every endpoint time out.
+#
+# JAVA_TOOL_OPTIONS is read by the JVM *before* main() and applied on top of any
+# command-line flags, so a plain `java -Xmx4g ...` still ends up at 32g. An
+# `ENV JAVA_TOOL_OPTIONS=""` in the image is overridden again by the ConfigMap's
+# envFrom. The only reliable override is to drop the variable in a wrapper
+# before exec'ing java, then pass the flags we actually want on the command
+# line. `exec` replaces the shell so the JVM receives SIGTERM directly.
+RUN printf '%s\n' \
+    '#!/bin/sh' \
+    'unset JAVA_TOOL_OPTIONS' \
+    'CPUS="${BENCH_CPUS:-4}"' \
+    'exec java -Xms4g -Xmx4g -XX:ActiveProcessorCount="$CPUS" -XX:+UseG1GC -cp app.jar:lib/* com.benchmark.vertx.Main "$@"' \
+    > /app/run.sh && chmod +x /app/run.sh
+
+ENTRYPOINT ["/app/run.sh"]

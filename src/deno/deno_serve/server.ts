@@ -76,19 +76,31 @@ class CacheService {
   private redis: Redis | null = null;
 
   async init() {
-    // Use the redis library's own parseURL rather than `new URL(...)` +
-    // manual field copying. parseURL percent-decodes the userinfo, so a
-    // password like Admin%40123 in REDIS_URL is sent to Redis as Admin@123.
-    // The previous `new URL()` path forwarded the still-encoded password
-    // and Redis auth failed with "WRONGPASS", crashing the worker.
-    const parsed = parseURL(REDIS_URL);
-    this.redis = await connect({
-      hostname: parsed.hostname,
-      port: typeof parsed.port === "string"
-        ? parseInt(parsed.port, 10)
-        : (parsed.port ?? 6379),
-      password: parsed.password,
-    });
+    // Prefer discrete REDIS_HOST / REDIS_PORT / REDIS_PASSWORD env vars.
+    // Passing the password directly avoids percent-decoding issues with
+    // REDIS_URL: the password "Admin@123" percent-encoded as "Admin%40123"
+    // was being forwarded still-encoded, so Redis returned WRONGPASS and the
+    // worker crashed. parseURL was supposed to decode it but did not.
+    // Only fall back to parsing REDIS_URL when the discrete vars are absent.
+    const host = Deno.env.get("REDIS_HOST");
+    const portStr = Deno.env.get("REDIS_PORT");
+    const password = Deno.env.get("REDIS_PASSWORD");
+    if (host && portStr) {
+      this.redis = await connect({
+        hostname: host,
+        port: parseInt(portStr, 10),
+        password: password || undefined,
+      });
+    } else {
+      const parsed = parseURL(REDIS_URL);
+      this.redis = await connect({
+        hostname: parsed.hostname,
+        port: typeof parsed.port === "string"
+          ? parseInt(parsed.port, 10)
+          : (parsed.port ?? 6379),
+        password: parsed.password,
+      });
+    }
     await this.redis.ping();
     console.log("Redis connected");
   }

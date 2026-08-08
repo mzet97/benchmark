@@ -5,17 +5,32 @@ export class CacheService {
   private options: { hostname: string; port: number; password?: string };
 
   constructor() {
-    const redisUrl = Deno.env.get("REDIS_URL") || (() => { throw new Error('REDIS_URL is required'); })();
-    // Use the redis library's own parseURL (backed by the standard URL parser)
-    // instead of a hand-rolled split(). The manual parser did not percent-decode
-    // the password, so REDIS_URL with password Admin%40123 was sent to Redis
-    // literally and auth failed. parseURL yields the decoded password (Admin@123).
-    const parsed = redisParseURL(redisUrl);
-    this.options = {
-      hostname: parsed.hostname,
-      port: typeof parsed.port === "string" ? parseInt(parsed.port, 10) : (parsed.port ?? 6379),
-      password: parsed.password,
-    };
+    // Prefer discrete REDIS_HOST / REDIS_PORT / REDIS_PASSWORD env vars.
+    // Passing the password directly avoids the percent-decoding issues that
+    // plague REDIS_URL parsing: the password "Admin@123" percent-encoded as
+    // "Admin%40123" was reaching Redis still-encoded, so auth failed with
+    // WRONGPASS and crashed the worker. parseURL was supposed to decode it,
+    // but it did not, so read the vars directly and only fall back to parsing
+    // REDIS_URL when the discrete vars are absent.
+    const host = Deno.env.get("REDIS_HOST");
+    const portStr = Deno.env.get("REDIS_PORT");
+    const password = Deno.env.get("REDIS_PASSWORD");
+    if (host && portStr) {
+      this.options = {
+        hostname: host,
+        port: parseInt(portStr, 10),
+        password: password || undefined,
+      };
+    } else {
+      const redisUrl = Deno.env.get("REDIS_URL") ||
+        (() => { throw new Error('REDIS_URL is required when REDIS_HOST/REDIS_PORT are not set'); })();
+      const parsed = redisParseURL(redisUrl);
+      this.options = {
+        hostname: parsed.hostname,
+        port: typeof parsed.port === "string" ? parseInt(parsed.port, 10) : (parsed.port ?? 6379),
+        password: parsed.password,
+      };
+    }
   }
 
   async init() {

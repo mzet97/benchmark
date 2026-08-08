@@ -8,19 +8,14 @@ micronaut:
     port: ${PORT:8080}
     host: 0.0.0.0
 
-datasources:
-  default:
-    driver-class-name: org.postgresql.Driver
-    # Build the JDBC URL from the component ConfigMap variables so we avoid the
-    # missing "jdbc:" prefix in DATABASE_URL and sidestep the percent-encoded
-    # password in the URL string. The ConfigMap exposes
-    # DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD.
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
-    maximum-pool-size: ${DB_POOL_MAX:32}
-    minimum-idle: ${DB_POOL_MAX:32}
-
+# No `datasources:` block here. The deploy only exposes DATABASE_URL
+# (postgresql://...) via the benchmark-secrets; the DB_HOST/DB_PORT/DB_NAME/
+# DB_USER variables referenced here previously do not exist, so Micronaut
+# could not resolve the placeholders and the DataSource bean failed to build
+# ("Failed to inject value for parameter [dataSource]"). The DataSource is now
+# produced by com.benchmark.config.DatasourceFactory, which parses DATABASE_URL
+# directly. Keep micronaut-jdbc-hikari on the classpath so the DataSource/SQL
+# type converters and @JdbcRepository support are still registered.
 redis:
   uri: ${REDIS_URL}
   pool:

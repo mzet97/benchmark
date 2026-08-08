@@ -5,7 +5,7 @@ import { buildItems, itemCount } from "./canonical.ts";
  */
 
 import { Client } from "postgres";
-import { connect, type Redis } from "redis";
+import { connect, parseURL, type Redis } from "redis";
 
 const PORT = parseInt(Deno.env.get("PORT") || "8080");
 // The TTL is part of the response contract and must match what is written
@@ -79,12 +79,31 @@ class CacheService {
   private redis: Redis | null = null;
 
   async init() {
-    const url = new URL(REDIS_URL);
-    this.redis = await connect({
-      hostname: url.hostname,
-      port: parseInt(url.port || "6379"),
-      password: url.password || undefined,
-    });
+    // Prefer discrete REDIS_HOST / REDIS_PORT / REDIS_PASSWORD env vars.
+    // Passing the password directly avoids percent-decoding issues with
+    // REDIS_URL: the password "Admin@123" percent-encoded as "Admin%40123"
+    // was being forwarded still-encoded by `new URL()`, so Redis returned
+    // WRONGPASS and the worker crashed. Only fall back to parsing REDIS_URL
+    // via the redis library's parseURL when the discrete vars are absent.
+    const host = Deno.env.get("REDIS_HOST");
+    const portStr = Deno.env.get("REDIS_PORT");
+    const password = Deno.env.get("REDIS_PASSWORD");
+    if (host && portStr) {
+      this.redis = await connect({
+        hostname: host,
+        port: parseInt(portStr, 10),
+        password: password || undefined,
+      });
+    } else {
+      const parsed = parseURL(REDIS_URL);
+      this.redis = await connect({
+        hostname: parsed.hostname,
+        port: typeof parsed.port === "string"
+          ? parseInt(parsed.port, 10)
+          : (parsed.port ?? 6379),
+        password: parsed.password,
+      });
+    }
     await this.redis.ping();
     console.log("Redis connected");
   }

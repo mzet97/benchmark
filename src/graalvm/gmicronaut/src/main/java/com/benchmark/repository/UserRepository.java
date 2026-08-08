@@ -5,13 +5,19 @@ import com.benchmark.model.UserStats;
 import io.micronaut.data.annotation.Query;
 import io.micronaut.data.jdbc.annotation.JdbcRepository;
 import io.micronaut.data.model.query.builder.sql.Dialect;
-import io.micronaut.data.repository.CrudRepository;
 
 import java.util.List;
 import java.util.Optional;
 
+// Extends no CrudRepository: the only methods used are the two @Query ones
+// below (DatabaseService calls findByIdRaw/findUserStats, nothing else).
+// Extending CrudRepository<User, Integer> made the micronaut-data-processor
+// try to implement save()/update() for a User that has no @MappedEntity/@Id
+// mapping, which aborted the build with "Unsupported return type for a save
+// method: com.benchmark.model.User". A standalone @JdbcRepository with
+// hand-written queries is enough and keeps User a plain serialization DTO.
 @JdbcRepository(dialect = Dialect.POSTGRES)
-public interface UserRepository extends CrudRepository<User, Integer> {
+public interface UserRepository {
     @Query("SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = :id")
     Optional<User> findByIdRaw(Integer id);
 
