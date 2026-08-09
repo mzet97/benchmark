@@ -2,16 +2,15 @@
 
 **Atualizado**: 2026-08-08
 
-## Resultado: 29/37 PASS 7/7 (78%)
+## Resultado: 32/37 PASS 7/7 (86%)
 
 | Status | Qtd |
 |---|---|
-| ✅ **E4 PASS (7/7)** | **29** |
-| ⚠️ Parcial (6/7) | 3 |
-| ⚠️ Parcial (3-4/7) | 2 |
-| ❌ TIMEOUT | 3 |
+| ✅ **E4 PASS (7/7)** | **32** |
+| ⚠️ Parcial | 1 |
+| ❌ TIMEOUT | 4 |
 
-### ✅ E4 PASS (7/7) — 29 implementações, 10 ambientes
+### ✅ E4 PASS (7/7) — 32 implementações, TODOS os 11 ambientes
 
 | Ambiente | Implementações E4 PASS |
 |---|---|
@@ -21,29 +20,27 @@
 | **Bun** (3) | elysia, bun-serve, hono |
 | **Python** (3) | flask, fastapi, django |
 | **Kotlin** (3) | http4k, ktor, spring |
-| **C#** (2) | controllers, fastendpoints |
 | **Java** (3) | spring, quarkus, micronaut |
 | **GraalVM** (3) | helidon, gspring, micronaut |
+| **C#** (2) | controllers, fastendpoints |
 | **Dart** (1) | vaden |
+| **Deno** (3) | oak, deno-serve, fresh |
 
-**10 dos 11 ambientes representados** (Deno parcial a 6/7).
+**TODOS OS 11 AMBIENTES REPRESENTADOS.**
 
-### ⚠️ Parciais
+### ⚠️ Parcial — 1 implementação
 
 | Impl | ok/7 | Falha |
 |---|---|---|
-| `deno-rest-oak` | 6/7 | /db/complex (query interna falha) |
-| `deno-rest-deno-serve` | 6/7 | /db/complex |
-| `deno-rest-fresh` | 6/7 | /db/complex |
-| `csharp-rest-minimalapi` | 3/7 | payload (PublishAot fix pode não ter pegado) |
-| `deno-rest-hono` | 3/7 | download de deps no startup (cache) |
+| `csharp-rest-minimalapi` | 3/7 | /health, /db/*, /cache (PublishAot fix) |
 
-### ❌ TIMEOUT
+### ❌ TIMEOUT — 4 implementações
 
 | Impl | Causa |
 |---|---|
+| `deno-rest-hono` | Download deps no startup (cache) |
 | `graalvm-rest-gmicronaut` | Build fail (micronaut-data-processor) |
-| `graalvm-rest-vertx` | wrapper script unset JAVA_TOOL_OPTIONS |
+| `graalvm-rest-vertx` | JAVA_TOOL_OPTIONS heap (wrapper script) |
 | `graalvm-rest-spring` | Native image build fails |
 
 ## Progressão da sessão
@@ -59,9 +56,4 @@
 | Após payload batch 3 | 25 |
 | Após Rust touch + NaiveDateTime | 27 |
 | Após Micronaut DatasourceFactory | 29 |
-
-## Próximos passos
-
-1. **Iniciar matriz de benchmark** com as 29 impls que passam E4
-2. Os 3 Deno a 6/7 precisam de 1 fix de `/db/complex` cada
-3. Os 5 restantes precisam de debug individual
+| **Após Deno unstable-net + numeric cast** | **32** |
