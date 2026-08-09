@@ -166,16 +166,23 @@ class Cluster:
         )
 
     def delete(self, name: str) -> None:
-        # Delete by explicit name — the Service's selector has app={name} but
-        # the Service itself may not carry the label (commonLabels applies to
-        # Deployment/ConfigMap, not always Service). Deleting by name is
-        # reliable; deleting by label misses the Service and leaves the
-        # NodePort allocated, blocking the next implementation.
+        # Delete by explicit name and wait for the Service to be gone.
+        # The NodePort 30080 is a finite resource: if the old Service isn't
+        # fully removed before the next apply, the apply fails.
         self.sh(
-            f"kubectl delete deployment/{name} service/{name} "
-            f"configmap/{name}-config "
-            f"-n {NAMESPACE} --ignore-not-found --timeout=30s",
+            f"kubectl delete deployment/{name} -n {NAMESPACE} "
+            f"--ignore-not-found --timeout=30s --wait=true",
             timeout=60, check=False,
+        )
+        self.sh(
+            f"kubectl delete service/{name} -n {NAMESPACE} "
+            f"--ignore-not-found --timeout=30s --wait=true",
+            timeout=60, check=False,
+        )
+        self.sh(
+            f"kubectl delete configmap/{name}-config -n {NAMESPACE} "
+            f"--ignore-not-found --timeout=10s",
+            timeout=20, check=False,
         )
         # Force-delete any pods stuck in Terminating.
         self.sh(
