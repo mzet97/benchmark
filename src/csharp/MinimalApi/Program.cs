@@ -2,6 +2,7 @@ using BenchmarkApi.Handlers;
 using BenchmarkApi.Services;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 
 // The TTL is part of the response contract and must match the expiry the
 // cache service writes. See contracts/rest/canonical-payloads.md.
@@ -9,35 +10,96 @@ const int CacheTtlSeconds = 300;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Parse DATABASE_URL to Npgsql format
-var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
-if (databaseUrl.StartsWith("postgresql://"))
+// Build the Npgsql connection string from the component ConfigMap/Secret
+// variables (DB_HOST/DB_PORT/DB_NAME/DB_USER/DB_PASSWORD). The previous code
+// hand-parsed DATABASE_URL and did not percent-decode the userinfo, so the
+// literal "Admin%40123" was sent to Postgres and authentication failed for
+// db_admin -- every /db/* and the health probe came back empty. Using the
+// component variables sidesteps URL parsing and the encoded password entirely.
+var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+var dbUser = Environment.GetEnvironmentVariable("DB_USER");
+var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+var dbPoolMax = Environment.GetEnvironmentVariable("DB_POOL_MAX") ?? "32";
+
+if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
 {
-    var lastAt = databaseUrl.LastIndexOf('@');
-    var schemeEnd = databaseUrl.IndexOf("://");
-    var userPass = databaseUrl.Substring(schemeEnd + 3, lastAt - schemeEnd - 3);
-    var hostPortDb = databaseUrl.Substring(lastAt + 1);
-    var user = userPass.Split(':')[0];
-    var password = userPass.Contains(':') ? userPass.Substring(userPass.IndexOf(':') + 1) : "";
-    var host = hostPortDb.Split(':')[0];
-    var portDb = hostPortDb.Substring(hostPortDb.IndexOf(':') + 1);
-    var port = portDb.Split('/')[0];
-    var database = portDb.Contains('/') ? portDb.Substring(portDb.IndexOf('/') + 1) : "";
-    var npgsqlConn = $"Host={host};Port={port};Database={database};Username={user};Password={password};Maximum Pool Size=25;Connection Timeout=30";
+    var npgsqlConn = new NpgsqlConnectionStringBuilder
+    {
+        Host = dbHost,
+        Port = int.Parse(dbPort),
+        Database = dbName,
+        Username = dbUser,
+        Password = dbPassword,
+        Pooling = true,
+        MaxPoolSize = int.Parse(dbPoolMax),
+        Timeout = 30,
+    }.ToString();
     builder.Configuration["ConnectionStrings:DefaultConnection"] = npgsqlConn;
 }
-
-// Parse REDIS_URL to StackExchange.Redis format
-var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "";
-if (redisUrl.StartsWith("redis://"))
+else
 {
-    var lastAt = redisUrl.LastIndexOf('@');
-    var schemeEnd = redisUrl.IndexOf("://");
-    var password = redisUrl.Substring(schemeEnd + 4, lastAt - schemeEnd - 4);
-    var hostPort = redisUrl.Substring(lastAt + 1);
-    var host = hostPort.Split(':')[0];
-    var port = hostPort.Contains(':') ? hostPort.Split(':')[1] : "6379";
-    builder.Configuration["Redis:ConnectionString"] = $"{host}:{port},password={password},abortConnect=false";
+    // Fall back to DATABASE_URL for local dev, parsing it through Npgsql's own
+    // builder which percent-decodes the userinfo correctly.
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
+    if (!string.IsNullOrEmpty(databaseUrl))
+    {
+        try
+        {
+            var npgsqlConn = new NpgsqlConnectionStringBuilder(databaseUrl)
+            {
+                Pooling = true,
+                MaxPoolSize = int.Parse(dbPoolMax),
+                Timeout = 30,
+            }.ToString();
+            builder.Configuration["ConnectionStrings:DefaultConnection"] = npgsqlConn;
+        }
+        catch
+        {
+            builder.Configuration["ConnectionStrings:DefaultConnection"] = databaseUrl;
+        }
+    }
+}
+
+// Build the Redis connection from the component ConfigMap variables
+// (REDIS_HOST/REDIS_PORT/REDIS_PASSWORD). REDIS_URL is percent-encoded
+// (redis://:Admin%40123@host:6379) and the previous hand-rolled parser did
+// not decode "%40" -> "@", so the literal "Admin%40123" was sent to Redis and
+// auth failed -- cache:down. Reading the already-decoded REDIS_PASSWORD
+// sidesteps URL parsing. The StackExchange config string is still published
+// under Redis:ConnectionString so the CacheService can consume it.
+var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST");
+var redisPort = Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379";
+var redisPassword = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
+
+if (!string.IsNullOrEmpty(redisHost))
+{
+    builder.Configuration["Redis:ConnectionString"] = string.IsNullOrEmpty(redisPassword)
+        ? $"{redisHost}:{redisPort},abortConnect=false"
+        : $"{redisHost}:{redisPort},password={redisPassword},abortConnect=false";
+}
+else
+{
+    // Fall back to REDIS_URL for local dev, decoding via Uri.
+    var redisUrl = Environment.GetEnvironmentVariable("REDIS_URL") ?? "";
+    if (!string.IsNullOrEmpty(redisUrl))
+    {
+        try
+        {
+            var uri = new Uri(redisUrl);
+            var host = uri.Host;
+            var port = uri.Port > 0 ? uri.Port.ToString() : "6379";
+            var pass = uri.UserInfo.Length > 1 ? Uri.UnescapeDataString(uri.UserInfo.Substring(1)) : "";
+            builder.Configuration["Redis:ConnectionString"] = string.IsNullOrEmpty(pass)
+                ? $"{host}:{port},abortConnect=false"
+                : $"{host}:{port},password={pass},abortConnect=false";
+        }
+        catch
+        {
+            builder.Configuration["Redis:ConnectionString"] = redisUrl;
+        }
+    }
 }
 
 // Add services to the container
@@ -89,7 +151,53 @@ app.MapHealthChecks("/healthz", new HealthCheckOptions
 app.MapGet("/", () => Results.Redirect("/health"));
 
 // Endpoint 1: GET /health - Hello World (Simple)
-app.MapGet("/health", () => Results.Ok(new { status = "ok", version = "1.0.0", timestamp = DateTime.UtcNow }));
+// Contract: {"status","version","timestamp","database","cache"}. The previous
+// response omitted database/cache, so it never matched (3 keys instead of 5).
+app.MapGet("/health", async (
+        IDatabaseService databaseService,
+        ICacheService cacheService) =>
+{
+    var dbOk = await CheckDatabaseAsync(databaseService);
+    var cacheOk = await CheckCacheAsync(cacheService);
+
+    return Results.Ok(new
+    {
+        status = dbOk && cacheOk ? "ok" : "degraded",
+        version = "1.0.0",
+        timestamp = DateTime.UtcNow,
+        database = dbOk ? "up" : "down",
+        cache = cacheOk ? "up" : "down"
+    });
+});
+
+// GetUserByIdAsync opens a real connection; the probe id does not need to
+// exist -- the connection succeeding is what we measure.
+static async Task<bool> CheckDatabaseAsync(IDatabaseService databaseService)
+{
+    try
+    {
+        await databaseService.GetUserByIdAsync(1);
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
+
+// A round-trip that exercises the Redis connection.
+static async Task<bool> CheckCacheAsync(ICacheService cacheService)
+{
+    try
+    {
+        await cacheService.GetOrSetAsync("__healthcheck__", async () => "ok");
+        return true;
+    }
+    catch
+    {
+        return false;
+    }
+}
 
 // Endpoint 2: GET /json - Serialização JSON
 app.MapGet("/json", JsonHandler.GetJson);

@@ -20,19 +20,33 @@ public class CacheService : ICacheService
 
     public CacheService(IConfiguration configuration)
     {
-        var redisUrl = configuration.GetValue<string>("Redis:ConnectionString")
-            ?? Environment.GetEnvironmentVariable("REDIS_URL")
-            ?? throw new InvalidOperationException("Redis connection string not found");
+        // Build the connection from the component ConfigMap variables
+        // (REDIS_HOST/REDIS_PORT/REDIS_PASSWORD). REDIS_URL is percent-encoded
+        // (redis://:Admin%40123@host:6379) and neither Uri.UserInfo nor the
+        // earlier hand-rolled parser decoded "%40" -> "@", so the literal
+        // "Admin%40123" was sent to Redis and auth failed -- cache:down.
+        // Reading the already-decoded REDIS_PASSWORD sidesteps URL parsing.
+        var host = Environment.GetEnvironmentVariable("REDIS_HOST");
+        var port = Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379";
+        var password = Environment.GetEnvironmentVariable("REDIS_PASSWORD");
 
-        // Parse redis://:password@host:port to StackExchange.Redis format
-        var lastAt = redisUrl.LastIndexOf('@');
-        var schemeEnd = redisUrl.IndexOf("://");
-        var password = redisUrl.Substring(schemeEnd + 4, lastAt - schemeEnd - 4); // skip ://:
-        var hostPort = redisUrl.Substring(lastAt + 1);
-        var host = hostPort.Split(':')[0];
-        var port = hostPort.Contains(':') ? hostPort.Split(':')[1] : "6379";
+        string redisConfig;
+        if (!string.IsNullOrEmpty(host))
+        {
+            redisConfig = string.IsNullOrEmpty(password)
+                ? $"{host}:{port},abortConnect=false"
+                : $"{host}:{port},password={password},abortConnect=false";
+        }
+        else
+        {
+            // Fall back to a configured connection string / REDIS_URL for local dev.
+            // Program.cs already publishes a decoded StackExchange config string
+            // under Redis:ConnectionString when only REDIS_URL is set.
+            redisConfig = configuration.GetValue<string>("Redis:ConnectionString")
+                ?? Environment.GetEnvironmentVariable("REDIS_URL")
+                ?? throw new InvalidOperationException("Redis connection string not found");
+        }
 
-        var redisConfig = $"{host}:{port},password={password},abortConnect=false";
         var connection = ConnectionMultiplexer.Connect(redisConfig);
         _database = connection.GetDatabase();
     }
