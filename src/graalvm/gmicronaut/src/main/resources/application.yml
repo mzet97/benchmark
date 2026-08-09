@@ -14,8 +14,10 @@ micronaut:
 # placeholders could not resolve and the DataSource bean failed to build.
 # The DataSource is now produced by com.benchmark.config.DatasourceFactory,
 # which parses DATABASE_URL directly (and adds the missing jdbc: prefix).
-# micronaut-jdbc-hikari stays on the classpath for the DataSource/SQL type
-# converters that micronaut-data-jdbc relies on.
+# micronaut-jdbc-hikari stays on the classpath for the HikariDataSource /
+# DataSource beans; the queries are run with raw JDBC in DatabaseService now
+# (User/UserStats are plain DTOs, not @MappedEntity, so a @JdbcRepository
+# could not be code-generated for them).
 
 redis:
   uri: ${REDIS_URL}

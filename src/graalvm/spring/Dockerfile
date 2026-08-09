@@ -9,9 +9,26 @@ RUN microdnf install -y maven && microdnf clean all
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source and build native image
+# Copy source and build native image.
+#
+# The Spring Boot parent's `native` profile only binds `process-aot`
+# (spring-boot-maven-plugin) and `add-reachability-metadata`
+# (native-maven-plugin) to the lifecycle; it does NOT bind `native:compile`.
+# So `mvn package -Pnative` alone produced no binary in target/ and the
+# runtime stage failed with
+#   "/build/target/benchmark-graalvm-spring": not found
+# The `native:compile` goal must be invoked explicitly. It is run *after*
+# `package` so AOT processing and reachability metadata are already on disk.
+#
+# `-DbuildArgs=--gc=G1` is the native-maven-plugin's user property for passing
+# GraalVM builder arguments (the property is literally `buildArgs`, confirmed
+# against CompileMojo's @parameter). The previous `-Dspring.native.buildargs`
+# is not a real property of any plugin here, so it was a silent no-op -- G1
+# was never actually selected. G1 is supported in GraalVM native-image on
+# JDK 21 (see GraalVM JDK 21 release notes). The shared ConfigMap pins every
+# JVM implementation to G1 (-XX:+UseG1GC), so the native image matches it.
 COPY src ./src
-RUN mvn package -Pnative -DskipTests -B -Dspring.native.buildargs="--gc=G1"
+RUN mvn -Pnative -DskipTests -B package native:compile -DbuildArgs=--gc=G1
 
 # Stage 2: Minimal runtime
 FROM debian:bookworm-slim AS runtime
