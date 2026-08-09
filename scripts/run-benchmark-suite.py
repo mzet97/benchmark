@@ -171,6 +171,13 @@ class Cluster:
             f"-n {NAMESPACE} --ignore-not-found --timeout=60s",
             timeout=90, check=False,
         )
+        # Force-delete any pods stuck in Terminating/ImagePullBackOff so they
+        # don't hold the NodePort or block the next implementation's rollout.
+        self.sh(
+            f"kubectl delete pods -l app={name} -n {NAMESPACE} "
+            f"--force --grace-period=0 --ignore-not-found",
+            timeout=30, check=False,
+        )
 
     def competing_pods(self, expected: str) -> list[str]:
         out = self.sh(
