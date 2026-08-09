@@ -6,7 +6,7 @@ RUN groupadd --system --gid 1001 denoapp && useradd --system --uid 1001 --gid 10
 WORKDIR /app
 COPY --chown=denoapp:denoapp . .
 
-RUN deno install server.ts 2>/dev/null || true
+RUN deno cache server.ts index.ts
 
 USER denoapp
 EXPOSE 8080
