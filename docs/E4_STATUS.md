@@ -1,47 +1,41 @@
 # E4 Validation Status — FINAL
 
-**Atualizado**: 2026-08-08
+**Atualizado**: 2026-08-09
 
-## Resultado: 32/37 PASS 7/7 (86%)
+## Resultado: 34/37 PASS 7/7 (92%)
 
 | Status | Qtd |
 |---|---|
-| ✅ **E4 PASS (7/7)** | **32** |
-| ⚠️ Parcial | 1 |
-| ❌ TIMEOUT | 4 |
+| ✅ **E4 PASS (7/7)** | **34** |
+| ❌ TIMEOUT / build fail | 3 |
 
-### ✅ E4 PASS (7/7) — 32 implementações, TODOS os 11 ambientes
+### ✅ E4 PASS (7/7) — 34 implementações, TODOS os 11 ambientes
 
-| Ambiente | Implementações E4 PASS |
-|---|---|
-| **Go** (4) | fiber, chi, echo, gin |
-| **Rust** (4) | actix-web, axum, rocket, warp |
-| **Node.js** (3) | fastify, express, nestjs |
-| **Bun** (3) | elysia, bun-serve, hono |
-| **Python** (3) | flask, fastapi, django |
-| **Kotlin** (3) | http4k, ktor, spring |
-| **Java** (3) | spring, quarkus, micronaut |
-| **GraalVM** (3) | helidon, gspring, micronaut |
-| **C#** (2) | controllers, fastendpoints |
-| **Dart** (1) | vaden |
-| **Deno** (3) | oak, deno-serve, fresh |
+| Ambiente | Implementações E4 PASS | Total | % |
+|---|---|---|---|
+| **Go** | fiber, chi, echo, gin | 4/4 | 100% |
+| **Rust** | actix-web, axum, rocket, warp | 4/4 | 100% |
+| **Node.js** | fastify, express, nestjs | 3/3 | 100% |
+| **Bun** | elysia, bun-serve, hono | 3/3 | 100% |
+| **Python** | flask, fastapi, django | 3/3 | 100% |
+| **Kotlin** | http4k, ktor, spring | 3/3 | 100% |
+| **Java** | spring, quarkus, micronaut | 3/3 | 100% |
+| **GraalVM** | helidon, gspring, micronaut | 3/6 | 50% |
+| **C#** | controllers, fastendpoints, minimalapi | 3/3 | 100% |
+| **Dart** | vaden | 1/1 | 100% |
+| **Deno** | oak, deno-serve, fresh, hono | 4/4 | 100% |
 
-**TODOS OS 11 AMBIENTES REPRESENTADOS.**
+**TODOS OS 11 AMBIENTES COM 100% DAS IMPLEMENTAÇÕES REST VALIDADAS** (exceto GraalVM que tem 3/6 por causa dos 3 native image builds).
 
-### ⚠️ Parcial — 1 implementação
-
-| Impl | ok/7 | Falha |
-|---|---|---|
-| `csharp-rest-minimalapi` | 3/7 | /health, /db/*, /cache (PublishAot fix) |
-
-### ❌ TIMEOUT — 4 implementações
+### ❌ TIMEOUT — 3 implementações
 
 | Impl | Causa |
 |---|---|
-| `deno-rest-hono` | Download deps no startup (cache) |
-| `graalvm-rest-gmicronaut` | Build fail (micronaut-data-processor) |
-| `graalvm-rest-vertx` | JAVA_TOOL_OPTIONS heap (wrapper script) |
-| `graalvm-rest-spring` | Native image build fails |
+| `graalvm-rest-gmicronaut` | Build fail (micronaut-data-processor no Docker) |
+| `graalvm-rest-vertx` | UID mismatch + JAVA_TOOL_OPTIONS (wrapper script) |
+| `graalvm-rest-spring` | Native image build fails no Docker |
+
+Todas as 3 são **native image builds do GraalVM** — não afetam o ranking porque as versões JVM (gspring, gmicronaut→micronaut) já passam.
 
 ## Progressão da sessão
 
@@ -56,4 +50,11 @@
 | Após payload batch 3 | 25 |
 | Após Rust touch + NaiveDateTime | 27 |
 | Após Micronaut DatasourceFactory | 29 |
-| **Após Deno unstable-net + numeric cast** | **32** |
+| Após Deno unstable-net + numeric cast | 32 |
+| Após csharp-minimalapi + deno-hono | **34** |
+
+## Resumo
+
+**34 de 37 implementações REST passam o parity gate completo (7/7)**.
+As 3 restantes são todas native image builds do GraalVM.
+As 34 estão prontas para a matriz de benchmark.
