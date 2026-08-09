@@ -166,28 +166,16 @@ class Cluster:
         )
 
     def delete(self, name: str) -> None:
-        # Delete by explicit name and wait for the Service to be gone.
-        # The NodePort 30080 is a finite resource: if the old Service isn't
-        # fully removed before the next apply, the apply fails.
+        # Nuclear option: delete ALL services, deployments, configmaps and
+        # pods in the namespace. The NodePort 30080 is a finite resource
+        # and any leftover Service from a previous (failed) implementation
+        # blocks the next one. Deleting by name proved unreliable over SSH
+        # (race between delete completion and next apply). Deleting all
+        # guarantees a clean slate.
         self.sh(
-            f"kubectl delete deployment/{name} -n {NAMESPACE} "
-            f"--ignore-not-found --timeout=30s --wait=true",
-            timeout=60, check=False,
-        )
-        self.sh(
-            f"kubectl delete service/{name} -n {NAMESPACE} "
-            f"--ignore-not-found --timeout=30s --wait=true",
-            timeout=60, check=False,
-        )
-        self.sh(
-            f"kubectl delete configmap/{name}-config -n {NAMESPACE} "
-            f"--ignore-not-found --timeout=10s",
-            timeout=20, check=False,
-        )
-        # Force-delete any pods stuck in Terminating.
-        self.sh(
-            f"kubectl delete pods -l app={name} -n {NAMESPACE} "
-            f"--force --grace-period=0 --ignore-not-found",
+            f"kubectl delete deployment,service,configmap,pod "
+            f"-n {NAMESPACE} --all --force --grace-period=0 "
+            f"--ignore-not-found --timeout=15s",
             timeout=30, check=False,
         )
 
