@@ -482,6 +482,12 @@ def main() -> int:
     for idx, (protocol, name, overlay) in enumerate(targets, 1):
         print(f"[{idx}/{len(targets)}] {name} ({protocol})", flush=True)
         record: dict = {"protocol": protocol, "overlay": str(overlay.relative_to(REPO))}
+        # Pre-clean: delete any leftover Service/Deployment from a failed
+        # previous run before applying the new one. Without this, the NodePort
+        # 30080 stays allocated by the old Service and kubectl apply fails.
+        cluster.delete(name)
+        if not cfg.dry_run:
+            time.sleep(2)
         try:
             cluster.apply(overlay)
             cluster.wait_ready(name)
