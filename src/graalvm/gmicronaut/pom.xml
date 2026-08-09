@@ -34,10 +34,14 @@
             <groupId>io.micronaut.sql</groupId>
             <artifactId>micronaut-jdbc-hikari</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.micronaut.data</groupId>
-            <artifactId>micronaut-data-jdbc</artifactId>
-        </dependency>
+        <!-- micronaut-data-jdbc deliberately NOT included. The /db endpoints
+             use raw JDBC in DatabaseService (User/UserStats are plain Jackson
+             DTOs, not @MappedEntity, so no @JdbcRepository can be generated).
+             micronaut-data-jdbc wraps every DataSource in a transactional
+             proxy, which makes DatabaseService.getConnection() throw
+             "No current connection present. Consider declaring @Transactional"
+             even though no Micronaut Data repository exists. micronaut-jdbc-
+             hikari alone produces the plain HikariDataSource the queries need. -->
         <dependency>
             <groupId>io.micronaut.redis</groupId>
             <artifactId>micronaut-redis-lettuce</artifactId>
@@ -55,14 +59,12 @@
 
   <build>
     <plugins>
-      <!-- Explicitly declare the compiler plugin so the annotation processors
-           are guaranteed to run. micronaut-inject-java generates the bean/route
-           introspection metadata that lets the runtime discover @Controller,
-           @Singleton and @Inject beans. micronaut-data-processor generates the
-           implementations of @Repository / @JdbcRepository interfaces at
-           compile time; without it the generated repository is missing and
-           every /db/* call throws "Micronaut Data method is missing
-           compilation". -->
+      <!-- Explicitly declare the compiler plugin so micronaut-inject-java is
+           guaranteed to run. It generates the bean/route introspection metadata
+           that lets the runtime discover @Controller, @Singleton and @Inject
+           beans. (micronaut-data-processor used to live here too, but with
+           micronaut-data-jdbc removed, see dependencies above, there is no
+           @JdbcRepository left to implement.) -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
@@ -73,11 +75,10 @@
               <artifactId>micronaut-inject-java</artifactId>
               <version>${micronaut.core.version}</version>
             </path>
-            <path>
-              <groupId>io.micronaut.data</groupId>
-              <artifactId>micronaut-data-processor</artifactId>
-              <version>${micronaut.data.version}</version>
-            </path>
+            <!-- micronaut-data-processor removed: with micronaut-data-jdbc gone
+                 there is no @Repository/@JdbcRepository to implement, and the
+                 processor's DataSource transaction wrapping is what broke the
+                 raw-JDBC getConnection() calls in DatabaseService. -->
           </annotationProcessorPaths>
         </configuration>
       </plugin>
