@@ -58,9 +58,9 @@ class DatabaseService {
       SELECT
         u.id AS "userId",
         u.first_name || ' ' || u.last_name AS "userName",
-        COUNT(o.id) AS "totalOrders",
-        COALESCE(SUM(o.total_amount), 0) AS "totalValue",
-        COALESCE(AVG(o.total_amount), 0) AS "averageOrderValue"
+        COUNT(o.id)::int AS "totalOrders",
+        COALESCE(SUM(o.total_amount), 0)::float8 AS "totalValue",
+        COALESCE(AVG(o.total_amount), 0)::float8 AS "averageOrderValue"
       FROM users u
       INNER JOIN orders o ON u.id = o.user_id
         WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
@@ -196,7 +196,6 @@ app.get("/db/complex", async (c) => {
     periodDays: days,
     totalUsers: results.length,
     data: results,
-    timestamp: new Date().toISOString(),
   });
 });
 
