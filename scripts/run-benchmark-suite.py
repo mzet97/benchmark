@@ -148,6 +148,39 @@ class Cluster:
             return
         self._apply_stdin(render_overlay(overlay))
 
+    def ensure_image(self, name: str) -> None:
+        """Import the Docker image into k3s containerd if not present.
+
+        The k3s containerd on this node loses imported images on restart.
+        This checks if the image exists and imports it via nsenter if not.
+        """
+        if self.cfg.dry_run:
+            return
+        img = f"benchmark/{name}:latest"
+        # Check if image exists in containerd
+        K3S_PID_CMD = "K3S_PID=$(pgrep -f 'k3s server' | head -1)"
+        check = self.sh(
+            f'{K3S_PID_CMD}; docker run --rm --privileged --pid=host -v /proc:/proc alpine sh -c "'
+            f'K3SBIN=$(nsenter -t $K3S_PID -m -- readlink -f /usr/local/bin/k3s); '
+            f'nsenter -t $K3S_PID -m -- $K3SBIN ctr --address /run/k3s/containerd/containerd.sock '
+            f'--namespace k8s.io images list 2>&1 | grep -c \'benchmark/{name}\'"',
+            timeout=30, check=False,
+        )
+        if check.strip().isdigit() and int(check.strip()) > 0:
+            return  # Image already present
+        # Import via nsenter
+        print(f"      importing {img} to containerd...", flush=True)
+        self.sh(
+            f'docker save {img} -o /tmp/_runner.tar 2>/dev/null && '
+            f'{K3S_PID_CMD}; '
+            f'docker run --rm --privileged --pid=host -v /proc:/proc -v /tmp:/tmp alpine sh -c "'
+            f'K3SBIN=$(nsenter -t $K3S_PID -m -- readlink -f /usr/local/bin/k3s); '
+            f'nsenter -t $K3S_PID -m -u -i -n -p -- $K3SBIN ctr --address /run/k3s/containerd/containerd.sock '
+            f'--namespace k8s.io images import /tmp/_runner.tar 2>&1 | tail -1" && '
+            f'rm -f /tmp/_runner.tar',
+            timeout=120, check=True,
+        )
+
     def _apply_stdin(self, manifest: str) -> None:
         if self.cfg.dry_run:
             print("      [dry-run] kubectl apply -f - (manifest piped)")
@@ -484,6 +517,8 @@ def main() -> int:
         if not cfg.dry_run:
             time.sleep(2)
         try:
+            cluster.ensure_image(name)
+            cluster.apply(overlay)
             cluster.apply(overlay)
             cluster.wait_ready(name)
 
