@@ -225,7 +225,6 @@ const handleRequest = async (req: Request): Promise<Response> => {
         periodDays: days,
         totalUsers: results.length,
         data: results,
-        timestamp: new Date().toISOString(),
       }), { headers: jsonHeaders });
     }
 

@@ -48,7 +48,6 @@ router.get("/db/complex", async (ctx: Context) => {
     periodDays: days,
     totalUsers: results.length,
     data: results,
-    timestamp: new Date().toISOString(),
   });
 });
 
