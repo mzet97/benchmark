@@ -187,10 +187,16 @@ class Cluster:
         if self.cfg.dry_run:
             print("      [dry-run] kubectl apply -f - (manifest piped)")
             return
-        proc = subprocess.run(
-            self._ssh + ["kubectl apply -f - --timeout=60s"],
-            input=manifest, capture_output=True, text=True, timeout=120,
-        )
+        if self._local:
+            proc = subprocess.run(
+                ["bash", "-c", "kubectl apply -f - --timeout=60s"],
+                input=manifest, capture_output=True, text=True, timeout=120,
+            )
+        else:
+            proc = subprocess.run(
+                self._ssh + ["kubectl apply -f - --timeout=60s"],
+                input=manifest, capture_output=True, text=True, timeout=120,
+            )
         if proc.returncode != 0:
             raise CommandError(f"kubectl apply failed:\n{proc.stderr.strip()[:600]}")
 
