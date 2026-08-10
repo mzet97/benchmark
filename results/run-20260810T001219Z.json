@@ -1,0 +1,1759 @@
+{
+  "started_utc": "2026-08-10T00:12:19.448445+00:00",
+  "host": "127.0.0.1",
+  "seed": 42,
+  "order": [
+    "csharp-rest-minimalapi",
+    "graalvm-rest-vertx",
+    "go-rest-echo",
+    "deno-rest-hono",
+    "java-rest-quarkus",
+    "kotlin-rest-spring",
+    "nodejs-rest-express",
+    "csharp-rest-fastendpoints",
+    "kotlin-rest-http4k",
+    "nodejs-rest-nestjs",
+    "rust-rest-actix-web",
+    "python-rest-fastapi",
+    "python-rest-flask",
+    "deno-rest-oak",
+    "go-rest-chi",
+    "graalvm-rest-spring",
+    "nodejs-rest-fastify",
+    "graalvm-rest-gspring",
+    "rust-rest-warp",
+    "dart-rest-vaden",
+    "kotlin-rest-ktor",
+    "bun-rest-bun-serve",
+    "rust-rest-rocket",
+    "go-rest-fiber",
+    "graalvm-rest-micronaut",
+    "bun-rest-hono",
+    "rust-rest-axum",
+    "python-rest-django",
+    "java-rest-micronaut",
+    "csharp-rest-controllers",
+    "java-rest-spring",
+    "deno-rest-fresh",
+    "go-rest-gin",
+    "graalvm-rest-gmicronaut",
+    "graalvm-rest-helidon",
+    "bun-rest-elysia",
+    "deno-rest-deno-serve"
+  ],
+  "parameters": {
+    "repetitions": 5,
+    "duration_s": 60,
+    "warmup_s": 30,
+    "settle_s": 10,
+    "connections": 100,
+    "node_port": 30080,
+    "generator": "bombardier",
+    "generator_location": "workstation"
+  },
+  "primary_json_scenario": "json-n100",
+  "implementations": {
+    "csharp-rest-minimalapi": {
+      "protocol": "rest",
+      "overlay": "deploy/k3s/overlays/rest/csharp-rest-minimalapi",
+      "parity": {
+        "passed": true,
+        "detail": "=== http://127.0.0.1:30080 ===\n    [ok]   /json?n=10 payload matches canonical\n    [ok]   /json?n=100 payload matches canonical\n    [ok]   /json?n=1000 payload matches canonical\n    [ok]   /health key set matches contract\n    [ok]   /db/simple key set matches contract\n    [ok]   /db/complex?days=30 key set matches contract\n    [ok]   /cache?key=benchmark key set matches contract\n\nPARITY OK"
+      },
+      "scenarios": {
+        "health": {
+          "path": "/health",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 28799.0,
+              "latency_p50_ms": 3.26,
+              "latency_p99_ms": 6.96,
+              "bytes_per_sec": 9140000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 29565.14,
+              "latency_p50_ms": 3.16,
+              "latency_p99_ms": 6.89,
+              "bytes_per_sec": 9380000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 29825.86,
+              "latency_p50_ms": 3.12,
+              "latency_p99_ms": 6.93,
+              "bytes_per_sec": 9470000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 29873.85,
+              "latency_p50_ms": 3.12,
+              "latency_p99_ms": 6.82,
+              "bytes_per_sec": 9480000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 29727.26,
+              "latency_p50_ms": 3.13,
+              "latency_p99_ms": 6.88,
+              "bytes_per_sec": 9430000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 29727.26,
+            "rps_mean": 29558.221999999998,
+            "rps_min": 28799.0,
+            "rps_max": 29873.85,
+            "rps_stdev": 440.5368551211121,
+            "latency_p99_ms_median": 6.89
+          }
+        },
+        "json-n10": {
+          "path": "/json?n=10",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 94455.26,
+              "latency_p50_ms": 0.7,
+              "latency_p99_ms": 5.04,
+              "bytes_per_sec": 165580000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 93834.31,
+              "latency_p50_ms": 0.704,
+              "latency_p99_ms": 5.05,
+              "bytes_per_sec": 164450000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 92835.21,
+              "latency_p50_ms": 0.717,
+              "latency_p99_ms": 5.09,
+              "bytes_per_sec": 162740000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 94107.62,
+              "latency_p50_ms": 0.704,
+              "latency_p99_ms": 5.08,
+              "bytes_per_sec": 164930000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 92792.69,
+              "latency_p50_ms": 0.713,
+              "latency_p99_ms": 4.96,
+              "bytes_per_sec": 162640000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 93834.31,
+            "rps_mean": 93605.018,
+            "rps_min": 92792.69,
+            "rps_max": 94455.26,
+            "rps_stdev": 755.0788347384615,
+            "latency_p99_ms_median": 5.05
+          }
+        },
+        "json-n100": {
+          "path": "/json?n=100",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 60194.39,
+              "latency_p50_ms": 1.49,
+              "latency_p99_ms": 4.61,
+              "bytes_per_sec": 900000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 58889.0,
+              "latency_p50_ms": 1.52,
+              "latency_p99_ms": 4.77,
+              "bytes_per_sec": 880000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 56366.94,
+              "latency_p50_ms": 1.6,
+              "latency_p99_ms": 4.99,
+              "bytes_per_sec": 862100000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 60398.26,
+              "latency_p50_ms": 1.48,
+              "latency_p99_ms": 4.63,
+              "bytes_per_sec": 900000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 59020.88,
+              "latency_p50_ms": 1.52,
+              "latency_p99_ms": 4.71,
+              "bytes_per_sec": 880000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 59020.88,
+            "rps_mean": 58973.89399999999,
+            "rps_min": 56366.94,
+            "rps_max": 60398.26,
+            "rps_stdev": 1606.5532065200946,
+            "latency_p99_ms_median": 4.71
+          }
+        },
+        "json-n1000": {
+          "path": "/json?n=1000",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 12397.78,
+              "latency_p50_ms": 7.64,
+              "latency_p99_ms": 17.9,
+              "bytes_per_sec": 1850000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 11986.88,
+              "latency_p50_ms": 7.84,
+              "latency_p99_ms": 18.68,
+              "bytes_per_sec": 1790000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 11722.88,
+              "latency_p50_ms": 8.04,
+              "latency_p99_ms": 18.85,
+              "bytes_per_sec": 1750000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 12400.04,
+              "latency_p50_ms": 7.62,
+              "latency_p99_ms": 18.07,
+              "bytes_per_sec": 1850000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 12095.6,
+              "latency_p50_ms": 7.82,
+              "latency_p99_ms": 18.14,
+              "bytes_per_sec": 1810000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 12095.6,
+            "rps_mean": 12120.636,
+            "rps_min": 11722.88,
+            "rps_max": 12400.04,
+            "rps_stdev": 287.9247715636854,
+            "latency_p99_ms_median": 18.14
+          }
+        },
+        "db-simple": {
+          "path": "/db/simple?id=1",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 31405.71,
+              "latency_p50_ms": 2.91,
+              "latency_p99_ms": 6.79,
+              "bytes_per_sec": 8350000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 30240.57,
+              "latency_p50_ms": 3.0,
+              "latency_p99_ms": 7.8,
+              "bytes_per_sec": 8039999.999999999,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 29221.78,
+              "latency_p50_ms": 3.13,
+              "latency_p99_ms": 8.0,
+              "bytes_per_sec": 7770000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 31376.46,
+              "latency_p50_ms": 2.88,
+              "latency_p99_ms": 7.08,
+              "bytes_per_sec": 8350000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 30360.71,
+              "latency_p50_ms": 3.0,
+              "latency_p99_ms": 7.53,
+              "bytes_per_sec": 8070000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 30360.71,
+            "rps_mean": 30521.045999999995,
+            "rps_min": 29221.78,
+            "rps_max": 31405.71,
+            "rps_stdev": 909.2345767897303,
+            "latency_p99_ms_median": 7.53
+          }
+        },
+        "db-complex": {
+          "path": "/db/complex?days=30",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 848.08,
+              "latency_p50_ms": 117.44,
+              "latency_p99_ms": 140.76,
+              "bytes_per_sec": 10210000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 845.38,
+              "latency_p50_ms": 117.9,
+              "latency_p99_ms": 140.87,
+              "bytes_per_sec": 10180000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 851.34,
+              "latency_p50_ms": 116.96,
+              "latency_p99_ms": 139.13,
+              "bytes_per_sec": 10260000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 846.36,
+              "latency_p50_ms": 117.74,
+              "latency_p99_ms": 140.64,
+              "bytes_per_sec": 10190000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 850.83,
+              "latency_p50_ms": 117.01,
+              "latency_p99_ms": 139.31,
+              "bytes_per_sec": 10250000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 848.08,
+            "rps_mean": 848.3979999999999,
+            "rps_min": 845.38,
+            "rps_max": 851.34,
+            "rps_stdev": 2.6425782864467955,
+            "latency_p99_ms_median": 140.64
+          }
+        },
+        "cache": {
+          "path": "/cache?key=benchmark",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 49217.07,
+              "latency_p50_ms": 1.55,
+              "latency_p99_ms": 8.63,
+              "bytes_per_sec": 18570000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 48694.87,
+              "latency_p50_ms": 1.57,
+              "latency_p99_ms": 8.44,
+              "bytes_per_sec": 18380000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 49014.82,
+              "latency_p50_ms": 1.56,
+              "latency_p99_ms": 8.41,
+              "bytes_per_sec": 18490000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 49057.18,
+              "latency_p50_ms": 1.55,
+              "latency_p99_ms": 8.71,
+              "bytes_per_sec": 18510000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 49279.47,
+              "latency_p50_ms": 1.55,
+              "latency_p99_ms": 8.52,
+              "bytes_per_sec": 18600000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 49057.18,
+            "rps_mean": 49052.682,
+            "rps_min": 48694.87,
+            "rps_max": 49279.47,
+            "rps_stdev": 228.00186505816055,
+            "latency_p99_ms_median": 8.52
+          }
+        }
+      },
+      "status": "measured"
+    },
+    "graalvm-rest-vertx": {
+      "protocol": "rest",
+      "overlay": "deploy/k3s/overlays/rest/graalvm-rest-vertx",
+      "status": "error",
+      "reason": "bash -c kubectl rollout status deployment/graalvm-rest-vertx -n benchmark --timeout=180s... exited 1\nstdout: Waiting for deployment \"graalvm-rest-vertx\" rollout to finish: 0 out of 1 new replicas have been updated...\nWaiting for deployment \"graalvm-rest-vertx\" rollout to finish: 0 of 1 updated replicas are available...\nstderr: error: timed out waiting for the condition"
+    },
+    "go-rest-echo": {
+      "protocol": "rest",
+      "overlay": "deploy/k3s/overlays/rest/go-rest-echo",
+      "parity": {
+        "passed": true,
+        "detail": "=== http://127.0.0.1:30080 ===\n    [ok]   /json?n=10 payload matches canonical\n    [ok]   /json?n=100 payload matches canonical\n    [ok]   /json?n=1000 payload matches canonical\n    [ok]   /health key set matches contract\n    [ok]   /db/simple key set matches contract\n    [ok]   /db/complex?days=30 key set matches contract\n    [ok]   /cache?key=benchmark key set matches contract\n\nPARITY OK"
+      },
+      "scenarios": {
+        "health": {
+          "path": "/health",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 23230.91,
+              "latency_p50_ms": 3.88,
+              "latency_p99_ms": 10.77,
+              "bytes_per_sec": 6870000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 23452.33,
+              "latency_p50_ms": 3.83,
+              "latency_p99_ms": 10.76,
+              "bytes_per_sec": 6930000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 23696.14,
+              "latency_p50_ms": 3.79,
+              "latency_p99_ms": 10.75,
+              "bytes_per_sec": 7000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 23734.57,
+              "latency_p50_ms": 3.78,
+              "latency_p99_ms": 10.74,
+              "bytes_per_sec": 7010000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 23655.63,
+              "latency_p50_ms": 3.79,
+              "latency_p99_ms": 10.71,
+              "bytes_per_sec": 6990000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 23655.63,
+            "rps_mean": 23553.916,
+            "rps_min": 23230.91,
+            "rps_max": 23734.57,
+            "rps_stdev": 210.8683612588667,
+            "latency_p99_ms_median": 10.75
+          }
+        },
+        "json-n10": {
+          "path": "/json?n=10",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 57171.13,
+              "latency_p50_ms": 0.71,
+              "latency_p99_ms": 13.3,
+              "bytes_per_sec": 98130000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 57438.19,
+              "latency_p50_ms": 0.71,
+              "latency_p99_ms": 13.29,
+              "bytes_per_sec": 98580000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 57299.55,
+              "latency_p50_ms": 0.71,
+              "latency_p99_ms": 13.23,
+              "bytes_per_sec": 98350000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 57033.75,
+              "latency_p50_ms": 0.713,
+              "latency_p99_ms": 13.25,
+              "bytes_per_sec": 97890000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 46497.73,
+              "latency_p50_ms": 0.702,
+              "latency_p99_ms": 17.35,
+              "bytes_per_sec": 79800000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 57171.13,
+            "rps_mean": 55088.06999999999,
+            "rps_min": 46497.73,
+            "rps_max": 57438.19,
+            "rps_stdev": 4804.489014099209,
+            "latency_p99_ms_median": 13.29
+          }
+        },
+        "json-n100": {
+          "path": "/json?n=100",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 27109.92,
+              "latency_p50_ms": 1.07,
+              "latency_p99_ms": 29.37,
+              "bytes_per_sec": 413510000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 27105.22,
+              "latency_p50_ms": 1.06,
+              "latency_p99_ms": 29.3,
+              "bytes_per_sec": 413350000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 27058.55,
+              "latency_p50_ms": 1.07,
+              "latency_p99_ms": 29.53,
+              "bytes_per_sec": 412710000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 27080.48,
+              "latency_p50_ms": 1.07,
+              "latency_p99_ms": 29.53,
+              "bytes_per_sec": 412990000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 27008.32,
+              "latency_p50_ms": 1.07,
+              "latency_p99_ms": 29.44,
+              "bytes_per_sec": 411940000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 27080.48,
+            "rps_mean": 27072.498,
+            "rps_min": 27008.32,
+            "rps_max": 27109.92,
+            "rps_stdev": 41.376956388792046,
+            "latency_p99_ms_median": 29.44
+          }
+        },
+        "json-n1000": {
+          "path": "/json?n=1000",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 9686.78,
+              "latency_p50_ms": 4.34,
+              "latency_p99_ms": 66.1,
+              "bytes_per_sec": 1450000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 9666.12,
+              "latency_p50_ms": 4.38,
+              "latency_p99_ms": 65.62,
+              "bytes_per_sec": 1440000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 9740.34,
+              "latency_p50_ms": 4.33,
+              "latency_p99_ms": 65.67,
+              "bytes_per_sec": 1450000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 9747.14,
+              "latency_p50_ms": 4.33,
+              "latency_p99_ms": 66.3,
+              "bytes_per_sec": 1460000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 9716.47,
+              "latency_p50_ms": 4.36,
+              "latency_p99_ms": 65.51,
+              "bytes_per_sec": 1450000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 9716.47,
+            "rps_mean": 9711.369999999999,
+            "rps_min": 9666.12,
+            "rps_max": 9747.14,
+            "rps_stdev": 34.630168928262016,
+            "latency_p99_ms_median": 65.67
+          }
+        },
+        "db-simple": {
+          "path": "/db/simple?id=1",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 16443.06,
+              "latency_p50_ms": 5.42,
+              "latency_p99_ms": 17.2,
+              "bytes_per_sec": 3670000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 16485.22,
+              "latency_p50_ms": 5.39,
+              "latency_p99_ms": 17.19,
+              "bytes_per_sec": 3680000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 16515.47,
+              "latency_p50_ms": 5.39,
+              "latency_p99_ms": 17.11,
+              "bytes_per_sec": 3680000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 16566.66,
+              "latency_p50_ms": 5.37,
+              "latency_p99_ms": 17.1,
+              "bytes_per_sec": 3700000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 16525.04,
+              "latency_p50_ms": 5.38,
+              "latency_p99_ms": 17.18,
+              "bytes_per_sec": 3690000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 16515.47,
+            "rps_mean": 16507.090000000004,
+            "rps_min": 16443.06,
+            "rps_max": 16566.66,
+            "rps_stdev": 46.14961971674256,
+            "latency_p99_ms_median": 17.18
+          }
+        },
+        "db-complex": {
+          "path": "/db/complex?days=30",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 869.9,
+              "latency_p50_ms": 91.64,
+              "latency_p99_ms": 394.88,
+              "bytes_per_sec": 9500000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 870.13,
+              "latency_p50_ms": 91.75,
+              "latency_p99_ms": 394.34,
+              "bytes_per_sec": 9500000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 866.35,
+              "latency_p50_ms": 91.91,
+              "latency_p99_ms": 394.0,
+              "bytes_per_sec": 9460000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 868.91,
+              "latency_p50_ms": 91.4,
+              "latency_p99_ms": 392.77,
+              "bytes_per_sec": 9490000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 867.7,
+              "latency_p50_ms": 91.77,
+              "latency_p99_ms": 395.88,
+              "bytes_per_sec": 9470000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 868.91,
+            "rps_mean": 868.598,
+            "rps_min": 866.35,
+            "rps_max": 870.13,
+            "rps_stdev": 1.5810977199401468,
+            "latency_p99_ms_median": 394.34
+          }
+        },
+        "cache": {
+          "path": "/cache?key=benchmark",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 33061.59,
+              "latency_p50_ms": 2.53,
+              "latency_p99_ms": 9.73,
+              "bytes_per_sec": 10690000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 33139.98,
+              "latency_p50_ms": 2.55,
+              "latency_p99_ms": 9.53,
+              "bytes_per_sec": 10710000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 32457.79,
+              "latency_p50_ms": 2.71,
+              "latency_p99_ms": 9.36,
+              "bytes_per_sec": 10490000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 32189.67,
+              "latency_p50_ms": 2.77,
+              "latency_p99_ms": 9.38,
+              "bytes_per_sec": 10400000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 31498.17,
+              "latency_p50_ms": 2.95,
+              "latency_p99_ms": 9.16,
+              "bytes_per_sec": 10180000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 32457.79,
+            "rps_mean": 32469.440000000002,
+            "rps_min": 31498.17,
+            "rps_max": 33139.98,
+            "rps_stdev": 674.914420945353,
+            "latency_p99_ms_median": 9.38
+          }
+        }
+      },
+      "status": "measured"
+    },
+    "deno-rest-hono": {
+      "protocol": "rest",
+      "overlay": "deploy/k3s/overlays/rest/deno-rest-hono",
+      "parity": {
+        "passed": true,
+        "detail": "=== http://127.0.0.1:30080 ===\n    [ok]   /json?n=10 payload matches canonical\n    [ok]   /json?n=100 payload matches canonical\n    [ok]   /json?n=1000 payload matches canonical\n    [ok]   /health key set matches contract\n    [ok]   /db/simple key set matches contract\n    [ok]   /db/complex?days=30 key set matches contract\n    [ok]   /cache?key=benchmark key set matches contract\n\nPARITY OK"
+      },
+      "scenarios": {
+        "health": {
+          "path": "/health",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 27110.26,
+              "latency_p50_ms": 3.36,
+              "latency_p99_ms": 8.79,
+              "bytes_per_sec": 8090000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 26508.09,
+              "latency_p50_ms": 3.4,
+              "latency_p99_ms": 10.02,
+              "bytes_per_sec": 7910000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 26140.69,
+              "latency_p50_ms": 3.27,
+              "latency_p99_ms": 10.29,
+              "bytes_per_sec": 7800000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 25874.35,
+              "latency_p50_ms": 3.07,
+              "latency_p99_ms": 10.06,
+              "bytes_per_sec": 7720000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 25520.74,
+              "latency_p50_ms": 3.18,
+              "latency_p99_ms": 10.8,
+              "bytes_per_sec": 7620000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 26140.69,
+            "rps_mean": 26230.826,
+            "rps_min": 25520.74,
+            "rps_max": 27110.26,
+            "rps_stdev": 610.2665914418051,
+            "latency_p99_ms_median": 10.06
+          }
+        },
+        "json-n10": {
+          "path": "/json?n=10",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 154604.69,
+              "latency_p50_ms": 0.455,
+              "latency_p99_ms": 3.87,
+              "bytes_per_sec": 265750000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 159878.91,
+              "latency_p50_ms": 0.448,
+              "latency_p99_ms": 3.56,
+              "bytes_per_sec": 274930000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 156994.3,
+              "latency_p50_ms": 0.447,
+              "latency_p99_ms": 3.45,
+              "bytes_per_sec": 269920000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 154538.09,
+              "latency_p50_ms": 0.453,
+              "latency_p99_ms": 3.45,
+              "bytes_per_sec": 265709999.99999997,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 151005.06,
+              "latency_p50_ms": 0.456,
+              "latency_p99_ms": 4.0,
+              "bytes_per_sec": 259550000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 154604.69,
+            "rps_mean": 155404.21000000002,
+            "rps_min": 151005.06,
+            "rps_max": 159878.91,
+            "rps_stdev": 3289.8800550096053,
+            "latency_p99_ms_median": 3.56
+          }
+        },
+        "json-n100": {
+          "path": "/json?n=100",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 95917.78,
+              "latency_p50_ms": 0.87,
+              "latency_p99_ms": 3.5,
+              "bytes_per_sec": 1430000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 97276.07,
+              "latency_p50_ms": 0.847,
+              "latency_p99_ms": 3.6,
+              "bytes_per_sec": 1450000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 90476.93,
+              "latency_p50_ms": 0.96,
+              "latency_p99_ms": 3.37,
+              "bytes_per_sec": 1350000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 87143.16,
+              "latency_p50_ms": 0.98,
+              "latency_p99_ms": 3.99,
+              "bytes_per_sec": 1300000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 92328.4,
+              "latency_p50_ms": 0.9,
+              "latency_p99_ms": 3.67,
+              "bytes_per_sec": 1370000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 92328.4,
+            "rps_mean": 92628.468,
+            "rps_min": 87143.16,
+            "rps_max": 97276.07,
+            "rps_stdev": 4099.620049732659,
+            "latency_p99_ms_median": 3.6
+          }
+        },
+        "json-n1000": {
+          "path": "/json?n=1000",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 20130.71,
+              "latency_p50_ms": 4.56,
+              "latency_p99_ms": 10.79,
+              "bytes_per_sec": 3010000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 19151.17,
+              "latency_p50_ms": 4.45,
+              "latency_p99_ms": 16.02,
+              "bytes_per_sec": 2860000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 19046.07,
+              "latency_p50_ms": 4.69,
+              "latency_p99_ms": 18.82,
+              "bytes_per_sec": 2840000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 19542.42,
+              "latency_p50_ms": 4.48,
+              "latency_p99_ms": 12.98,
+              "bytes_per_sec": 2920000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 19507.08,
+              "latency_p50_ms": 4.43,
+              "latency_p99_ms": 15.74,
+              "bytes_per_sec": 2910000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 19507.08,
+            "rps_mean": 19475.489999999998,
+            "rps_min": 19046.07,
+            "rps_max": 20130.71,
+            "rps_stdev": 425.55134831181067,
+            "latency_p99_ms_median": 15.74
+          }
+        },
+        "db-simple": {
+          "path": "/db/simple?id=1",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 41576.5,
+              "latency_p50_ms": 1.97,
+              "latency_p99_ms": 8.59,
+              "bytes_per_sec": 9630000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 41217.23,
+              "latency_p50_ms": 2.06,
+              "latency_p99_ms": 8.64,
+              "bytes_per_sec": 9550000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 42182.74,
+              "latency_p50_ms": 1.87,
+              "latency_p99_ms": 8.5,
+              "bytes_per_sec": 9710000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 41835.31,
+              "latency_p50_ms": 1.97,
+              "latency_p99_ms": 9.62,
+              "bytes_per_sec": 9690000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 42090.47,
+              "latency_p50_ms": 2.07,
+              "latency_p99_ms": 7.63,
+              "bytes_per_sec": 9680000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 41835.31,
+            "rps_mean": 41780.45,
+            "rps_min": 41217.23,
+            "rps_max": 42182.74,
+            "rps_stdev": 393.6278810628114,
+            "latency_p99_ms_median": 8.59
+          }
+        },
+        "db-complex": {
+          "path": "/db/complex?days=30",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 751.63,
+              "latency_p50_ms": 122.29,
+              "latency_p99_ms": 333.41,
+              "bytes_per_sec": 8480000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 740.85,
+              "latency_p50_ms": 108.92,
+              "latency_p99_ms": 332.15,
+              "bytes_per_sec": 8359999.999999999,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 751.54,
+              "latency_p50_ms": 120.24,
+              "latency_p99_ms": 380.47,
+              "bytes_per_sec": 8480000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 746.45,
+              "latency_p50_ms": 124.71,
+              "latency_p99_ms": 345.67,
+              "bytes_per_sec": 8420000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 747.71,
+              "latency_p50_ms": 118.72,
+              "latency_p99_ms": 333.92,
+              "bytes_per_sec": 8430000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 747.71,
+            "rps_mean": 747.6360000000001,
+            "rps_min": 740.85,
+            "rps_max": 751.63,
+            "rps_stdev": 4.434386090542841,
+            "latency_p99_ms_median": 333.92
+          }
+        },
+        "cache": {
+          "path": "/cache?key=benchmark",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 33306.05,
+              "latency_p50_ms": 2.28,
+              "latency_p99_ms": 11.37,
+              "bytes_per_sec": 11210000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 33355.1,
+              "latency_p50_ms": 2.86,
+              "latency_p99_ms": 12.41,
+              "bytes_per_sec": 11230000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 30502.92,
+              "latency_p50_ms": 2.76,
+              "latency_p99_ms": 10.45,
+              "bytes_per_sec": 10270000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 34170.13,
+              "latency_p50_ms": 2.7,
+              "latency_p99_ms": 9.08,
+              "bytes_per_sec": 11500000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 34063.84,
+              "latency_p50_ms": 2.45,
+              "latency_p99_ms": 7.86,
+              "bytes_per_sec": 11470000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 33355.1,
+            "rps_mean": 33079.60799999999,
+            "rps_min": 30502.92,
+            "rps_max": 34170.13,
+            "rps_stdev": 1493.6903739630911,
+            "latency_p99_ms_median": 10.45
+          }
+        }
+      },
+      "status": "measured"
+    },
+    "java-rest-quarkus": {
+      "protocol": "rest",
+      "overlay": "deploy/k3s/overlays/rest/java-rest-quarkus",
+      "parity": {
+        "passed": true,
+        "detail": "=== http://127.0.0.1:30080 ===\n    [ok]   /json?n=10 payload matches canonical\n    [ok]   /json?n=100 payload matches canonical\n    [ok]   /json?n=1000 payload matches canonical\n    [ok]   /health key set matches contract\n    [ok]   /db/simple key set matches contract\n    [ok]   /db/complex?days=30 key set matches contract\n    [ok]   /cache?key=benchmark key set matches contract\n\nPARITY OK"
+      },
+      "scenarios": {
+        "health": {
+          "path": "/health",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 32671.12,
+              "latency_p50_ms": 2.93,
+              "latency_p99_ms": 5.2,
+              "bytes_per_sec": 8410000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 32537.74,
+              "latency_p50_ms": 2.93,
+              "latency_p99_ms": 5.49,
+              "bytes_per_sec": 8380000.000000001,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 32794.17,
+              "latency_p50_ms": 2.9,
+              "latency_p99_ms": 5.12,
+              "bytes_per_sec": 8390000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 32469.63,
+              "latency_p50_ms": 2.94,
+              "latency_p99_ms": 5.35,
+              "bytes_per_sec": 8359999.999999999,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 32742.93,
+              "latency_p50_ms": 2.92,
+              "latency_p99_ms": 5.22,
+              "bytes_per_sec": 8430000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 32671.12,
+            "rps_mean": 32643.118,
+            "rps_min": 32469.63,
+            "rps_max": 32794.17,
+            "rps_stdev": 136.71673551544336,
+            "latency_p99_ms_median": 5.22
+          }
+        },
+        "json-n10": {
+          "path": "/json?n=10",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 149583.42,
+              "latency_p50_ms": 0.457,
+              "latency_p99_ms": 3.94,
+              "bytes_per_sec": 252690000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 149763.16,
+              "latency_p50_ms": 0.442,
+              "latency_p99_ms": 4.49,
+              "bytes_per_sec": 252840000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 145187.9,
+              "latency_p50_ms": 0.467,
+              "latency_p99_ms": 4.18,
+              "bytes_per_sec": 245330000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 146606.08,
+              "latency_p50_ms": 0.463,
+              "latency_p99_ms": 4.16,
+              "bytes_per_sec": 247750000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 145816.72,
+              "latency_p50_ms": 0.467,
+              "latency_p99_ms": 4.1,
+              "bytes_per_sec": 246400000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 146606.08,
+            "rps_mean": 147391.456,
+            "rps_min": 145187.9,
+            "rps_max": 149763.16,
+            "rps_stdev": 2143.709053085336,
+            "latency_p99_ms_median": 4.16
+          }
+        },
+        "json-n100": {
+          "path": "/json?n=100",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 80822.77,
+              "latency_p50_ms": 0.91,
+              "latency_p99_ms": 7.22,
+              "bytes_per_sec": 1200000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 81112.08,
+              "latency_p50_ms": 0.91,
+              "latency_p99_ms": 7.0,
+              "bytes_per_sec": 1210000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 80000.59,
+              "latency_p50_ms": 0.91,
+              "latency_p99_ms": 7.45,
+              "bytes_per_sec": 1190000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 79889.91,
+              "latency_p50_ms": 0.91,
+              "latency_p99_ms": 7.59,
+              "bytes_per_sec": 1190000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 81036.8,
+              "latency_p50_ms": 0.92,
+              "latency_p99_ms": 6.86,
+              "bytes_per_sec": 1210000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 80822.77,
+            "rps_mean": 80572.43000000001,
+            "rps_min": 79889.91,
+            "rps_max": 81112.08,
+            "rps_stdev": 583.6022341886651,
+            "latency_p99_ms_median": 7.22
+          }
+        },
+        "json-n1000": {
+          "path": "/json?n=1000",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 13167.65,
+              "latency_p50_ms": 6.95,
+              "latency_p99_ms": 20.65,
+              "bytes_per_sec": 1970000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 12708.35,
+              "latency_p50_ms": 7.06,
+              "latency_p99_ms": 24.7,
+              "bytes_per_sec": 1890000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 13063.54,
+              "latency_p50_ms": 7.03,
+              "latency_p99_ms": 20.77,
+              "bytes_per_sec": 1950000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 12827.58,
+              "latency_p50_ms": 7.08,
+              "latency_p99_ms": 22.54,
+              "bytes_per_sec": 1900000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 12744.94,
+              "latency_p50_ms": 7.16,
+              "latency_p99_ms": 22.28,
+              "bytes_per_sec": 1900000000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 12827.58,
+            "rps_mean": 12902.412,
+            "rps_min": 12708.35,
+            "rps_max": 13167.65,
+            "rps_stdev": 202.7133122663629,
+            "latency_p99_ms_median": 22.28
+          }
+        },
+        "db-simple": {
+          "path": "/db/simple?id=1",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 29468.01,
+              "latency_p50_ms": 3.19,
+              "latency_p99_ms": 6.94,
+              "bytes_per_sec": 5680000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 29638.48,
+              "latency_p50_ms": 3.17,
+              "latency_p99_ms": 7.05,
+              "bytes_per_sec": 5550000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 28645.76,
+              "latency_p50_ms": 3.24,
+              "latency_p99_ms": 7.33,
+              "bytes_per_sec": 5440000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 28895.33,
+              "latency_p50_ms": 3.22,
+              "latency_p99_ms": 7.53,
+              "bytes_per_sec": 5500000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 29107.56,
+              "latency_p50_ms": 3.22,
+              "latency_p99_ms": 7.27,
+              "bytes_per_sec": 5560000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 29107.56,
+            "rps_mean": 29151.028000000002,
+            "rps_min": 28645.76,
+            "rps_max": 29638.48,
+            "rps_stdev": 406.4030409212015,
+            "latency_p99_ms_median": 7.27
+          }
+        },
+        "db-complex": {
+          "path": "/db/complex?days=30",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 860.7,
+              "latency_p50_ms": 114.9,
+              "latency_p99_ms": 143.21,
+              "bytes_per_sec": 9380000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 851.87,
+              "latency_p50_ms": 115.98,
+              "latency_p99_ms": 146.95,
+              "bytes_per_sec": 9280000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 856.91,
+              "latency_p50_ms": 115.44,
+              "latency_p99_ms": 145.42,
+              "bytes_per_sec": 9330000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 857.3,
+              "latency_p50_ms": 115.4,
+              "latency_p99_ms": 144.68,
+              "bytes_per_sec": 9340000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 856.81,
+              "latency_p50_ms": 115.3,
+              "latency_p99_ms": 145.11,
+              "bytes_per_sec": 9330000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 856.91,
+            "rps_mean": 856.7180000000001,
+            "rps_min": 851.87,
+            "rps_max": 860.7,
+            "rps_stdev": 3.1521215078102656,
+            "latency_p99_ms_median": 145.11
+          }
+        },
+        "cache": {
+          "path": "/cache?key=benchmark",
+          "samples": [
+            {
+              "repetition": 1,
+              "requests_per_sec": 18077.74,
+              "latency_p50_ms": 5.32,
+              "latency_p99_ms": 15.77,
+              "bytes_per_sec": 5460000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 2,
+              "requests_per_sec": 17115.21,
+              "latency_p50_ms": 5.43,
+              "latency_p99_ms": 18.0,
+              "bytes_per_sec": 5170000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 3,
+              "requests_per_sec": 18188.44,
+              "latency_p50_ms": 5.37,
+              "latency_p99_ms": 15.47,
+              "bytes_per_sec": 5500000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 4,
+              "requests_per_sec": 17239.53,
+              "latency_p50_ms": 5.37,
+              "latency_p99_ms": 19.21,
+              "bytes_per_sec": 5210000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            },
+            {
+              "repetition": 5,
+              "requests_per_sec": 17362.38,
+              "latency_p50_ms": 5.32,
+              "latency_p99_ms": 19.21,
+              "bytes_per_sec": 5250000.0,
+              "non_2xx": 0,
+              "cpu_seconds": null
+            }
+          ],
+          "summary": {
+            "repetitions": 5,
+            "rps_median": 17362.38,
+            "rps_mean": 17596.66,
+            "rps_min": 17115.21,
+            "rps_max": 18188.44,
+            "rps_stdev": 498.96507708455937,
+            "latency_p99_ms_median": 18.0
+          }
+        }
+      },
+      "status": "measured"
+    }
+  }
+}
