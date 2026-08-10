@@ -112,15 +112,15 @@ def run(cmd: list[str], timeout: int = 120, check: bool = True) -> str:
 
 
 class Cluster:
-    """kubectl on the K3s node, over SSH.
+    """kubectl on the K3s node, over SSH or locally.
 
-    Key-based authentication only. The old runner read a password from
-    K3S_SSH_PASSWORD and passed it to paramiko; a benchmark runner has no
-    business handling one.
+    When --user=local, runs kubectl directly on this machine (no SSH).
+    Otherwise uses SSH with key-based authentication only.
     """
 
     def __init__(self, cfg: Config):
         self.cfg = cfg
+        self._local = (cfg.user == "local")
         self._ssh = [
             "ssh",
             "-o", "BatchMode=yes",
@@ -133,6 +133,8 @@ class Cluster:
         if self.cfg.dry_run:
             print(f"      [dry-run] ssh: {command[:110]}")
             return ""
+        if self._local:
+            return run(["bash", "-c", command], timeout=timeout, check=check)
         return run(self._ssh + [command], timeout=timeout, check=check)
 
     def check_access(self) -> None:
