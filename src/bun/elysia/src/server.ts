@@ -39,23 +39,16 @@ const app = new Elysia()
       }
     }
   }))
-  // Request logging middleware
-  .derive(({ request }) => {
-    const start = Date.now();
-    return {
-      request,
-      startTime: start
-    };
-  })
-  .onAfterHandle(({ request, response, startTime }) => {
-    const processTime = Date.now() - startTime;
-    logger.info('Request processed', {
-      method: request.method,
-      url: request.url,
-      status: response?.status || 200,
-      processTime: `${processTime}ms`
-    });
-  })
+  // No request logging middleware.
+  //
+  // The .derive() ran on every request to stamp a start time and the
+  // .onAfterHandle() logged method/url/status/duration. LOG_LEVEL=error from the
+  // ConfigMap suppresses the output but not the derive, the two Date.now() calls
+  // or the object literal -- and only 7 of the 100 implementations carried
+  // request logging at all, so the ranking rewarded whoever left it out.
+  // Invariante 1 in docs/ACTION_PLAN.md; the same middleware was removed from
+  // nodejs/express and bun/hono and disabled in nodejs/fastify. Errors are still
+  // logged, in .onError below.
   // Error handler
   .onError(({ request, error, code }) => {
     logger.error('Request error', {

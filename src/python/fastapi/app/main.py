@@ -4,7 +4,6 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 import structlog
 import os
-import time
 
 from app.routes import health, json, database, cache
 from app.services.database import DatabaseService
@@ -42,24 +41,16 @@ app.add_middleware(
 )
 
 
-# Custom middleware for logging
-@app.middleware("http")
-async def logging_middleware(request: Request, call_next):
-    start_time = time.time()
-
-    response = await call_next(request)
-
-    process_time = time.time() - start_time
-
-    logger.info(
-        "Request processed",
-        method=request.method,
-        url=str(request.url),
-        status_code=response.status_code,
-        process_time=f"{process_time:.4f}s"
-    )
-
-    return response
+# No request logging middleware.
+#
+# It timed every request and emitted a structlog record with method, url, status
+# and duration. LOG_LEVEL=error from the ConfigMap suppresses the output but not
+# the middleware, and an @app.middleware("http") in Starlette is not free: it
+# wraps every request in an extra ASGI layer regardless of whether anything is
+# logged. Only 7 of the 100 implementations carried request logging at all, so
+# the ranking rewarded whoever left it out. Invariante 1 in
+# docs/ACTION_PLAN.md; the same was removed from nodejs/express, bun/hono,
+# bun/elysia and bun/bun_serve, and disabled in nodejs/fastify.
 
 
 # Event handlers

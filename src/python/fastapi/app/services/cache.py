@@ -36,12 +36,12 @@ class CacheService:
     async def get(self, key: str) -> Optional[str]:
         """Get value from cache"""
         try:
-            value = await self._redis.get(key)
-            if value:
-                logger.info("Cache hit", key=key)
-            else:
-                logger.info("Cache miss", key=key)
-            return value
+            # No hit/miss log per request. structlog renders and writes a record
+            # on every call to this method, which is the /cache measured path --
+            # invariante 1 in docs/ACTION_PLAN.md, and the reason
+            # deploy/k3s/base/configmap.yaml sets LOG_LEVEL=error. Only the error
+            # path logs.
+            return await self._redis.get(key)
         except Exception as e:
             logger.error("Cache get error", key=key, error=str(e))
             return None

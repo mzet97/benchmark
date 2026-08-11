@@ -22,18 +22,15 @@ const logger = pino(
 // Create Hono app
 const app = new Hono();
 
-// Request logging middleware
-app.use('*', async (c, next) => {
-  const start = Date.now();
-  await next();
-  const processTime = Date.now() - start;
-  logger.info('Request processed', {
-    method: c.req.method,
-    url: c.req.url,
-    status: c.res.status,
-    processTime: `${processTime}ms`
-  });
-});
+// No request logging middleware.
+//
+// It wrapped every request in two Date.now() calls and a logger.info with an
+// object literal. The LOG_LEVEL=error from the ConfigMap suppresses the output
+// but not the middleware, the timing or the allocation, and only 7 of the 100
+// implementations carried request logging at all -- so the ranking rewarded
+// whoever left it out. Invariante 1 in docs/ACTION_PLAN.md; the same middleware
+// was removed from nodejs/express and disabled in nodejs/fastify
+// (disableRequestLogging). Errors are still logged, in app.onError below.
 
 // Error handler
 app.onError((error, c) => {

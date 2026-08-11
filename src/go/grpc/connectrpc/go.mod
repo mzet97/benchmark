@@ -9,6 +9,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/redis/go-redis/v9 v9.7.0
 	golang.org/x/net v0.30.0
+	google.golang.org/protobuf v1.35.1
 )
 
 require (
@@ -20,5 +21,4 @@ require (
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/protobuf v1.35.1 // indirect
 )

@@ -90,8 +90,19 @@ class DatabaseService:
                 rows = cur.fetchall()
                 return [dict(row) for row in rows]
         except Exception as e:
+            # Reraise. This used to `return []`, which the route turns into a 200
+            # carrying {"periodDays": n, "totalUsers": 0, "data": []} -- a failed
+            # query indistinguishable from a legitimately empty result, invisible
+            # to the load generator's non_2xx counter and to the key-set parity
+            # check.
+            #
+            # That is not a hypothetical: rust-rest-actix-web had the identical
+            # `Err(_) => vec![]` and topped the /db/complex ranking for five
+            # consecutive runs at 32,777 rps and 220 bytes/response, against
+            # ~860 rps and ~11 kB for every implementation that answered the
+            # question. See invariante 8 in docs/ACTION_PLAN.md.
             logger.error("Error getting user stats", days=days, error=str(e))
-            return []
+            raise
 
     def close(self):
         """Close database connection"""

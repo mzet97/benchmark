@@ -22,15 +22,15 @@ const logger = pino(
 const PORT = parseInt(process.env.PORT || '8080');
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Request logger middleware
-function logRequest(method: string, url: string, status: number, processTime: number) {
-  logger.info('Request processed', {
-    method,
-    url,
-    status,
-    processTime: `${processTime}ms`
-  });
-}
+// No request logger.
+//
+// logRequest() used to be called for every request with method, url, status and
+// a duration built from two Date.now() calls. LOG_LEVEL=error from the ConfigMap
+// suppresses the output but not the call or the object literal, and only 7 of the
+// 100 implementations carried request logging at all -- so the ranking rewarded
+// whoever left it out. Invariante 1 in docs/ACTION_PLAN.md; the same was removed
+// from nodejs/express, bun/hono and bun/elysia, and disabled in nodejs/fastify.
+// Errors are still logged, in the fetch handler's catch below.
 
 // Graceful shutdown
 const shutdown = async () => {
@@ -119,9 +119,6 @@ const start = async () => {
               },
             });
           }
-
-          const processTime = Date.now() - startTime;
-          logRequest(method, url.pathname, response.status, processTime);
 
           return response;
         } catch (error) {

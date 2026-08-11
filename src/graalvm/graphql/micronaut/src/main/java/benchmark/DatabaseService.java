@@ -3,6 +3,10 @@ package benchmark;
 import io.micronaut.context.annotation.Value;
 import jakarta.inject.Singleton;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,8 +23,67 @@ public class DatabaseService {
     @Value("${database.password:benchmark}")
     private String databasePassword;
 
+    /**
+     * Pool size is part of the benchmark contract, not a per-implementation
+     * choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+     * the data access layer stops being a hidden variable in the ranking.
+     */
+    private static int dbPoolMax() {
+        String raw = System.getenv("DB_POOL_MAX");
+        if (raw != null) {
+            try {
+                int n = Integer.parseInt(raw.trim());
+                if (n > 0) {
+                    return n;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall through to the default
+            }
+        }
+        return 32;
+    }
+
+    private volatile DataSource dataSource;
+
+    /**
+     * Borrows a connection from a pooled DataSource.
+     * <p>
+     * This used to return {@code DriverManager.getConnection(...)}, which opens a
+     * brand new connection on every call -- and every caller below is a
+     * per-request path. A JDBC connection to PostgreSQL is not cheap: TCP
+     * handshake, startup message, SCRAM-SHA-256 authentication over several round
+     * trips, and a forked backend process on the server, for one query. Under the
+     * benchmark's 100 concurrent connections it also pushes the server toward
+     * max_connections, where the failure mode stops being slowness and becomes
+     * refused connections.
+     * <p>
+     * The call sites did not change: they already wrap the connection in
+     * try-with-resources, which now returns it to the pool instead of closing a
+     * socket. HikariCP is already on the classpath here (via
+     * spring-boot-starter-data-jdbc / micronaut-jdbc-hikari), so this needs no new
+     * dependency.
+     * <p>
+     * Built lazily because the {@code @Value} fields above are injected after
+     * construction. See docs/ACTION_PLAN.md, Fase 9.10.
+     */
     private Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword);
+        DataSource ds = dataSource;
+        if (ds == null) {
+            synchronized (this) {
+                ds = dataSource;
+                if (ds == null) {
+                    HikariConfig cfg = new HikariConfig();
+                    cfg.setJdbcUrl(databaseUrl);
+                    cfg.setUsername(databaseUsername);
+                    cfg.setPassword(databasePassword);
+                    cfg.setMaximumPoolSize(dbPoolMax());
+                    cfg.setMinimumIdle(dbPoolMax());
+                    ds = new HikariDataSource(cfg);
+                    dataSource = ds;
+                }
+            }
+        }
+        return ds.getConnection();
     }
 
     public String checkHealth() {

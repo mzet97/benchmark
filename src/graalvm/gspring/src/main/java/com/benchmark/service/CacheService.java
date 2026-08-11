@@ -1,6 +1,8 @@
 package com.benchmark.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -41,9 +43,22 @@ public class CacheService {
         return new CacheHit(newValue, false);
     }
 
+    /**
+     * Goes through RedisTemplate.execute, which borrows a connection from the
+     * Lettuce pool and returns it.
+     * <p>
+     * It used to call {@code getConnectionFactory().getConnection().ping()},
+     * which obtains a <em>new</em> connection on every invocation and never
+     * closes it. With {@code lettuce.pool.max-active} from the shared ConfigMap,
+     * the /health scenario drains the pool within the first few dozen requests
+     * and every later caller blocks waiting for one. On the kotlin/spring
+     * sibling that carried the identical bug, /health measured 2,910 rps with an
+     * 8,018 ms p99, and the exhausted pool then made every cache read in the pod
+     * fail as well. See docs/ACTION_PLAN.md, Fase 9.9.
+     */
     public boolean ping() {
         try {
-            return redisTemplate.getConnectionFactory().getConnection().ping() != null;
+            return redisTemplate.execute((RedisCallback<String>) RedisConnection::ping) != null;
         } catch (Exception e) {
             return false;
         }

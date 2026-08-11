@@ -3,6 +3,8 @@ package db
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"time"
 
 	"graphql-gqlgen/graph/model"
@@ -20,7 +22,10 @@ func New(ctx context.Context, databaseURL string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse db url: %w", err)
 	}
-	cfg.MaxConns = 10
+	// Was hardcoded to 10, a third of the contract. The ConfigMap comment
+	// already lists "Go GraphQL used 10" as a defect that invalidated earlier
+	// results -- it was identified in Fase 3 and never actually changed here.
+	cfg.MaxConns = int32(envInt("DB_POOL_MAX", 32))
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
@@ -159,4 +164,17 @@ func (d *DB) GetComplexOrders(ctx context.Context, days int) ([]*model.UserOrder
 		results = append(results, &s)
 	}
 	return results, nil
+}
+
+// envInt reads an integer from the environment, falling back to def when unset or
+// unparseable. DB_POOL_MAX is a contract-level knob from the shared ConfigMap
+// (deploy/k3s/base/configmap.yaml): every implementation reads the same value so
+// the data access layer stops being a hidden variable in the ranking.
+func envInt(key string, def int) int {
+	if raw := os.Getenv(key); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
+			return n
+		}
+	}
+	return def
 }
