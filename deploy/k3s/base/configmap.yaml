@@ -16,6 +16,15 @@ data:
   # between implementations and is not what this benchmark measures.
   LOG_LEVEL: "error"
 
+  # LOG_LEVEL is not a thing any Rust crate reads. env_logger and
+  # tracing_subscriber::EnvFilter read RUST_LOG, and without it the axum
+  # implementation fell back to its own default of
+  # "benchmark_axum=debug,tower_http=debug,axum=debug" -- so TraceLayer emitted
+  # a span plus two formatted stdout events per request, which is precisely the
+  # 2-3x the line above exists to prevent. The implementations no longer default
+  # to debug either; this pins it from the outside as well.
+  RUST_LOG: "error"
+
   CACHE_TTL: "300"
 
   # ---------------------------------------------------------------------
@@ -33,6 +42,15 @@ data:
   # Previously: Go REST used a single connection with no pool, Go GraphQL used
   # 10, Node/Kotlin/GraalVM used 25, Rust used the sqlx default. Sized against
   # the PostgreSQL ceiling measured in Fase 0.
+  #
+  # NOT YET TRUE FOR EVERY IMPLEMENTATION. An audit on 2026-08-10 found 39 of the
+  # 101 implementations on disk that never read this variable -- almost all of
+  # them gRPC and GraphQL, because Fase 3 fixed the pool in the REST matrix and
+  # did not reach the other two protocols. Ten JVM implementations were opening a
+  # *new* JDBC connection per request via DriverManager; three C# ones sit on
+  # Npgsql's default MaxPoolSize of 100; python/flask has no pool at all. The
+  # enumeration and the state of each is in docs/ACTION_PLAN.md, Fase 9.10.
+  # Until that closes, this value governs the REST matrix and part of the rest.
   DB_POOL_MAX: "32"
   REDIS_POOL_MAX: "32"
 

@@ -214,12 +214,80 @@ def check_key_sets(base: str, res: Result) -> None:
             res.check(False, label, last_detail)
 
 
+def check_db_payloads(base: str, res: Result) -> None:
+    """Assert the database endpoints actually returned rows.
+
+    check_key_sets() only compares the top-level key set, so a /db/complex that
+    answers {"periodDays": 30, "totalUsers": 0, "data": []} inside a 200 passes
+    it. That is not hypothetical: rust-rest-actix-web bound $1 as i32 against
+    `INTERVAL '1 day' * $1`, which Postgres types as float8, so every query
+    failed, the driver error was mapped to an empty Vec, and the endpoint went
+    to the top of the ranking at 32,777 rps and 220 bytes/response -- against
+    ~860 rps and ~11 kB for every implementation that answered the question.
+    Five consecutive runs recorded it as a legitimate result.
+
+    The fixture (sql/01_schema.sql: 10k users, 50k orders over ~90 days)
+    guarantees the 30-day window is non-empty, so an empty payload is a defect
+    by definition.
+    """
+    label = "/db/complex?days=30 returns rows"
+    try:
+        status, raw = fetch(f"{base}/db/complex?days=30")
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+        res.check(False, label, f"request failed: {exc}")
+        return
+    if status != 200:
+        res.check(False, label, f"HTTP {status}")
+        return
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        res.check(False, label, f"invalid JSON: {exc}")
+        return
+
+    data = body.get("data")
+    if not isinstance(data, list):
+        res.check(False, label, "'data' must be an array")
+        return
+    if not data:
+        res.check(False, label,
+                  "'data' is empty; the fixture has 50k orders over ~90 days, so "
+                  "a 30-day window cannot be empty. The query almost certainly "
+                  "failed and the error was swallowed behind a 200.")
+        return
+
+    # The contract fixes the page at 100 rows ordered by totalOrders DESC, id.
+    if len(data) > 100:
+        res.check(False, label, f"expected at most 100 rows, got {len(data)}")
+        return
+
+    expected_row = {"userId", "userName", "totalOrders", "totalValue",
+                    "averageOrderValue"}
+    actual_row = set(data[0].keys()) if isinstance(data[0], dict) else set()
+    if actual_row != expected_row:
+        detail = []
+        if expected_row - actual_row:
+            detail.append(f"missing: {sorted(expected_row - actual_row)}")
+        if actual_row - expected_row:
+            detail.append(f"unexpected: {sorted(actual_row - expected_row)}")
+        res.check(False, label, "data[0] key set diverges; " + "; ".join(detail))
+        return
+
+    if body.get("totalUsers") != len(data):
+        res.check(False, label,
+                  f"totalUsers={body.get('totalUsers')} but data has {len(data)} rows")
+        return
+
+    res.check(True, label)
+
+
 def validate(base: str) -> Result:
     base = base.rstrip("/")
     print(f"\n=== {base} ===")
     res = Result()
     check_json_scenario(base, res)
     check_key_sets(base, res)
+    check_db_payloads(base, res)
     return res
 
 

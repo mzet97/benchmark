@@ -43,6 +43,33 @@ unequal worker counts, and three conflicting resource profiles. The remediation
 plan (Fases 0–7) is in progress; until Fase 6 completes, no measured numbers in
 this repository should be cited or compared.
 
+### Invalidated Measurement: rust-rest-actix-web `/db/complex`
+
+Every `/db/complex` sample recorded for `rust-rest-actix-web` up to and
+including `results/run-20260810T001219Z.json` is **INVALID — DO NOT CITE**. The
+endpoint answered `200 OK` with `{"periodDays": 30, "totalUsers": 0, "data": []}`
+and was ranked first at 32,777 rps.
+
+The defect: the normative SQL filters on `NOW() - INTERVAL '1 day' * $1`.
+PostgreSQL has no `interval * int4` operator, so when tokio-postgres prepares the
+statement without declaring parameter types the server infers `$1` as `float8` —
+and `impl ToSql for i32` accepts only `INT4`. Every execution failed on the
+client side, and the handler mapped the error to an empty `Vec` behind a 200.
+The sqlx-based siblings (warp, axum, rocket) declare parameter OIDs in `Parse`,
+so PostgreSQL resolves `int4 → float8` through its implicit cast; they were
+never affected and returned ~11 kB at ~750 rps.
+
+Five consecutive runs recorded the empty response as a legitimate result because
+`scripts/validate-parity.py` only compared the top-level key set of
+`/db/complex`, which `data: []` satisfies. The parameter is now bound as `f64`,
+driver errors return 500, and the parity gate asserts the payload is non-empty
+and shaped (`check_db_payloads`). The bytes-per-response ratio is what exposes
+this class of defect: 220 B against ~11 kB for the same endpoint.
+
+The same `$1` bug, plus a `COUNT()`/`int32` decode panic, affected all three Rust
+GraphQL and all three Rust gRPC implementations, which had never produced a valid
+`complexOrders`/`GetComplexOrders` measurement.
+
 ### Database Connection Pooling
 
 All implementations now use a pooled connection with `DB_POOL_MAX=32` set via
@@ -52,6 +79,28 @@ injects the per-process limit into each child, so the pod's total stays at 32.
 The previous state — Go REST with a single `pgx.Conn`, others with pools of 10
 or 25 — was one of the defects that invalidated the earlier results and has been
 corrected in Fase 3.
+
+The three Rust gRPC implementations were missed by that pass: they held a single
+bare `tokio_postgres::Client` with no pool at all until this remediation, i.e.
+1/32 of the contract's database concurrency. The three Rust GraphQL
+implementations left `deadpool`'s `max_size` unset, which defaults to
+`cpu_count * 4` — 160 connections in the 40-CPU pod, five times the contract.
+Neither read `DB_POOL_MAX`.
+
+### Redis Connection Handling
+
+Redis access must be multiplexed or pooled. The four Rust REST implementations
+called `redis::Client::get_async_connection()` inside each handler, which opens a
+new TCP connection per request; `/cache` measured 1,636 rps at a 109 ms p99
+against 186,825 rps for Lettuce-backed http4k, describing a TCP handshake and the
+TIME_WAIT pileup behind it rather than Redis. They now hold one
+`MultiplexedConnection` established at startup.
+
+Note that `MultiplexedConnection` does not reconnect on its own: if Redis drops
+the connection, the affected pod's `/cache` and `/health` fail until it is
+restarted. `ConnectionManager` (redis feature `connection-manager`) does
+reconnect and is what the Rust GraphQL implementations use; the REST ones stayed
+on `MultiplexedConnection` to avoid a dependency-feature change mid-remediation.
 
 ### No TLS
 

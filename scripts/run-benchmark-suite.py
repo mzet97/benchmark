@@ -296,15 +296,33 @@ class Sample:
     latency_p50_ms: float | None
     latency_p99_ms: float | None
     bytes_per_sec: float | None
-    non_2xx: int
+    # None means "could not be parsed", which is NOT the same as zero. See
+    # parse_non_2xx.
+    non_2xx: int | None
     cpu_seconds: float | None = None
 
 
 BOMBARDIER_RPS = re.compile(r"Reqs/sec\s+([\d.]+)")
 BOMBARDIER_P50 = re.compile(r"50%\s+([\d.]+)(us|ms|s)")
 BOMBARDIER_P99 = re.compile(r"99%\s+([\d.]+)(us|ms|s)")
-BOMBARDIER_THROUGHPUT = re.compile(r"Throughput:\s+([\d.]+)(KB|MB|GB)/s")
-BOMBARDIER_NON2XX = re.compile(r"non-2xx or 3xx responses:\s+(\d+)")
+# "B/s" was missing from the unit alternation, so a response small enough for
+# bombardier to print bytes per second parsed as None -- and
+# scripts/audit-response-bytes.py skips samples with a falsy bytes_per_sec, so a
+# near-empty responder could drop out of the very audit meant to catch it.
+BOMBARDIER_THROUGHPUT = re.compile(r"Throughput:\s+([\d.]+)\s*(B|KB|MB|GB)/s")
+
+# bombardier reports status classes in an "HTTP codes:" block and transport
+# failures in an "Errors:" block. It never prints the string the previous regex
+# looked for.
+BOMBARDIER_CODES_BLOCK = re.compile(
+    r"HTTP codes:\s*\n(.*?)(?=\n\s*(?:Throughput|Errors)\s*:|\Z)", re.S
+)
+BOMBARDIER_CODE_CLASS = re.compile(r"([1-5])xx\s*-\s*(\d+)")
+BOMBARDIER_OTHERS = re.compile(r"others\s*-\s*(\d+)")
+BOMBARDIER_ERRORS_BLOCK = re.compile(
+    r"Errors:\s*\n(.*?)(?=\n\s*(?:Throughput|HTTP codes)\s*:|\Z)", re.S
+)
+BOMBARDIER_ERROR_COUNT = re.compile(r"-\s*(\d+)\s*$", re.M)
 
 
 def to_ms(value: float, unit: str) -> float:
@@ -312,7 +330,60 @@ def to_ms(value: float, unit: str) -> float:
 
 
 def to_bytes_per_sec(value: float, unit: str) -> float:
-    return {"KB": value * 1e3, "MB": value * 1e6, "GB": value * 1e9}[unit]
+    return {"B": value, "KB": value * 1e3, "MB": value * 1e6, "GB": value * 1e9}[unit]
+
+
+def parse_non_2xx(out: str) -> int | None:
+    """Every response bombardier did not classify as 2xx, plus transport errors.
+
+    Returns None when the output cannot be parsed, so the caller records "unknown"
+    instead of "zero".
+
+    That distinction is the whole point of this function. The previous regex was
+    `non-2xx or 3xx responses:\\s+(\\d+)`, which is **wrk's** wording -- bombardier
+    never emits that string -- and the caller substituted 0 on no-match. The
+    result: all 1099 samples across the 18 files in results/ report exactly zero
+    non-2xx responses, including
+
+      * kotlin-rest-spring /health, whose p50 was 10,010 ms (the client timeout)
+        and whose repetition 3 reported 14,433 rps at 900 bytes/s, i.e. 0.06
+        bytes per "response" -- those were timeouts counted as completed
+        requests, published as throughput;
+      * rust-rest-actix-web /db/complex at 220 bytes/response against a 10,907
+        byte field median, for five consecutive runs.
+
+    A dead error counter is worse than no error counter, because the JSON asserts
+    zero and every consumer believes it. See docs/ACTION_PLAN.md, Fase 9.11.
+    """
+    block = BOMBARDIER_CODES_BLOCK.search(out)
+    if not block:
+        return None
+
+    total = 0
+    seen_2xx = False
+    for cls, count in BOMBARDIER_CODE_CLASS.findall(block.group(1)):
+        if cls == "2":
+            seen_2xx = True
+        else:
+            total += int(count)
+    if not seen_2xx:
+        # The block exists but does not look like what we expect; do not claim a
+        # number we cannot stand behind.
+        return None
+
+    others = BOMBARDIER_OTHERS.search(block.group(1))
+    if others:
+        total += int(others.group(1))
+
+    # Transport-level failures are not HTTP responses at all: connection refused,
+    # reset, timeout. A request that never got an answer must not be reported as
+    # a successful one.
+    errors = BOMBARDIER_ERRORS_BLOCK.search(out)
+    if errors:
+        for count in BOMBARDIER_ERROR_COUNT.findall(errors.group(1)):
+            total += int(count)
+
+    return total
 
 
 def bombardier(url: str, duration: int, connections: int, dry_run: bool) -> Sample:
@@ -333,16 +404,27 @@ def bombardier(url: str, duration: int, connections: int, dry_run: bool) -> Samp
     p50 = BOMBARDIER_P50.search(out)
     p99 = BOMBARDIER_P99.search(out)
     thr = BOMBARDIER_THROUGHPUT.search(out)
-    bad = BOMBARDIER_NON2XX.search(out)
     if not rps:
         raise CommandError(f"could not parse bombardier output:\n{out[:600]}")
+
+    non_2xx = parse_non_2xx(out)
+    if non_2xx is None:
+        # Loud, not silent. A sample whose error count could not be read is not a
+        # sample with no errors, and the previous code could not tell the two
+        # apart -- see parse_non_2xx.
+        print("      [warn] could not parse bombardier's HTTP codes block; "
+              "non_2xx recorded as null, not 0", flush=True)
+    elif non_2xx > 0:
+        print(f"      [warn] {non_2xx} non-2xx or failed responses in this sample",
+              flush=True)
+
     return Sample(
         repetition=0,
         requests_per_sec=float(rps.group(1)),
         latency_p50_ms=to_ms(float(p50.group(1)), p50.group(2)) if p50 else None,
         latency_p99_ms=to_ms(float(p99.group(1)), p99.group(2)) if p99 else None,
         bytes_per_sec=to_bytes_per_sec(float(thr.group(1)), thr.group(2)) if thr else None,
-        non_2xx=int(bad.group(1)) if bad else 0,
+        non_2xx=non_2xx,
     )
 
 
@@ -394,10 +476,63 @@ class ScenarioResult:
         p99 = [s.latency_p99_ms for s in self.samples if s.latency_p99_ms is not None]
         if p99:
             body["latency_p99_ms_median"] = statistics.median(p99)
+
+        # Failures reach the summary. Until now non_2xx was written into each
+        # sample and read by nothing -- not here, not by any consumer -- so even a
+        # correctly parsed error count would have been invisible in the published
+        # tables. A throughput figure taken while a share of the requests failed
+        # is not a throughput figure, and the reader has to be able to see that
+        # without opening the raw samples.
+        counted = [s.non_2xx for s in self.samples if s.non_2xx is not None]
+        body["non_2xx_total"] = sum(counted) if counted else None
+        body["non_2xx_unparsed_samples"] = sum(
+            1 for s in self.samples if s.non_2xx is None
+        )
+
+        # Byte size per response is the cheapest detector of an implementation
+        # that answers something other than the contract payload: the payload is
+        # fixed, so this number must agree across implementations for the same
+        # scenario. It was already recorded per sample and never summarized.
+        # See scripts/audit-response-bytes.py and invariante 9.
+        ratios = [
+            s.bytes_per_sec / s.requests_per_sec
+            for s in self.samples
+            if s.bytes_per_sec and s.requests_per_sec
+        ]
+        if ratios:
+            body["bytes_per_response_median"] = statistics.median(ratios)
+
         cpu = [s.cpu_seconds for s in self.samples if s.cpu_seconds]
         if cpu and body["rps_median"]:
             body["cpu_cores_per_1k_rps"] = statistics.median(cpu) / body["rps_median"] * 1000
         return body
+
+
+def safe_delete(cluster: "Cluster", name: str) -> str | None:
+    """Clean up without letting a kubectl hang kill the whole suite.
+
+    Returns None on success, or the error text to be recorded.
+
+    Cluster.delete passes check=False, which suppresses a non-zero exit but NOT
+    subprocess.TimeoutExpired -- and the pre-clean call site sits *outside* the
+    per-implementation try block, so a single 30-second kubectl hang there aborts
+    the run with no record for the current implementation and no finished_utc.
+
+    That is not hypothetical. results/run-20260810T001219Z.json holds exactly that
+    signature: 24 of the 37 entries in `order` recorded, entry 24
+    (graalvm-rest-micronaut) missing entirely rather than recorded as an error,
+    finished_utc null, and nothing anywhere saying the suite died. The file looks
+    like a complete run to any consumer that does not compare len(implementations)
+    against len(order). Roughly 17 hours of machine time produced a result nobody
+    could tell was truncated. See docs/ACTION_PLAN.md, Fase 9.11.5 item (e).
+    """
+    try:
+        cluster.delete(name)
+        return None
+    except (CommandError, subprocess.TimeoutExpired) as exc:
+        msg = str(exc)[:500]
+        print(f"    [warn] cleanup of {name} failed: {msg[:200]}", flush=True)
+        return msg
 
 
 def discover(cfg: Config) -> list[tuple[str, str, Path]]:
@@ -506,7 +641,20 @@ def main() -> int:
             "repetitions": cfg.repetitions, "duration_s": cfg.duration,
             "warmup_s": cfg.warmup, "settle_s": cfg.settle,
             "connections": cfg.connections, "node_port": NODE_PORT,
-            "generator": "bombardier", "generator_location": "workstation",
+            "generator": "bombardier",
+            # Derived, not asserted. This used to be the literal string
+            # "workstation" regardless of where the generator actually ran -- and
+            # run-20260810T001219Z.json carries it alongside host 127.0.0.1,
+            # i.e. the generator was pointed at the NodePort on loopback, which
+            # means it shared CPU with the pod under test. That is the one
+            # property docs/BENCHMARK_METHODOLOGY.md names as the reason the
+            # earlier results were void, and the record asserted it without
+            # measuring it. "colocated-with-sut" is a warning, not a label.
+            "generator_location": (
+                "colocated-with-sut" if cfg.host in ("127.0.0.1", "localhost", "::1")
+                else "remote"
+            ),
+            "kubectl_mode": "local" if cfg.user == "local" else f"ssh:{cfg.user}@{cfg.host}",
         },
         "primary_json_scenario": PRIMARY_JSON_SCENARIO,
         "implementations": {},
@@ -521,7 +669,13 @@ def main() -> int:
         # Pre-clean: delete any leftover Service/Deployment from a failed
         # previous run before applying the new one. Without this, the NodePort
         # 30080 stays allocated by the old Service and kubectl apply fails.
-        cluster.delete(name)
+        #
+        # Through safe_delete, because this call sits OUTSIDE the try below and
+        # Cluster.delete only suppresses a non-zero exit, not a timeout. See
+        # safe_delete for what that cost us.
+        pre_clean = safe_delete(cluster, name)
+        if pre_clean:
+            record["pre_clean_error"] = pre_clean
         if not cfg.dry_run:
             time.sleep(2)
         try:
@@ -555,20 +709,46 @@ def main() -> int:
             record["status"] = "error"
             record["reason"] = str(exc)[:1500]
             print(f"    [error] {str(exc)[:200]}", flush=True)
+        except Exception as exc:  # noqa: BLE001 - deliberate, see below
+            # A suite run costs ~24 hours of machine time. Losing all of it to one
+            # unhandled exception on implementation 24 of 37 is a worse outcome
+            # than recording the failure and continuing, and the record makes it
+            # visible rather than silent. KeyboardInterrupt and SystemExit are not
+            # Exception subclasses, so an operator abort still stops the run.
+            record["status"] = "error"
+            record["reason"] = f"unhandled {type(exc).__name__}: {str(exc)[:1400]}"
+            print(f"    [error] unhandled {type(exc).__name__}: {str(exc)[:200]}",
+                  flush=True)
         finally:
-            cluster.delete(name)
+            post_clean = safe_delete(cluster, name)
+            if post_clean:
+                record["post_clean_error"] = post_clean
             if not cfg.dry_run:
                 time.sleep(cfg.settle)
             run_record["implementations"][name] = record
             out_path.write_text(json.dumps(run_record, indent=2), encoding="utf-8")
 
     run_record["finished_utc"] = datetime.now(timezone.utc).isoformat()
+
+    # A run that did not reach every target says so, in the record. Previously the
+    # only way to tell a truncated file from a complete one was to compare
+    # len(implementations) against len(order) by hand, and finished_utc being null
+    # was the sole hint -- easy to miss, and absent from every published table.
+    missing = [name for _, name, _ in targets
+               if name not in run_record["implementations"]]
+    run_record["complete"] = not missing
+    if missing:
+        run_record["missing_implementations"] = missing
+
     out_path.write_text(json.dumps(run_record, indent=2), encoding="utf-8")
     print(f"\nWrote {out_path}")
 
     measured = sum(1 for r in run_record["implementations"].values()
                    if r.get("status", "").startswith("measured"))
     print(f"{measured}/{len(targets)} implementations measured")
+    if missing:
+        print(f"[warn] {len(missing)} target(s) never ran: {', '.join(missing[:8])}"
+              f"{' ...' if len(missing) > 8 else ''}")
     return 0
 
 

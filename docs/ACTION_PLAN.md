@@ -139,6 +139,16 @@ pronta. O detalhe de onde cada um foi encontrado está no Anexo A.
    suspeito por construção.
 7. **Evidência declarada.** Toda conclusão registra seu nível (E0–E5). "Não há
    SDK nesta máquina" é um resultado válido e deve ser escrito como tal.
+8. **Erro de I/O nunca responde 200.** Falha de driver, de pool ou de query sai
+   como 5xx, para que o contador `non_2xx` do gerador a registre. Degradar para
+   lista vazia dentro de um 200 fez `rust-rest-actix-web` liderar
+   `/db/complex` com 32.777 rps em cinco rodadas consecutivas — ver Fase 9 e
+   `docs/KNOWN_LIMITATIONS.md`.
+9. **Bytes por resposta é o sinal mais barato de fraude involuntária.**
+   `bytes_per_sec ÷ requests_per_sec` para o mesmo cenário tem de ser igual
+   entre implementações; o payload é fixado pelo contrato. 220 B contra ~11 kB
+   no mesmo endpoint é defeito, não desempenho. Este cálculo não precisa ler
+   código e vale para as 100.
 
 ---
 
@@ -422,6 +432,659 @@ todos fechados**.
 
 ---
 
+# Fase 9 — Remediação Rust `[EM ANDAMENTO]`
+
+Origem: revisão das 10 implementações Rust em 2026-08-10, motivada pelo rps
+baixo de `rust-rest-actix-web` em `results/run-20260810T001219Z.json`. O
+diagnóstico está em `docs/KNOWN_LIMITATIONS.md`; o resumo é que o servidor HTTP
+não era o problema (actix lidera `json-n10` com 211.970 rps, o maior número da
+matriz) e que todo o déficit estava na camada de I/O e de serialização.
+
+Achado que dita a ordem desta fase: **nenhuma das 10 implementações Rust jamais
+produziu um `/db/complex` / `complexOrders` / `GetComplexOrders` válido.** Quatro
+devolviam lista vazia dentro de um 200, seis falhavam por coluna inexistente,
+bind de tipo incompatível ou panic de decode. O gate de paridade não pegava
+porque comparava apenas o conjunto de chaves do nível superior.
+
+## 9.1 — Defeitos de correção e de I/O `[CONCLUÍDA — E2/E3]`
+
+| # | Defeito | Onde | Critério de saída |
+|---|---|---|---|
+| 9.1.1 | `$1` bindado como `i32` contra `INTERVAL '1 day' * $1`; Postgres infere `float8` e `ToSql for i32` só aceita `INT4` | actix-web, 3 GraphQL, 3 gRPC (todos os que usam `tokio-postgres`; os de `sqlx` declaram o OID no `Parse` e escapam) | bind `f64`, SQL normativo inalterado |
+| 9.1.2 | Erro de query mapeado para `vec![]` atrás de 200 | actix-web | 500 + `log::error!` |
+| 9.1.3 | `.unwrap()` em resolver GraphQL | 3 GraphQL | `Result` / `FieldResult` |
+| 9.1.4 | `SUM(o.total)` e `SUM(o.amount)` — colunas que não existem (`sql/01_schema.sql` declara `total_amount`) | tonic, juniper | SQL normativo |
+| 9.1.5 | `COUNT()` (int8) lido direto em campo `int32` do proto → panic por linha | 3 gRPC, juniper | `get::<_, i64>() as i32` |
+| 9.1.6 | `LEFT JOIN`, sem `LIMIT`, sem desempate (invariante 4) | juniper, 3 gRPC | SQL normativo |
+| 9.1.7 | `get_async_connection()` por requisição = TCP handshake por requisição | 4 REST | uma `MultiplexedConnection` no startup |
+| 9.1.8 | `query*(&str)` do `tokio-postgres` executa `Parse`+`Describe` a cada chamada — 2 RTT onde os demais gastam 1 | actix-web, 3 gRPC, 2 GraphQL | `prepare_cached` |
+| 9.1.9 | Sem pool: uma `tokio_postgres::Client` nua (1/32 da concorrência do contrato) | 3 gRPC | pool com `DB_POOL_MAX` |
+| 9.1.10 | `max_size` ausente → default do deadpool (`cpu_count * 4` = 160 no pod de 40) | 3 GraphQL | `DB_POOL_MAX` |
+| 9.1.11 | `RUST_LOG` não existe no ConfigMap (só `LOG_LEVEL`, que nenhum crate Rust lê) → fallback `tower_http=debug` + `TraceLayer` = log por requisição (invariante 1) | axum + ConfigMap | fallback `error`, `TraceLayer`/`CorsLayer` removidos, `RUST_LOG` no ConfigMap |
+| 9.1.12 | Item do `/json` construído como `serde_json::Value` (BTreeMap + 6 chaves + 3 `format!` por item ≈ 10k alocações em n=1000) | 4 REST | struct `Serialize` + envelope tipado, com teste de igualdade de bytes |
+| 9.1.13 | `ensure_schema()` criando schema divergente (`orders.amount`) e semeando 100 usuários contra os 10k do contrato | 3 GraphQL | removido; provisionamento é do `setup-database.sh` |
+| 9.1.14 | Gate de paridade aceitava `data: []` em `/db/complex` | `scripts/validate-parity.py` | `check_db_payloads` exige payload não-vazio, ≤100 linhas, chaves da linha e `totalUsers == len(data)` |
+
+Evidência: **E2** nas 10 (`cargo check --all-targets`), exceto `grpcio`, cujo
+`grpcio-sys` exige toolchain C++ ausente nesta máquina — ver §Restrições.
+**E3** em actix-web (8 testes, incluindo dois que travam a igualdade de bytes do
+payload canônico contra a implementação anterior).
+
+## 9.2 — Perfil de release uniforme
+
+Variável escondida do mesmo tipo que o `-XX:+UseG1GC` que só quatro
+implementações JVM tinham (Anexo A.4): dentro do próprio Rust, duas das dez são
+compiladas com otimização mais agressiva que as outras oito.
+
+| Grupo | `[profile.release]` atual |
+|---|---|
+| actix-web, warp | `opt-level=3, lto=true, codegen-units=1, panic="abort", strip=true` |
+| axum, rocket | `opt-level=3` — que já é o default de release, isto é, nada |
+| 3 GraphQL + 3 gRPC | ausente → `lto=false, codegen-units=16, panic="unwind"` |
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.2.1 | `opt-level=3, lto=true, codegen-units=1` idênticos nas 10 | 10 `Cargo.toml` com o mesmo bloco |
+| 9.2.2 | **Remover** `panic="abort"` de actix-web e warp em vez de espalhá-lo | nenhum `Cargo.toml` Rust com `panic="abort"` |
+| 9.2.3 | Ajustar os comentários de `die()` que justificavam-se por `panic="abort"` | 4 arquivos coerentes com o perfil novo |
+
+`panic="abort"` sai, não entra. O ganho de geração de código vem de
+`lto`+`codegen-units`, não dele; ele é o mecanismo por trás do
+"CrashLoopBackOff sem log nenhum" registrado no Anexo A.10; e com `unwind` um
+panic de handler responde 500 e é contado por `non_2xx` (invariante 8) em vez de
+derrubar o pod no meio da medição. É também o default do Rust — a escolha menos
+"tunada" possível, que é o critério desta fase.
+
+## 9.3 — Resíduos
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.3.1 | `tower` e `tower-http` sem uso em `axum/Cargo.toml` depois da 9.1.11 | dependências removidas, `cargo check` limpo |
+| 9.3.2 | `actix-web/src/services/` e `src/models.rs` nunca declarados em `main.rs` — código morto contendo justamente o padrão multiplexado correto | arquivos removidos (requer ação humana: `git rm` foi bloqueado pela política de permissões) |
+| 9.3.3 | Comentário do `actix-web/Dockerfile` afirma que `TOKIO_WORKER_THREADS` dimensiona os workers do actix; não dimensiona (`available_parallelism()`, que lê a cota do cgroup) | comentário corrigido |
+| 9.3.4 | `REDIS_POOL_MAX` é lido por 30 arquivos de outras stacks e por **0 das 10** Rust | documentado em `KNOWN_LIMITATIONS.md` que a chave significa coisas diferentes por stack; multiplexação sobre 1 socket é o modelo do Lettuce, que lidera `/cache` com 186.825 rps — não é para "corrigir" |
+
+## 9.4 — Build real das 10 imagens `[E2 de verdade]`
+
+`cargo check` nesta máquina não é o build que roda em produção. O `grpcio` só
+compila no `rust:1.95-bookworm`, e é a única das 10 cujas alterações da 9.1 não
+têm nenhuma verificação além de inspeção.
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.4.1 | `make build IMPL=<id>` nas 10 | 10 imagens, log de cada uma em `docs/BUILD_MATRIX.md` |
+
+## 9.5 — Paridade `[E4]`
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.5.1 | Subir as 10 e rodar `validate-parity.py --url` | `PARITY OK` nas 10, **incluindo o `check_db_payloads` novo** |
+| 9.5.2 | Conferir `data[0]` de `/db/complex` byte-a-byte contra a implementação de referência (`src/go/fiber`) | hash igual; o gate só garante forma, não conteúdo |
+
+9.5.1 é o primeiro momento em que qualquer coisa da 9.1 fica provada. Até aqui
+tudo é E2/E3: compila e passa teste unitário, o que não é o mesmo que 2.550 rps
+virarem 30.000.
+
+## 9.6 — Varredura das 100 por bytes/resposta
+
+O invariante 9 nasceu aqui e não é específico de Rust. O cálculo não lê código.
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.6.1 | Script que lê os `results/run-*.json` e reporta, por cenário, toda implementação cujo bytes/resposta desvie mais de 5% da mediana | `scripts/audit-response-bytes.py`, exit 1 se houver desvio `[CONCLUÍDA]` |
+| 9.6.2 | Investigar cada suspeito | causa real por linha, ou "dentro do esperado" com justificativa |
+
+### Resultado da 9.6.1 contra `run-20260810T001219Z.json`
+
+60 desvios além de ±5% em 5 cenários. A maioria é diferença de cabeçalho e não
+de corpo — `rust-rest-rocket` está +85% em `/health`, +148% em `/db/simple` e
++76% em `/cache` porque o `Shield` do Rocket 0.5, que é **default** do framework,
+acrescenta ~300 B de cabeçalhos de segurança a toda resposta; `rust-rest-warp`
+está 20-40% abaixo por mandar menos cabeçalho. Ambos são comportamento de
+framework e ficam como estão, agora com o número medido.
+
+Dois casos não são cabeçalho:
+
+| Implementação | Cenário | Medido | Mediana | Estado |
+|---|---|---|---|---|
+| `rust-rest-actix-web` | `db-complex` | 220 B @ 32.777 rps | 10.907 B @ ~860 rps | causa estabelecida, corrigida na 9.1.1 |
+| `nodejs-rest-fastify` | `db-complex` | 536 B @ 37.533 rps | 10.907 B @ ~860 rps | **causa não estabelecida** |
+
+`nodejs-rest-fastify` é achado novo desta fase e **não** é o mesmo defeito do
+Rust. O SQL em `src/services/DatabaseService.js:46` já usa os aliases camelCase
+que o `response` schema declara, então a hipótese de o `fast-json-stringify`
+descartar propriedades por nome não se sustenta. O que se sabe:
+
+- o endpoint **nunca** entregou o payload do contrato: 1.538 B, 1.666 B, 1.661 B
+  e agora 536 B, nas quatro rodadas em que aparece;
+- o valor **muda entre rodadas**, o que viola a reprodutibilidade do payload por
+  si só, independentemente do tamanho;
+- `non_2xx` é 0 em todas, e `/db/simple` do mesmo serviço está +33% (acima da
+  mediana, isto é, respondendo), então o serializador funciona em geral;
+- o salto de 5.500 para 37.533 rps entre a rodada anterior e esta acompanha o
+  payload caindo de 1.666 B para 536 B — throughput inversamente proporcional ao
+  corpo, a assinatura do invariante 9.
+
+Estabelecer a causa exige **E4**: um `GET /db/complex?days=30` contra o serviço
+de pé, olhando `totalUsers` e `data[0]`. Não foi feito porque há uma medição em
+curso (ver 9.8) e uma requisição extra a perturba. Até então, todo `db-complex`
+de `nodejs-rest-fastify` é tão inválido quanto o do actix-web.
+
+## 9.7 — Re-medição `[E5]`
+
+| # | Tarefa | Critério de saída |
+|---|---|---|
+| 9.7.1 | Matriz 5×60s das 10 Rust | `results/run-*.json` com desvio-padrão; `/cache` e `/health` fora do chão; `/db/complex` na faixa de ~860 rps e ~11 kB/resposta como todas as outras |
+| 9.7.2 | Comparar `db-simple` antes/depois do `prepare_cached` | ganho medido, ou a constatação de que o gargalo era outro |
+
+`/db/complex` **subir** para a faixa dos outros é o resultado esperado. Ele vai
+**cair** de 32.777 para ~860: o número velho media um 200 vazio.
+
+## 9.8 — Medição em curso e topologia do gerador `[DECISÃO PENDENTE]`
+
+**Há uma medição rodando agora.** `results/run-20260810T001219Z.json` tem
+`finished_utc: null` e 24 das 37 implementações previstas em `order`; o arquivo
+cresceu de 16 para 24 implementações no decorrer desta revisão.
+
+Consequências que ditam o sequenciamento:
+
+1. A rodada em curso mede as imagens **antigas**. Todo número Rust que ela
+   produzir carrega os 14 defeitos da 9.1 — inclusive um novo `db-complex` de
+   32.777 rps para `rust-rest-actix-web`, que já nasce inválido.
+2. **9.4, 9.5 e 9.7 não podem começar antes dela terminar.** Reconstruir imagem
+   e reimplantar no meio de uma medição corrompe as duas coisas.
+3. A 9.6.2 (causa do `nodejs-rest-fastify`) precisa de um `curl` contra o serviço
+   de pé, o que também espera.
+
+## Topologia do gerador
+
+`results/run-20260810T001219Z.json` traz `host: 127.0.0.1`,
+`generator_location: workstation` e `deno-rest-hono` a 2,9 GB/s — impossível no
+link de 1 GbE, logo o gerador rodou no próprio nó. Mas o pod reserva 40 das 44
+vCPUs alocáveis em QoS Guaranteed, sobrando ~4 para o bombardier.
+
+Isto é a Fase 2 reaparecendo, não um defeito de implementação: os números acima
+de ~100k rps provavelmente descrevem o gerador. Os achados da 9.1 não dependem
+disso — 1.636 e 2.550 rps são inequivocamente do lado do servidor — mas o topo
+do ranking, sim. Decisão humana, registrada antes da 9.7.
+
+## 9.9 — Defeitos fora do Rust encontrados pela varredura `[CONCLUÍDA — E1/E2]`
+
+A 9.6.1 foi escrita para achar respostas silenciosamente vazias e achou o
+`nodejs-rest-fastify`. Investigar aquele caso levou aos arquivos vizinhos, e
+neles a três padrões que **não** aparecem em bytes/resposta e por isso escaparam
+de toda revisão anterior.
+
+### 9.9.1 — `Thread.sleep(50)` no caminho medido
+
+Quatro implementações tinham um atraso fixo de 50 ms no ramo de *miss* do
+`/cache`. É o invariante 1, que nomeia `Task.Delay` explicitamente:
+
+| Implementação | Onde |
+|---|---|
+| `kotlin-rest-spring` | `controller/CacheController.kt:20` (`// Simulate work`) |
+| `java-rest-spring` | `service/CacheService.java:27` |
+| `nodejs-rest-fastify` | `src/routes/cache.js:48` |
+| `nodejs-rest-express` | `routes/cache.js:21` |
+
+Em `kotlin-rest-spring` isso **era o resultado inteiro**: 1.962 rps medidos
+contra o teto de 100 conexões ÷ 50 ms = 2.000 rps, com p99 de 51,99 ms. O
+`http4k`, na mesma JVM e no mesmo Redis, fez 186.825 rps no mesmo endpoint.
+
+Onde a leitura do cache acerta, o sleep fica latente — mas a janela de medição
+(30 s de warmup + 5×60 s = 330 s) é **maior que o TTL de 300 s**, então a chave
+expira no meio da sequência e uma repetição come o atraso.
+
+### 9.9.2 — Conexão Redis vazada no health check
+
+Duas implementações chamavam `getConnectionFactory().getConnection().ping()`,
+que obtém conexão **nova** a cada chamada e nunca fecha:
+
+| Implementação | Onde |
+|---|---|
+| `kotlin-rest-spring` | `service/CacheService.kt:43` |
+| `graalvm-rest-gspring` | `service/CacheService.java:46` |
+
+Com `lettuce.pool.max-active=32` do ConfigMap, o cenário `/health` drena o pool
+nas primeiras dezenas de requisições e todo chamador seguinte bloqueia esperando
+conexão: `/health` de `kotlin-rest-spring` mediu 2.910 rps com p99 de
+**8.018 ms**.
+
+E o dano não parou no `/health`. Com o pool esgotado, toda leitura de cache no
+mesmo pod passou a falhar, então o `getOrSet` sempre caía no ramo de miss — que é
+onde estava o `Thread.sleep(50)` da 9.9.1. **Um vazamento explica os dois
+números anômalos daquela implementação.** Corrigido com
+`RedisTemplate.execute(RedisCallback { ... })`, que empresta e devolve a conexão.
+
+### 9.9.3 — Log por requisição
+
+| Implementação | Onde |
+|---|---|
+| `nodejs-rest-express` | `pinoHttp` como middleware + `logger.info` em `routes/database.js` e `routes/cache.js`, com transport `pino-pretty` **colorizado** e sem `level` definido (default `info`) |
+| `nodejs-rest-fastify` | log de requisição default do Fastify (agora `disableRequestLogging: true`) e default de nível `info` |
+| `kotlin-rest-spring` | `println` por requisição em `CacheController.kt` e `DatabaseController.kt` |
+| `python-rest-fastapi` | `logger.info("Cache hit"/"Cache miss")` em `services/cache.py`, no caminho do `/cache` |
+
+O `pino-pretty` é o pior: reprocessa cada registro e aplica cor ANSI num worker
+de transport, por chamada. `nodejs-rest-nestjs` só logava no bootstrap; as três
+agora estão alinhadas nisso.
+
+### 9.9.4 — `required` ausente nos response schemas do Fastify
+
+Causa da divergência da 9.6.2, agora **estabelecida**. O `fast-json-stringify`
+descarta em silêncio propriedade declarada no schema mas ausente no objeto
+retornado, e emite `{}` por linha. Medido com o próprio
+`fast-json-stringify@` do projeto:
+
+| Caso | Bytes | Medido em produção |
+|---|---|---|
+| SQL alinhado ao schema | 11.143 | mediana 10.895 |
+| só `userId` casa | 1.643 | 1.538 / 1.661 / 1.666 |
+| nenhum campo casa | 343 | 536 (com cabeçalhos) |
+
+O SQL **atual** em `services/DatabaseService.js:46` já usa os aliases camelCase
+corretos, então as imagens medidas eram antigas — duas gerações diferentes,
+correspondendo às duas assinaturas de bytes acima. `required` nos quatro
+arquivos de rota transforma a próxima divergência em exceção → 500 → contada por
+`non_2xx`, em vez de um 200 com payload vazio.
+
+### 9.9.5 — `kotlin-rest-spring` respondia 200 em todo caminho de erro
+
+`DatabaseController.kt` devolvia 200 nos três ramos de erro: `id` inválido e
+`days` fora de faixa retornavam `{"error": "Bad Request", ...}` com status de
+sucesso, e — o pior — um `id` inexistente retornava um **usuário fabricado**, de
+strings vazias e `age: 0`.
+
+Esse terceiro é indetectável de fora. Passa por `scripts/validate-parity.py`,
+porque o conjunto de chaves está exatamente correto, e passa pelo gerador de
+carga, que conta um 200. Quem lê o ranking não distingue esta implementação
+respondendo a pergunta de esta implementação inventando a resposta. Invariante 8.
+
+Corrigido com `ResponseStatusException`, que **preserva** o tipo de retorno
+`Map<String, Any>`: o Spring MVC mapeia a exceção para status e corpo, então
+nenhuma assinatura de handler mudou.
+
+### 9.9.6 — Varredura dos padrões do Rust nas outras stacks
+
+Os defeitos do Rust não eram exóticos. Cada padrão encontrado lá foi varrido nas
+100, com o resultado delimitado — o que importa tanto quanto os achados, porque
+diz onde **não** procurar de novo.
+
+**Sleep no caminho medido (invariante 1) — 4 implementações.** 50 ms fixos no ramo
+de miss do `/cache`: `java/spring/CacheService.java`,
+`kotlin/spring/CacheController.kt`, `nodejs/express/routes/cache.js`,
+`nodejs/fastify/src/routes/cache.js`. Removidos. Era o `Task.Delay` do Anexo A.4
+sobrevivendo em quatro linguagens.
+
+Isto **não** era arredondamento: `kotlin-rest-spring` mediu 1.962 rps em `/cache`
+com p99 de 51,99 ms contra o teto teórico de 100 conexões ÷ 50 ms = 2.000 rps. O
+número descrevia o sleep, não o Redis nem o Spring — http4k, na mesma JVM e no
+mesmo Redis, fez 186.825 rps no mesmo endpoint. Vale notar que a janela de medição
+(30 s de warmup + 5 × 60 s = 330 s) é **maior** que o TTL de 300 s, então mesmo
+onde o cache acerta a chave expira no meio da sequência e uma repetição come a
+parada.
+
+**Log por requisição (invariante 1) — 7 implementações.** `nodejs/express`
+(`pinoHttp` + 3 `logger.info` de rota, com transport `pino-pretty` colorido),
+`nodejs/fastify` (log de requisição default do framework), `bun/bun_serve`
+(`logRequest`), `bun/hono` (`app.use`), `bun/elysia` (`derive` +
+`onAfterHandle`), `python/fastapi` (`@app.middleware("http")`),
+`kotlin/spring` (3 `println`). Removidos ou desativados. `graalvm/vertx` tem um
+`LoggingHandler` completo que **nunca é registrado** — código morto, deixado como
+está. Padronizei também o nível default para `error` em vez de `info`: o ConfigMap
+define `LOG_LEVEL=error`, mas um benchmark que depende de variável de ambiente
+para não logar por requisição vai eventualmente ser executado sem ela.
+
+**Erro engolido virando 200 (invariante 8) — 3 implementações.**
+`nodejs/express/services/DatabaseService.js`,
+`bun/bun_serve/src/services/database.ts` e
+`python/flask/app/services/database.py` faziam `return []` / `return []` /
+`return []` no `catch` do `/db/complex` — o `Err(_) => vec![]` do actix, em três
+outras linguagens. Todos latentes hoje (os payloads medidos estão normais), que é
+exatamente o estado em que o Rust estava antes do bind quebrar. Agora relançam, e
+os três handlers já respondiam 500 em exceção — verificado em cada um.
+
+**Vazamento de conexão Redis — 2 implementações.**
+`kotlin/spring/CacheService.kt` e `graalvm/gspring/CacheService.java` chamavam
+`getConnectionFactory().getConnection().ping()`, que obtém conexão nova a cada
+invocação e nunca fecha. Com `lettuce.pool.max-active` do ConfigMap, o cenário
+`/health` drena o pool nas primeiras dezenas de requisições e todo chamador
+posterior bloqueia esperando uma: `kotlin-rest-spring` mediu 2.910 rps com p99 de
+**8.018 ms**. E o dano não parava no `/health` — com o pool esgotado, toda leitura
+de cache no mesmo pod falhava, o que fazia o `getOrSet` sempre pegar o ramo de
+miss e pagar o `Thread.sleep(50)`. **Um vazamento explicava os dois números.**
+Agora vão por `RedisTemplate.execute`, que devolve a conexão ao pool.
+
+**Limpo nestas stacks:** o padrão "erro engolido virando coleção vazia" não existe
+em Go, C#, Java, Dart, Deno nem GraalVM. `REDIS_POOL_MAX` é lido por 30 arquivos
+de outras stacks e por 0 das 10 Rust, que multiplexam sobre 1 socket — o modelo do
+Lettuce, que lidera `/cache`; é para documentar, não para "corrigir".
+
+**Não varrido:** `prepare` por requisição, conexão por requisição e pool ausente
+não aparecem em bytes/resposta e só foram conferidos onde o código já estava
+aberto. Foram metade do que se achou no Rust.
+
+### Evidência e o que ficou de fora
+
+| Nível | O quê |
+|---|---|
+| **E3** | `fast-json-stringify` do projeto executado isoladamente, reproduzindo as três assinaturas de bytes medidas (11.143 / 1.643 / 343 B); `node --check` nos 9 arquivos JS; `py_compile` no fastapi |
+| **E2** | `javac` contra os jars reais do cache do Gradle: `graalvm/gspring` e `java/spring` compilam |
+| **E1** | Kotlin. `RedisCallback` é SAM com `T doInRedis(RedisConnection)`, `execute(RedisCallback<T>)` existe e é desambiguado pela chamada explícita, `ping()` devolve `String`, `ResponseStatusException(HttpStatusCode, String)` existe e `HttpStatus : HttpStatusCode` — tudo conferido com `javap` nos jars reais |
+
+Kotlin não passa de E1 **nesta máquina** e a causa é definitiva, não falta de
+esforço: Kotlin 1.9.24 não roda em JDK 25 (`IllegalArgumentException: 25.0.2` no
+`JavaVersion.parse` do IntelliJ embutido), tanto via Gradle quanto via
+`K2JVMCompiler` direto. A distribuição Gradle 8.9 do cache do wrapper funciona
+`--offline` e resolve todas as dependências; falta só um JDK 21. Ver §Restrições
+do ambiente local. **O build da Fase 9.4 é o portão para as quatro mudanças em
+Kotlin** (`CacheController.kt`, `CacheService.kt`, `DatabaseController.kt`).
+
+---
+
+# Fase 9.10 — `DB_POOL_MAX` não é lido por 39 implementações
+
+O ConfigMap afirma, em comentário, que "every implementation reads DB_POOL_MAX
+from the same ConfigMap so the data access layer stops being a hidden variable in
+the ranking". **Isso é falso.** Varredura de 2026-08-10 nas 101 implementações em
+disco: **39 não leem `DB_POOL_MAX`**. O padrão é nítido e explica o porquê — quase
+todas são gRPC e GraphQL. A Fase 3 corrigiu o pool no REST e não alcançou os
+outros dois protocolos.
+
+## 9.10.1 — Conexão nova por requisição: 10 implementações JVM `[2 corrigidas]`
+
+O mais grave. `DriverManager.getConnection(...)` **dentro** de `getUser()`,
+`getComplexOrders()` e `checkHealth()`:
+
+| Implementação | Build | Estado |
+|---|---|---|
+| `graalvm/graphql/spring` | `starter-data-jdbc` já traz HikariCP | **corrigida**, `javac` **E2** |
+| `graalvm/graphql/micronaut` | `micronaut-jdbc-hikari` já traz HikariCP | **corrigida**, `javac` **E2** |
+| `java/graphql/dgs` | só `starter-web` | pendente — exige dependência |
+| `java/graphql/spring-graphql` | só `starter-web` + graphql | pendente — exige dependência |
+| `java/grpc/grpc-java` | sem Spring | pendente — exige dependência |
+| `java/grpc/armeria` | sem Spring | pendente — exige dependência |
+| `kotlin/graphql/dgs` | só `starter-web` | pendente — exige dependência |
+| `kotlin/graphql/graphql-kotlin` | só `starter-web` | pendente — exige dependência |
+| `kotlin/grpc/armeria` | sem Spring | pendente — exige dependência |
+| `kotlin/grpc/grpc-kotlin` | sem Spring | pendente — exige dependência |
+
+Uma conexão JDBC ao PostgreSQL não é barata: handshake TCP, mensagem de startup,
+autenticação SCRAM-SHA-256 em vários round trips e **fork de um backend no
+servidor** — para uma query. Sob as 100 conexões concorrentes do benchmark isso
+também empurra o servidor contra `max_connections`, onde o modo de falha deixa de
+ser lentidão e passa a ser conexão recusada. É o mesmo defeito do
+`get_async_connection()` por requisição do Rust (Fase 9.1.7), mas em Postgres em
+vez de Redis, e portanto muito mais caro.
+
+O conserto é contido porque **os call sites não mudam**: todos já envolvem a
+conexão em `try-with-resources`, que passa a devolvê-la ao pool em vez de fechar
+um socket. Só o corpo de `getConnection()` muda, para emprestar de um
+`HikariDataSource` dimensionado por `DB_POOL_MAX`, construído preguiçosamente
+porque os campos `@Value` são injetados após a construção.
+
+As 8 pendentes exigem acrescentar HikariCP (ou `spring-boot-starter-jdbc`) ao
+`pom.xml`/`build.gradle.kts`. O jar **está** nos caches locais (`~/.m2` e
+`~/.gradle`), então a resolução funcionaria, mas não há Maven nesta máquina e
+Kotlin não compila em JDK 25 (ver §Restrições) — uma mudança de build file que eu
+não consigo construir não deve entrar sem o portão da 9.4.
+
+## 9.10.2 — Pool no default do driver, não no do contrato: 3 implementações C#
+
+`csharp/grpc/grpc-dotnet`, `csharp/grpc/magiconion` e
+`csharp/grpc/protobuf-net-grpc` fazem `await using var connection = new
+NpgsqlConnection(...)` por requisição. **Isto não é defeito**: o Npgsql pooleia
+internamente por padrão e nenhuma delas passa `Pooling=false`, então o padrão é o
+idiomático da plataforma e a conexão vem de um pool.
+
+O desvio é o tamanho: `MaxPoolSize` fica no default do Npgsql, **100**, contra as
+32 do contrato. Mesma classe do que os 3 GraphQL Rust tinham com o default do
+deadpool (160). Conserta-se com `Maximum Pool Size=` na connection string ou
+`NpgsqlDataSourceBuilder`, lendo `DB_POOL_MAX`.
+
+## 9.10.3 — `python-rest-flask`: sem pool, 40 conexões por pod
+
+`app/services/database.py` guarda uma única `psycopg2.connect()` em `self._conn`
+— com a docstring "Database service with connection pooling", que não descreve o
+código. Não há pool e `DB_POOL_MAX` não é lido.
+
+O efeito líquido é menos grave do que parece: o Dockerfile roda
+`gunicorn --workers ${BENCH_CPUS:-4} --threads 1`, isto é 40 processos de uma
+thread, cada um com sua conexão preguiçosa. O pod fica com **40 conexões**, não
+com 1 — e 40 é aproximadamente o que a regra do invariante 3
+(`DB_POOL_MAX / workers`, mínimo 1) produziria. O desvio é 40 contra 32, 25% mais
+concorrência de banco que as demais, não um estrangulamento.
+
+## 9.10.4 — Ainda não classificadas
+
+`bun/graphql/hono`, `java/grpc/grpc-js`, `python/django` e as 3
+`csharp/graphql/*` não leem `DB_POOL_MAX` e não casaram com nenhum marcador de
+pool nem de conexão única. Exigem leitura individual; nenhuma conclusão foi
+registrada sobre elas.
+
+## 9.10.5 — Corrigir o comentário do ConfigMap
+
+Enquanto 39 implementações não lerem a variável, o comentário em
+`deploy/k3s/base/configmap.yaml` descreve uma intenção, não o estado. Um
+invariante que o código não cumpre é pior que invariante nenhum, porque quem lê o
+plano para de checar.
+
+---
+
+# Fase 9.11 — O medidor não contava erros `[PARCIALMENTE CORRIGIDA]`
+
+Este é o defeito mais consequente registrado neste repositório, porque não
+corrompe uma implementação: corrompe todas as 1.099 amostras já coletadas, e é a
+razão pela qual todos os defeitos das Fases 9.1 e 9.9 sobreviveram a até cinco
+rodadas sem serem notados.
+
+## 9.11.1 — `non_2xx` era uma regex do wrk `[CORRIGIDA]`
+
+```python
+BOMBARDIER_NON2XX = re.compile(r"non-2xx or 3xx responses:\s+(\d+)")   # wrk
+non_2xx=int(bad.group(1)) if bad else 0                                 # e 0 no não-match
+```
+
+`non-2xx or 3xx responses:` é a saída do **wrk**. O bombardier reporta classes de
+status num bloco `HTTP codes:` e falhas de transporte num bloco `Errors:`, e nunca
+emite aquela string. A regex portanto nunca casou — e o chamador substituía por
+**zero**.
+
+Consequência medida: **0 de 1.099 amostras**, nos 18 arquivos de `results/`, têm
+`non_2xx != 0`. Inclusive:
+
+- `kotlin-rest-spring` `/health`, com p50 de 10.010 ms — o timeout do cliente — e
+  cuja repetição 3 reportou 14.433 rps a 900 bytes/s, isto é **0,06 bytes por
+  "resposta"**. Eram timeouts contados como requisições completas, publicados
+  como throughput. A mediana publicada foi 11,78 rps com desvio-padrão de 6.442.
+- `rust-rest-actix-web` `/db/complex` a 220 bytes/resposta contra mediana de
+  10.907 B, por cinco rodadas seguidas.
+
+Um contador de erros morto é pior que contador nenhum, porque o JSON **afirma**
+zero e todo consumidor acredita.
+
+Corrigido: `parse_non_2xx()` lê os blocos reais e soma classes ≠ 2xx, `others` e
+as contagens do bloco `Errors:` — timeouts e resets não são respostas e não podem
+entrar como sucesso. E, decisivo, **retorna `None` quando não consegue parsear**,
+nunca 0; `Sample.non_2xx` virou `int | None`. Prova em 9 casos, incluindo a saída
+do wrk (→ `None`) e a truncada (→ `None`).
+
+## 9.11.2 — `bytes_per_sec` perdia respostas pequenas `[CORRIGIDA]`
+
+`BOMBARDIER_THROUGHPUT` exigia sufixo `KB|MB|GB`, então uma resposta pequena o
+bastante para o bombardier imprimir `B/s` era gravada como `None`. E
+`scripts/audit-response-bytes.py` pula amostras com `bytes_per_sec` falsy — ou
+seja, o respondedor quase-vazio podia escapar exatamente da auditoria criada para
+pegá-lo. `B` acrescentado à alternação.
+
+## 9.11.3 — `non_2xx` e `bytes_per_sec` não eram lidos por ninguém `[CORRIGIDA]`
+
+Mesmo parseados, os dois campos eram escritos em cada amostra e lidos por nada —
+nem pelo `summary()`, nem por qualquer consumidor. `summary()` agora emite
+`non_2xx_total`, `non_2xx_unparsed_samples` e `bytes_per_response_median`. Uma
+vazão medida enquanto parte das requisições falhava não é uma vazão, e o leitor
+tem de ver isso sem abrir as amostras cruas.
+
+## 9.11.4 — `generator_location` era uma string fixa `[CORRIGIDA]`
+
+Gravava literalmente `"workstation"` independentemente de onde o gerador rodou.
+`run-20260810T001219Z.json` a carrega ao lado de `host: 127.0.0.1` — o gerador
+apontado para o NodePort em loopback, dividindo CPU com o pod sob teste, que é a
+única propriedade que a metodologia aponta como razão dos resultados anteriores
+terem sido anulados. Agora é derivada de `cfg.host` e diz
+`colocated-with-sut` ou `remote`; acrescentei também `kubectl_mode`.
+
+## 9.11.5 — Ainda abertos no harness `[NÃO CORRIGIDOS]`
+
+| # | Defeito | Por que importa |
+|---|---|---|
+| a | Probes `tcpSocket` em `deployment.yaml:71-84`, e `benchmark-secrets` com `optional: true` em `:47-52` | um pod sem credenciais de banco, ou que colapsa acima de uma conexão, fica *Ready*, passa o gate de paridade de uma requisição, e é medido |
+| b | `cpu_cores_per_1k_rps` é inobtenível: `deploy/k3s/config.yaml` desliga o metrics-server, então `cpu_seconds` é `null` em todas as 1.099 amostras | é a única métrica que discrimina quando o cenário está limitado pela rede; sem ela `json-n1000` a ~734 rps ranqueia o switch |
+| c | Seed fixa 42 em 16 dos 18 arquivos | a ordem é o controle contra deriva térmica e cache frio do Postgres; fixá-la congela o viés na mesma implementação em vez de dissolvê-lo |
+| d | p99 reportado como mediana de 5 p99 | descarta a pior repetição por construção; e a passada de taxa fixa com `oha` que a metodologia promete não existe no código |
+| e | `cluster.delete()` fora do `try` (linha ~524) | um timeout de 30 s do kubectl aborta a suíte em silêncio, deixando `finished_utc: null` e um arquivo parcial que parece completo — é a assinatura exata da rodada travada em `graalvm-rest-micronaut` |
+| f | `--force --grace-period=0` com 12 s de intervalo | as conexões Postgres/Redis da implementação anterior seguem abertas do lado do servidor quando a próxima começa |
+| g | `REST_SCENARIOS` usado para todo protocolo | com `--skip-parity`, throughput de 404 entra como registro `measured-off-contract` |
+
+---
+
+# Fase 9.12 — Node e C# fora do REST `[CONCLUÍDA]`
+
+As duas stacks que a Fase 3 não alcançou fora do REST. Tudo abaixo verificado por
+build ou por execução do entrypoint, não por leitura.
+
+## 9.12.1 — Seis implementações Node não subiam
+
+`nodejs-graphql-{apollo,mercurius,yoga}` e `nodejs-grpc-{grpc-js,nice-grpc,connectrpc}`
+morriam no carregamento:
+
+```
+ReferenceError: require is not defined in ES module scope
+  at file:///.../src/server.js:3:26
+```
+
+`"type": "module"` no `package.json` com `require()` em 4 a 5 arquivos por
+projeto — uma migração ESM feita pela metade. **Seis das 100 implementações
+produziam zero dado**, e o efeito no ranking não era "Node gRPC é lento": era
+ausência de dado apresentada como ausência de implementação.
+
+32 arquivos convertidos. Três formas precisaram de conversão consciente porque
+não são traduzíveis por regex: `module.exports = { query: fn }` (vira
+`export const`), o objeto de métodos abreviados de `cache.js` (vira
+`export async function`), e `module.exports = identificador` (vira
+`export default`, o que exige trocar o `import * as` do chamador por import
+default). As seis passam do sistema de módulos e chegam a forkar workers.
+
+## 9.12.2 — Pool por worker × pool por pod, outra vez
+
+Sete implementações Node ignoravam `DB_POOL_MAX` com literais: `max: 20` nos seis
+gRPC/GraphQL e `min: 5, max: 25` no NestJS. O bootstrap de cluster de cada uma
+**já calculava** a fatia por worker e a injetava no ambiente do filho — e nada
+lia. Com `BENCH_CPUS=40` isso dava até 800 e 1.000 conexões PostgreSQL contra as
+32 do contrato, e o `min: 5` mantinha 200 abertas desde o startup. É o
+invariante 3 reaparecendo em código que tinha a aritmética certa e o consumidor
+faltando.
+
+## 9.12.3 — Log por consulta nos três gRPC Node
+
+`db.js` dos três: `if (duration > 100) console.log('Slow query...' + text)`.
+`/db/complex` roda a ~860 rps contra 100 conexões, ou seja ~116 ms por consulta —
+então **toda** consulta complexa cruzava o limiar e escrevia seu SQL multilinha
+inteiro em stdout, sincronamente. `console.log` puro não é suprimido por
+`LOG_LEVEL=error`. Invariante 1.
+
+## 9.12.4 — Cache não declarado, agora em duas stacks
+
+`nodejs-graphql-mercurius` lia `user:{id}` do Redis no resolver `user` e escrevia
+de volta, enquanto os irmãos apollo e yoga, no mesmo diretório, consultam o banco
+sempre. Pior: `cache.set(key, value, 'EX', 60)` passa as opções posicionalmente,
+mas o node-redis v4 espera um objeto — a chave era escrita **sem TTL nenhum**, e
+o cenário passava a ser respondido do Redis para sempre.
+
+`csharp-graphql-hotchocolate` tinha o mesmo padrão com TTL de 60 s. Os dois
+removidos. Vale registrar a classe: cache que só uma implementação tem não
+produz um número errado, produz um número que responde a outra pergunta.
+
+## 9.12.5 — SQL dos três gRPC Node
+
+`INTERVAL '${days} days'` interpolado na string (além de vetor de injeção, um
+literal diferente por valor de `days` impede reuso de plano), `LEFT JOIN` +
+`HAVING COUNT(o.id) > 0` — forma mais lenta de escrever o `INNER JOIN` do
+contrato, porque constrói as linhas externas e depois as descarta — e
+`ORDER BY total_value DESC` sem desempate, que devolvia **outras** 100 linhas que
+as do contrato, e instáveis entre execuções.
+
+## 9.12.6 — C#: as três GraphQL nunca devolveram uma linha
+
+Além do que a auditoria apontou (sem `LIMIT`, `LEFT JOIN`, `ORDER BY` sem
+desempate, `AVG` como `SUM/COUNT`), havia dois erros de tipo que tornam o
+resolver impossível: `GetInt32` sobre `COUNT()` (int8) e `GetDouble` sobre
+`NUMERIC`. O Npgsql lança `InvalidCastException` nos dois casos.
+
+E as três gRPC caíam num fallback para `DATABASE_URL`, que neste repositório é
+URI `postgres://` — formato que o Npgsql **não parseia**. Como não há
+`appsettings.json` nesses projetos e o ConfigMap não define
+`ConnectionStrings__PostgreSQL`, não havia caminho para uma conexão utilizável.
+Passaram a montar a string dos componentes `DB_*`, como as REST já fazem desde
+que foram consertadas pelo mesmo motivo.
+
+`MaxPoolSize` das seis fixado em `DB_POOL_MAX`; ficava no default 100 do driver.
+Reconfirmado que criar `NpgsqlConnection` por requisição está **correto** — o
+Npgsql pooleia internamente e nenhuma passa `Pooling=false`; o desvio era só o
+tamanho.
+
+Evidência: `dotnet build` nos 9 projetos C#, exit 0, zero erros. `node --check`
+em todos os arquivos Node tocados e execução dos 6 entrypoints.
+
+---
+
+# Fase 9.13 — Go `[CONCLUÍDA]`
+
+A stack mais bem comportada das auditadas até aqui, e o único defeito encontrado
+é de dimensionamento de pool.
+
+## 9.13.1 — `DB_POOL_MAX` nas seis não-REST `[CORRIGIDA]`
+
+| Grupo | Antes | Efeito |
+|---|---|---|
+| `graphql/{gqlgen,graphql-go,graphql-go-2}` | `cfg.MaxConns = 10` literal | um terço do contrato |
+| `grpc/{connectrpc,grpc-go,kitex}` | `pgxpool.New` sem config | default do pgx, `max(4, runtime.NumCPU())` ≈ 48 neste nó — e derivado da contagem de núcleos do **host**, não do contrato |
+
+O caso GraphQL merece nota: o comentário do próprio
+`deploy/k3s/base/configmap.yaml` lista "Go GraphQL used 10" entre os defeitos que
+invalidaram resultados anteriores. Foi identificado na Fase 3, descrito no
+ConfigMap como passado, e **nunca alterado no código**. As quatro REST (chi, echo,
+fiber, gin) leem `DB_POOL_MAX` corretamente desde a Fase 3.2; as seis restantes
+não foram alcançadas, exatamente como aconteceu em Rust, C# e Node.
+
+Evidência: `go build ./...` nos seis, exit 0, e `gofmt -l` sem saída.
+
+## 9.13.2 — Verificado e limpo
+
+Vale tanto quanto os achados, porque delimita onde não procurar de novo. Nas 10
+implementações Go:
+
+- **Invariante 1**: nenhum `time.Sleep`, nenhum log por requisição. As únicas
+  chamadas de log são de startup, shutdown e caminho de erro.
+- **Invariante 4 (SQL)**: `INNER JOIN`, `INTERVAL '1 day' * $1` como parâmetro
+  ligado, `ORDER BY total_orders DESC, u.id`, `LIMIT 100`, `o.total_amount`. Casa
+  com `src/go/fiber`, que é a referência do projeto. Os comentários no código
+  documentam que `o.total`/`o.amount` e a ordenação sem desempate já foram
+  corrigidos numa passada anterior — aqui a correção pegou.
+- **Invariante 8**: o `return nil, nil` nos três GraphQL está guardado por
+  `pgx.ErrNoRows`; erro real propaga via `fmt.Errorf`. Não é erro engolido, é
+  "linha ausente" — a distinção correta. Consertar isso teria sido um falso
+  positivo.
+- **Serialização**: o `/json` constrói `[]jsonItem` pré-alocado com
+  `make([]jsonItem, n)`, isto é structs, não `map[string]interface{}` por item.
+  É o padrão para o qual as implementações Rust foram convertidas na 9.1.12. O
+  único `map[string]interface{}` é o envelope, um por requisição.
+- **`INTERVAL '1 day' * $1`** com pgx nunca sofreu o defeito que quebrou o Rust
+  (Fase 9.1.1): pgx codifica o parâmetro conforme o OID que o servidor infere, de
+  modo que um `int` Go contra um `float8` inferido funciona.
+
+---
+
 # Caminho crítico e sequenciamento
 
 ```
@@ -455,10 +1118,12 @@ Fatos desta máquina, não do projeto. Afetam diretamente a Fase 6.
 
 | | |
 |---|---|
-| Repositório em share de rede `Z:` | já produziu `ReadOnlyFileSystemException` em build Maven (6.5). **Builds pesados em disco local** |
-| Não instalados | SDK Dart (6.7), runtime Deno (6.8), Maven/Gradle/kotlinc permanentes, JDK 17/21 |
-| Instalação em passadas anteriores | Gradle 8.5, Maven 3.9.9 e JDKs 21/17 foram instalados **no diretório temporário da sessão** — nada no repositório, nada em `~`. Manter esse padrão |
-| Cluster | o runner exige chave SSH para o `.51`, sem senha. Não verificado nesta sessão |
+| Repositório em share de rede `Z:` | é `\\192.168.1.50\HD1TB\benchmark`. Já produziu `ReadOnlyFileSystemException` em build Maven (6.5); em 2026-08-10 também bloqueou `cargo` no `target/` do `grpc/volo` (`Acesso negado, os error 5`, com o próprio `Test-Path` falhando) e impediu a **execução** do `kubectl.exe` da raiz. **Builds pesados em disco local** |
+| Não instalados | SDK Dart (6.7), runtime Deno (6.8), `kubectl` fora do `Z:`, `kotlinc`, JDK 21 |
+| Instalados e utilizáveis (2026-08-10) | Rust 1.95 + registry com 1.148 crates em cache (`cargo --offline` funciona); Node 24.14; Python; JDK **25**; e uma distribuição **Gradle 8.9 completa** em `~/.gradle/wrapper/dists/`, que roda `--offline` e resolve tudo pelo cache de módulos |
+| Kotlin **não compila** nesta máquina | Kotlin 1.9.24 (versão dos projetos) não roda em JDK 25: `JavaVersion.parse` do IntelliJ embutido lança `IllegalArgumentException: 25.0.2`. Vale para o Gradle e para o CLI `K2JVMCompiler` direto. Os projetos usam `gradle:8.5-jdk21`. Sem JDK 21 local, alteração em Kotlin fica em **E1** (API conferida via `javap` nos jars reais) e o build Docker é o portão |
+| Java **compila** isoladamente | `javac` contra os jars do cache do Gradle verifica um arquivo por vez, com classpath montado à mão. Usado na Fase 9.9 para `graalvm/gspring` e `java/spring` |
+| Cluster | o runner exige chave SSH para o `.51`, sem senha. Em 2026-08-10 tentou-se WSL: Ubuntu 2 tem `ssh` mas **não** tem `kubectl` nem kubeconfig, e `/mnt/z` está vazio (o `Z:` é drive da sessão Windows, invisível ao WSL). Não verificado |
 
 ---
 
