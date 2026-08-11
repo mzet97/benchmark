@@ -53,23 +53,27 @@ public class Query
         };
     }
 
+    // Goes straight to Postgres, with no Redis layer in front of it.
+    //
+    // This resolver used to check Redis for "user:{id}", return the deserialized
+    // JSON on a hit, and write through with a 60 s TTL on a miss. No other
+    // implementation of this field does that -- graphql-dotnet
+    // (Types/Query.cs:65-71) and Go's gqlgen both query the database on every
+    // call, and neither contracts/graphql/schema.graphql nor
+    // contracts/rest/canonical-payloads.md mentions caching here.
+    //
+    // The benchmark drives this field with a repeating id, so after the first
+    // request every subsequent one was answered from Redis. The number published
+    // for this implementation measured a Redis GET while every peer's measured a
+    // Postgres query -- the two are not the same question, and the faster one
+    // looked like a framework win. Caching that only one implementation has is
+    // the same class of defect as an endpoint that returns an empty payload: the
+    // figure is real, it just does not mean what the ranking says it means.
     public async Task<User?> GetUser(
         int id,
-        [Service] DatabaseService db,
-        [Service] CacheService cache)
+        [Service] DatabaseService db)
     {
-        var cached = await cache.GetAsync($"user:{id}");
-        if (cached != null)
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<User>(cached);
-        }
-
-        var result = await db.GetUserByIdAsync(id);
-        if (result == null) return null;
-
-        await cache.SetAsync($"user:{id}",
-            System.Text.Json.JsonSerializer.Serialize(result), 60);
-        return result;
+        return await db.GetUserByIdAsync(id);
     }
 
     // The injected service has to come before the optional argument: C# does

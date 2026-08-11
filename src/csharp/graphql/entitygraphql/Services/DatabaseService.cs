@@ -14,8 +14,22 @@ public class DatabaseService
         var user = configuration["DB_USER"] ?? "postgres";
         var password = configuration["DB_PASSWORD"] ?? "postgres";
         var database = configuration["DB_NAME"] ?? "benchmark";
+        // Maximum Pool Size from the contract, not from the driver default.
+        // Npgsql pools internally (Pooling is on by default), so creating an
+        // NpgsqlConnection per request is correct and idiomatic -- but the default
+        // MaxPoolSize is 100, while deploy/k3s/base/configmap.yaml fixes
+        // DB_POOL_MAX=32 for every implementation precisely so the data access
+        // layer stops being a hidden variable in the ranking. Three times the
+        // contract's database concurrency is not a framework property.
+        // See docs/ACTION_PLAN.md, Fase 9.10.2.
+        var poolMax = configuration["DB_POOL_MAX"];
+        if (!int.TryParse(poolMax, out var maxPoolSize) || maxPoolSize <= 0)
+        {
+            maxPoolSize = 32;
+        }
         _connectionString =
-            $"Host={host};Port={port};Username={user};Password={password};Database={database}";
+            $"Host={host};Port={port};Username={user};Password={password};Database={database}"
+            + $";Maximum Pool Size={maxPoolSize};Minimum Pool Size={maxPoolSize}";
     }
 
     private NpgsqlConnection CreateConnection() => new(_connectionString);
@@ -57,22 +71,44 @@ public class DatabaseService
         await using var conn = CreateConnection();
         await conn.OpenAsync();
 
+        // Normative SQL, matching contracts/rest/canonical-payloads.md and the
+        // REST siblings in src/csharp/{MinimalApi,Controllers,FastEndpoints}.
+        // This query had drifted from the contract in five ways at once, each of
+        // which on its own makes the number incomparable:
+        //
+        //   * no LIMIT, so it returned a row for every one of the ~10,000 seeded
+        //     users instead of the 100 the contract fixes -- roughly 100x the
+        //     payload and a categorically heavier query;
+        //   * LEFT JOIN with the date filter folded into the ON clause, so users
+        //     with no orders in the window were kept, where the contract is an
+        //     INNER JOIN;
+        //   * ORDER BY the summed value with no tiebreak, so rows with equal
+        //     totals came back in arbitrary order and the payload was not
+        //     reproducible between runs;
+        //   * the average computed as SUM/COUNT through a CASE instead of AVG();
+        //   * (@days || ' days')::INTERVAL, which forces the parameter to text.
+        //     make_interval keeps it an integer, as the REST siblings do.
+        //
+        // The ::float8 casts matter for two reasons. Npgsql's GetDouble refuses a
+        // numeric field outright, so reading SUM(numeric) as a double threw
+        // InvalidCastException on every call -- this resolver could never have
+        // returned a row. And casting in SQL avoids the extra fractional digits
+        // that AVG(numeric) carries, which is what makes the REST siblings'
+        // /db/complex response ~10% larger than the field median.
         await using var cmd = new NpgsqlCommand(@"
             SELECT
-                u.id,
-                u.first_name || ' ' || u.last_name,
-                COUNT(o.id),
-                COALESCE(SUM(o.total_amount), 0),
-                CASE WHEN COUNT(o.id) > 0
-                    THEN COALESCE(SUM(o.total_amount), 0) / COUNT(o.id)
-                    ELSE 0
-                END
+                u.id AS user_id,
+                u.first_name || ' ' || u.last_name AS user_name,
+                COUNT(o.id) AS total_orders,
+                COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
             FROM users u
-            LEFT JOIN orders o ON o.user_id = u.id
-                AND o.created_at >= NOW() - (@days || ' days')::INTERVAL
+            INNER JOIN orders o ON u.id = o.user_id
+                WHERE o.created_at >= NOW() - make_interval(days => @days)
             GROUP BY u.id, u.first_name, u.last_name
-            ORDER BY COALESCE(SUM(o.total_amount), 0) DESC", conn);
-        cmd.Parameters.AddWithValue("@days", days.ToString());
+            ORDER BY total_orders DESC, u.id
+            LIMIT 100", conn);
+        cmd.Parameters.AddWithValue("@days", days);
 
         var results = new List<UserOrderStats>();
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -82,7 +118,8 @@ public class DatabaseService
             {
                 UserId = reader.GetInt32(0),
                 UserName = reader.GetString(1),
-                TotalOrders = reader.GetInt32(2),
+                // COUNT() is int8; GetInt32 on it throws InvalidCastException.
+                TotalOrders = (int)reader.GetInt64(2),
                 TotalValue = reader.GetDouble(3),
                 AverageOrderValue = reader.GetDouble(4)
             });

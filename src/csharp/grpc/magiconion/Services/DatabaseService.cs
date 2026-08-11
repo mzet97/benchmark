@@ -9,9 +9,56 @@ public class DatabaseService
 
     public DatabaseService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetValue<string>("ConnectionStrings:PostgreSQL")
-            ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-            ?? "Host=localhost;Port=5432;Database=benchmark;Username=benchmark;Password=benchmark";
+        // Built from the component variables (DB_HOST/DB_PORT/DB_NAME/DB_USER/
+        // DB_PASSWORD), the same way the REST siblings in src/csharp/MinimalApi
+        // do, and for the same reason their comment records: the secret's
+        // DATABASE_URL is a postgres:// URI carrying a percent-encoded password.
+        // Npgsql accepts keyword/value connection strings only -- it does not
+        // parse URI form at all -- so the DATABASE_URL fallback this constructor
+        // used to rely on could not have produced a usable connection. Neither
+        // does anything set ConnectionStrings__PostgreSQL: there is no
+        // appsettings.json in this project and the ConfigMap does not define it.
+        //
+        // Maximum Pool Size comes from the contract. Npgsql pools internally, so
+        // creating an NpgsqlConnection per request is correct and idiomatic -- but
+        // the driver default is 100 while deploy/k3s/base/configmap.yaml fixes
+        // DB_POOL_MAX=32 for every implementation. See docs/ACTION_PLAN.md,
+        // Fase 9.10.2.
+        var poolRaw = Environment.GetEnvironmentVariable("DB_POOL_MAX");
+        if (!int.TryParse(poolRaw, out var maxPoolSize) || maxPoolSize <= 0)
+        {
+            maxPoolSize = 32;
+        }
+
+        var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+        var dbName = Environment.GetEnvironmentVariable("DB_NAME");
+        if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
+        {
+            var portRaw = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
+            _connectionString = new NpgsqlConnectionStringBuilder
+            {
+                Host = dbHost,
+                Port = int.TryParse(portRaw, out var p) ? p : 5432,
+                Database = dbName,
+                Username = Environment.GetEnvironmentVariable("DB_USER"),
+                Password = Environment.GetEnvironmentVariable("DB_PASSWORD"),
+                Pooling = true,
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = maxPoolSize,
+                Timeout = 30,
+            }.ToString();
+        }
+        else
+        {
+            var raw = configuration.GetValue<string>("ConnectionStrings:PostgreSQL")
+                ?? "Host=localhost;Port=5432;Database=benchmark;Username=benchmark;Password=benchmark";
+            _connectionString = new NpgsqlConnectionStringBuilder(raw)
+            {
+                Pooling = true,
+                MaxPoolSize = maxPoolSize,
+                MinPoolSize = maxPoolSize,
+            }.ToString();
+        }
     }
 
     public async Task<UserResponse> GetUserAsync(int id)
