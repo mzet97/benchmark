@@ -1,9 +1,9 @@
 'use strict';
 
-const { createServer } = require('http');
-const { createSchema, createYoga } = require('graphql-yoga');
-const { typeDefs } = require('./typeDefs');
-const { resolvers } = require('./resolvers');
+import { createServer } from 'http';
+import { createSchema, createYoga } from 'graphql-yoga';
+import { typeDefs } from './typeDefs.js';
+import { resolvers } from './resolvers.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 

@@ -76,8 +76,19 @@ class DatabaseService {
         averageOrderValue: parseFloat(row.averageOrderValue)
       }));
     } catch (error) {
+      // Rethrow. This used to `return []`, which the route turns into a 200
+      // carrying {"periodDays": n, "totalUsers": 0, "data": []} -- a failed
+      // query indistinguishable from a legitimately empty result, invisible to
+      // the load generator's non_2xx counter and to the key-set parity check.
+      //
+      // That is not a hypothetical: rust-rest-actix-web had the identical
+      // `Err(_) => vec![]` and topped the /db/complex ranking for five
+      // consecutive runs at 32,777 rps and 220 bytes/response, against ~860 rps
+      // and ~11 kB for every implementation that answered the question. See
+      // invariante 8 in docs/ACTION_PLAN.md. dbComplexHandler already answers
+      // 500 on a thrown error.
       console.error('Error fetching complex query:', error);
-      return [];
+      throw error;
     }
   }
 

@@ -7,10 +7,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private pool: Pool;
 
   onModuleInit() {
+    // Pool size from the contract, not a literal. main.ts already divides
+    // DB_POOL_MAX by the worker count and injects the per-worker share into the
+    // child environment, so this reads the value as-is -- dividing again would be
+    // wrong, and hardcoding it made that arithmetic dead code. With BENCH_CPUS=40
+    // the old literals meant up to 40 x 25 = 1000 Postgres connections against
+    // the contract's 32, and `min: 5` held 200 of them open from startup. See
+    // invariante 3 in docs/ACTION_PLAN.md and Fase 9.10.
+    const poolMaxRaw = Number.parseInt(process.env.DB_POOL_MAX ?? '', 10);
+    const poolMax = Number.isInteger(poolMaxRaw) && poolMaxRaw > 0 ? poolMaxRaw : 32;
+
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL || (() => { throw new Error('DATABASE_URL is required'); })(),
-      min: 5,
-      max: 25,
+      max: poolMax,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
     });

@@ -1,7 +1,7 @@
 'use strict';
 
-const db = require('./db');
-const cache = require('./cache');
+import * as db from './db.js';
+import * as cache from './cache.js';
 import {
   CANONICAL_CREATED_AT,
   canonicalEmail,
@@ -140,4 +140,4 @@ const resolvers = {
   }
 };
 
-module.exports = { resolvers };
+export { resolvers };

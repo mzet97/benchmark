@@ -1,6 +1,5 @@
 import express from 'express';
 import pino from 'pino';
-import pinoHttp from 'pino-http';
 import DatabaseService from './services/DatabaseService.js';
 import CacheService from './services/CacheService.js';
 import { healthHandler, healthzHandler } from './routes/health.js';
@@ -8,13 +7,15 @@ import { jsonHandler } from './routes/json.js';
 import { dbSimpleHandler, dbComplexHandler } from './routes/database.js';
 import { cacheHandler } from './routes/cache.js';
 
-// Configure logger
+// Configure logger.
+//
+// No pino-pretty transport: it is a development formatter that reparses every
+// record and applies ANSI colouring in a transport worker. And the default level
+// is 'error', not 'info' -- the ConfigMap sets LOG_LEVEL=error, but the fallback
+// has to be quiet on its own, since a benchmark that depends on an env var to
+// not log per request will eventually be run without it.
 const logger = pino({
-  transport: {
-    target: 'pino-pretty',
-    options: { colorize: true }
-  },
-  level: process.env.LOG_LEVEL || 'info'
+  level: process.env.LOG_LEVEL || 'error'
 });
 
 // Create Express app
@@ -22,8 +23,14 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '8080');
 const HOST = process.env.HOST || '0.0.0.0';
 
-// Add middleware
-app.use(pinoHttp({ logger }));
+// Add middleware.
+//
+// No app.use(pinoHttp({ logger })). pino-http logs every request completion and
+// binds a child logger onto each request to do it; the level filter suppresses
+// the output but not the work, and no other implementation in the matrix carries
+// request logging -- invariante 1 in docs/ACTION_PLAN.md. The fastify sibling had
+// the equivalent as fastify's default request logging and now sets
+// disableRequestLogging: true for the same reason.
 app.use(express.json());
 
 // Initialize services

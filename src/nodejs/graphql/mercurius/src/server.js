@@ -1,9 +1,9 @@
 'use strict';
 
 const fastify = require('fastify')({ logger: false });
-const mercurius = require('mercurius');
-const { typeDefs } = require('./schema');
-const { resolvers } = require('./resolvers');
+import mercurius from 'mercurius';
+import { typeDefs } from './schema.js';
+import { resolvers } from './resolvers.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 

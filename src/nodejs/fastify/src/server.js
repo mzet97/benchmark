@@ -16,7 +16,10 @@ import CacheService from './services/CacheService.js';
 async function buildServer() {
   const fastify = Fastify({
     logger: {
-      level: process.env.LOG_LEVEL || 'info',
+      // Default 'error', not 'info'. The ConfigMap sets LOG_LEVEL=error, but the
+      // fallback has to be quiet on its own -- a benchmark that depends on an
+      // env var to not log per request will eventually be run without it.
+      level: process.env.LOG_LEVEL || 'error',
       transport: process.env.NODE_ENV === 'development' ? {
         target: 'pino-pretty',
         options: {
@@ -26,6 +29,13 @@ async function buildServer() {
         }
       } : undefined
     },
+    // Fastify logs "incoming request" and "request completed" for every request
+    // by default and builds a child logger per request to do it. The level
+    // filter suppresses the output but not the work, and no other
+    // implementation in the matrix carries request logging -- invariante 1 in
+    // docs/ACTION_PLAN.md. nodejs/express had the equivalent as
+    // app.use(pinoHttp({ logger })) and it was removed for the same reason.
+    disableRequestLogging: true,
     trustProxy: true,
     bodyLimit: 1024 * 1024, // 1MB
     requestTimeout: 30000, // 30 seconds

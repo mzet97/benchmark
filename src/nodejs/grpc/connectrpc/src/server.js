@@ -1,9 +1,9 @@
-const fastify = require('fastify');
-const { fastifyConnectPlugin } = require('@connectrpc/connect-fastify');
-const { BenchmarkService } = require('./gen/benchmark_connect');
-const serviceImpl = require('./service');
-const db = require('./db');
-const cache = require('./cache');
+import fastify from 'fastify';
+import { fastifyConnectPlugin } from '@connectrpc/connect-fastify';
+import { BenchmarkService } from './gen/benchmark_connect.js';
+import serviceImpl from './service.js';
+import * as db from './db.js';
+import * as cache from './cache.js';
 
 const PORT = parseInt(process.env.PORT || '8080');
 

@@ -1,7 +1,7 @@
 'use strict';
 
-const db = require('./db');
-const cache = require('./cache');
+import * as db from './db.js';
+import * as cache from './cache.js';
 import {
   CANONICAL_CREATED_AT,
   canonicalEmail,
@@ -60,12 +60,23 @@ const resolvers = {
       };
     },
 
+    // Goes straight to Postgres, with no Redis layer in front of it.
+    //
+    // This resolver used to read "user:{id}" from Redis, return the parsed JSON
+    // on a hit, and write through on a miss. No other implementation of this
+    // field caches: the apollo and yoga siblings in this same directory query the
+    // database on every call, and neither contracts/graphql/schema.graphql nor
+    // contracts/rest/canonical-payloads.md mentions caching here. The benchmark
+    // drives the field with a repeating id, so after the first request every
+    // later one was answered from Redis -- this implementation's number measured
+    // a Redis GET while every peer's measured a Postgres query.
+    //
+    // The write was also broken in a way that made it permanent. node-redis v4
+    // takes options as an object, `set(key, value, { EX: 60 })`; passing
+    // 'EX', 60 positionally makes the third argument the string 'EX' and drops
+    // the 60, so the key was written with **no TTL at all**. The 60-second
+    // expiry that might have limited the damage never existed.
     user: async (_, { id }) => {
-      const cached = await cache.get(`user:${id}`);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-
       const result = await db.query(
         'SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1',
         [id]
@@ -85,7 +96,6 @@ const resolvers = {
         createdAt: row.created_at.toISOString()
       };
 
-      await cache.set(`user:${id}`, JSON.stringify(user), 'EX', 60);
       return user;
     },
 
@@ -136,4 +146,4 @@ const resolvers = {
   }
 };
 
-module.exports = { resolvers };
+export { resolvers };

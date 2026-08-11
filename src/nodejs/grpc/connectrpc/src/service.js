@@ -1,7 +1,7 @@
-const crypto = require('crypto');
-const { ConnectError, Code } = require('@connectrpc/connect');
-const db = require('./db');
-const cache = require('./cache');
+import crypto from 'crypto';
+import { ConnectError, Code } from '@connectrpc/connect';
+import * as db from './db.js';
+import * as cache from './cache.js';
 import {
   CANONICAL_CREATED_AT,
   canonicalEmail,
@@ -96,20 +96,34 @@ const benchmarkService = {
   async getComplexOrders(request) {
     const days = request.days > 0 ? request.days : 30;
 
+    // Normative SQL, see contracts/rest/canonical-payloads.md. Three things
+    // changed here, and each one on its own made the number incomparable:
+    //
+    //   * the day window was interpolated into the string as
+    //     INTERVAL '${days} days'. Beyond being an injection vector, a literal
+    //     baked into the SQL text gives PostgreSQL a different statement for
+    //     every distinct `days`, so nothing is reused. It is now a bound
+    //     parameter, which is also what the contract specifies.
+    //   * LEFT JOIN plus HAVING COUNT(o.id) > 0 is a slower way of writing the
+    //     INNER JOIN the contract fixes: it builds the outer rows and then
+    //     discards them.
+    //   * ORDER BY total_value DESC with no tiebreak returned a *different* 100
+    //     rows than the contract's ORDER BY total_orders DESC, u.id, and with no
+    //     tiebreak the set was not even stable between runs.
     const result = await db.query(
       `SELECT
         u.id as user_id,
         u.first_name || ' ' || u.last_name as user_name,
         COUNT(o.id) as total_orders,
-        COALESCE(SUM(o.total_amount), 0) as total_value,
-        COALESCE(AVG(o.total_amount), 0) as average_order_value
+        COALESCE(SUM(o.total_amount), 0)::float8 as total_value,
+        COALESCE(AVG(o.total_amount), 0)::float8 as average_order_value
       FROM users u
-      LEFT JOIN orders o ON u.id = o.user_id
-        AND o.created_at >= NOW() - INTERVAL '${days} days'
+      INNER JOIN orders o ON u.id = o.user_id
+        WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
       GROUP BY u.id, u.first_name, u.last_name
-      HAVING COUNT(o.id) > 0
-      ORDER BY total_value DESC
-      LIMIT 100`
+      ORDER BY total_orders DESC, u.id
+      LIMIT 100`,
+      [days]
     );
 
     const data = result.rows.map((row) => ({
@@ -156,4 +170,4 @@ const benchmarkService = {
   },
 };
 
-module.exports = benchmarkService;
+export default benchmarkService;

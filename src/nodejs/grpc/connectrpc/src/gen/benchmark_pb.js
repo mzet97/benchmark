@@ -111,7 +111,7 @@ const CacheResponse = new MessageType('benchmark.CacheResponse', [
   { no: 5, name: 'timestamp', kind: 'scalar', T: 9 /* STRING */ },
 ]);
 
-module.exports = {
+export {
   HealthRequest,
   HealthResponse,
   JsonItemsRequest,

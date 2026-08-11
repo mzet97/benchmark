@@ -1,4 +1,4 @@
-const redis = require('redis');
+import redis from 'redis';
 
 let client = null;
 let connected = false;
@@ -80,4 +80,4 @@ async function close() {
   }
 }
 
-module.exports = { get, set, healthCheck, close };
+export { get, set, healthCheck, close };

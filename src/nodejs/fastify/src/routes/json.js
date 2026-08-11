@@ -7,6 +7,15 @@ export default async function jsonRoutes(fastify, options) {
   // fastify's fast-json-stringify serializes ONLY declared properties, so a
   // stale schema silently strips fields and the payload diverges from
   // contracts/rest/canonical-payloads.md no matter what the handler returns.
+  //
+  // `required` closes the other half of that hole: a property declared here but
+  // absent from the object the handler returns is *also* dropped silently. With
+  // `required`, fast-json-stringify throws and server.js's error handler answers
+  // 500, so the load generator's non_2xx counter registers it (invariante 8 in
+  // docs/ACTION_PLAN.md). This is not a theoretical concern -- /db/complex on
+  // this same service shipped 1,661 B/response against a 10,895 B median for
+  // three measured runs because exactly one field name matched; see
+  // routes/database.js.
   fastify.get('/json', {
     schema: {
       tags: ['json'],
@@ -21,11 +30,14 @@ export default async function jsonRoutes(fastify, options) {
       response: {
         200: {
           type: 'object',
+          required: ['items', 'count', 'timestamp'],
           properties: {
             items: {
               type: 'array',
               items: {
                 type: 'object',
+                required: ['id', 'uuid', 'name', 'email', 'createdAt',
+                           'isActive'],
                 properties: {
                   id: { type: 'number' },
                   uuid: { type: 'string' },

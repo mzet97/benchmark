@@ -63,4 +63,4 @@ const typeDefs = `#graphql
   }
 `;
 
-module.exports = { typeDefs };
+export { typeDefs};

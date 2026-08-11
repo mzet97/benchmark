@@ -1,9 +1,13 @@
-const grpc = require('@grpc/grpc-js');
-const protoLoader = require('@grpc/proto-loader');
-const path = require('path');
-const service = require('./service');
-const db = require('./db');
-const cache = require('./cache');
+import grpc from '@grpc/grpc-js';
+import protoLoader from '@grpc/proto-loader';
+import path from 'path';
+import * as service from './service.js';
+import * as db from './db.js';
+import * as cache from './cache.js';
+import { fileURLToPath } from 'url';
+
+// ESM has no __dirname; derive it from import.meta.url.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const PROTO_PATH = path.join(__dirname, '..', 'proto', 'benchmark.proto');
 const PORT = parseInt(process.env.PORT || '8080');

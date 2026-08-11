@@ -70,4 +70,4 @@ const BenchmarkService = {
   },
 };
 
-module.exports = { BenchmarkService };
+export { BenchmarkService};

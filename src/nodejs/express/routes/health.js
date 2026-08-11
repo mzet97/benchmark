@@ -1,11 +1,11 @@
 import pino from 'pino';
 
-const logger = pino({
-  transport: {
-    target: 'pino-pretty',
-    options: { colorize: true }
-  }
-});
+// Level from the ConfigMap (LOG_LEVEL=error), and no pino-pretty transport.
+// pino-pretty is a development formatter: it reparses every record and applies
+// ANSI colouring in a transport worker. With a log call per request that put a
+// formatted, colourised write on the measured path -- invariante 1 in
+// docs/ACTION_PLAN.md, and the 2-3x that LOG_LEVEL=error exists to avoid.
+const logger = pino({ level: process.env.LOG_LEVEL || 'error' });
 
 export async function healthHandler(req, res) {
   try {

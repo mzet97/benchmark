@@ -1,11 +1,11 @@
 'use strict';
 
-const { ApolloServer } = require('@apollo/server');
-const { expressMiddleware } = require('@apollo/server/express4');
-const express = require('express');
-const http = require('http');
-const { typeDefs } = require('./typeDefs');
-const { resolvers } = require('./resolvers');
+import { ApolloServer } from '@apollo/server';
+import { expressMiddleware } from '@apollo/server/express4';
+import express from 'express';
+import http from 'http';
+import { typeDefs } from './typeDefs.js';
+import { resolvers } from './resolvers.js';
 
 const PORT = parseInt(process.env.PORT || '8080', 10);
 

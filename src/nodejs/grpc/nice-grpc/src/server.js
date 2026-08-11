@@ -1,8 +1,8 @@
-const { createServer } = require('nice-grpc');
-const { proto } = require('./proto');
-const service = require('./service');
-const db = require('./db');
-const cache = require('./cache');
+import { createServer } from 'nice-grpc';
+import { proto } from './proto.js';
+import service from './service.js';
+import * as db from './db.js';
+import * as cache from './cache.js';
 
 const PORT = parseInt(process.env.PORT || '8080');
 
