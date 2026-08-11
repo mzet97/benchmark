@@ -25,8 +25,15 @@ USER app
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8080/health || exit 1
-# Tokio (and Rocket) size their worker pool from the environment, so the
-# contract-level BENCH_CPUS drives it without touching the source.
-# Shell form so the variable is expanded at runtime.
-# See docs/ACTION_PLAN.md, Fase 3.1.
+# TOKIO_WORKER_THREADS does *not* size this server's workers, contrary to what
+# this comment used to claim. actix-web runs one thread with its own
+# current-thread runtime per worker, and the worker count comes from
+# std::thread::available_parallelism(), which reads the cgroup CPU quota -- so
+# the pod's `cpu: "40"` limit already gives 40 workers with nothing set here.
+# It is kept only because it is harmless and identical across the Rust images.
+#
+# ROCKET_WORKERS is inert in this image (no Rocket here) and is likewise kept
+# for uniformity. See docs/ACTION_PLAN.md, Fase 3.1 and Fase 9.
+#
+# Shell form so the variables are expanded at runtime.
 CMD TOKIO_WORKER_THREADS=${BENCH_CPUS:-4} ROCKET_WORKERS=${BENCH_CPUS:-4} ./main

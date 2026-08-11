@@ -20,3 +20,21 @@ rust_decimal = { version = "1", features = ["serde", "db-tokio-postgres"] }
 anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+# Identical across all ten Rust implementations. Anything that differs here is a
+# hidden variable in the ranking, exactly like the -XX:+UseG1GC that only four of
+# the JVM implementations carried (Anexo A.4): actix-web and warp were compiled
+# with lto + codegen-units=1 while the other eight were not, which is worth 5-20%
+# on this kind of workload.
+#
+# panic="abort" is deliberately absent. The code-generation win comes from lto and
+# codegen-units, not from it; it is the mechanism behind the "CrashLoopBackOff
+# with no log output at all" recorded in Anexo A.10; and with the default unwind a
+# panicking handler answers 500 and is counted by the generator's non_2xx counter
+# (invariante 8) instead of taking the pod down mid-measurement. It is also the
+# Rust default, i.e. the least-tuned choice available -- which is the criterion
+# for this phase. See docs/ACTION_PLAN.md, Fase 9.2.
+opt-level = 3
+lto = true
+codegen-units = 1
