@@ -64,16 +64,14 @@ fn healthz() -> Json<serde_json::Value> {
 }
 
 #[get("/json?<n>")]
-fn json_endpoint(n: Option<usize>) -> Json<serde_json::Value> {
+fn json_endpoint(n: Option<usize>) -> Json<canonical::JsonEnvelope> {
     let n = n.map_or(canonical::DEFAULT_JSON_ITEMS, |v| v.min(canonical::MAX_JSON_ITEMS));
 
-    // The envelope timestamp is the only clock-dependent field and is
-    // excluded from the parity hash.
-    Json(serde_json::json!({
-        "items": canonical::build_items(n),
-        "count": n,
-        "timestamp": Utc::now().to_rfc3339()
-    }))
+    // canonical::envelope, not json!{...}: see canonical::JsonEnvelope. Passing
+    // build_items(n) into json! calls serde_json::to_value on the Vec, which
+    // rebuilds every item as a Value tree and throws away the point of
+    // serializing the items from a struct.
+    Json(canonical::envelope(n))
 }
 
 #[get("/db/simple?<id>")]

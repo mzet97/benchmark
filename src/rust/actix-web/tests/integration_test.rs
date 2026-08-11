@@ -80,7 +80,7 @@ mod integration_tests {
     async fn test_cache_endpoint() {
         let app = test::init_service(
             App::new()
-                .service(web::resource("/cache").to(|query: web::Query<HashMap<String, String>>| async {
+                .service(web::resource("/cache").to(|query: web::Query<HashMap<String, String>>| async move {
                     let key = query.get("key").cloned().unwrap_or_default();
                     actix_web::HttpResponse::Ok().json(serde_json::json!({
                         "key": key,

@@ -6,13 +6,15 @@ use std::io::Write;
 /// Print a FATAL message to stderr (flushing so it is not lost when the
 /// process aborts) and exit non-zero immediately.
 ///
-/// Why this exists: Cargo.toml sets `[profile.release] panic = "abort"` plus
-/// `strip = true`. A panic hook's message can be truncated or never flushed
-/// before abort runs, so on a real crash the container died with *zero* log
-/// output -- CrashLoopBackOff with nothing to diagnose. Going through
-/// `eprintln!` + an explicit `stderr().flush()` + `process::exit(1)` instead
-/// of `panic!`/`expect()`/`unwrap()` guarantees the message reaches the
-/// container logs before the process is torn down.
+/// Why this exists rather than `expect()`/`unwrap()`: a panic during startup
+/// competes with the container being torn down, and its message can be lost
+/// before it reaches the container logs -- CrashLoopBackOff with nothing to
+/// diagnose (Anexo A.10). Going through `eprintln!` + an explicit
+/// `stderr().flush()` + `process::exit(1)` guarantees the reason is readable.
+/// `panic = "abort"` used to make this strictly necessary; it was removed from
+/// the release profile in Fase 9.2, but an explicit flushed message on a
+/// startup failure is still the difference between a diagnosable pod and a
+/// silent one.
 fn die(msg: impl AsRef<str>) -> ! {
     eprintln!("FATAL: {}", msg.as_ref());
     let _ = std::io::stderr().flush();

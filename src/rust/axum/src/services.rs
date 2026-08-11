@@ -8,13 +8,15 @@ use serde::Serialize;
 /// Print a FATAL message to stderr (flushing so it is not lost when the
 /// process aborts) and exit non-zero immediately.
 ///
-/// Why this exists: Cargo.toml sets `[profile.release] panic = "abort"` plus
-/// `strip = true`. A panic hook's message can be truncated or never flushed
-/// before abort runs, so on a real crash the container died with *zero* log
-/// output -- CrashLoopBackOff with nothing to diagnose. Going through
-/// `eprintln!` + an explicit `stderr().flush()` + `process::exit(1)` instead
-/// of `panic!`/`expect()`/`unwrap()` guarantees the message reaches the
-/// container logs before the process is torn down.
+/// Why this exists rather than `expect()`/`unwrap()`: a panic during startup
+/// competes with the container being torn down, and its message can be lost
+/// before it reaches the container logs -- CrashLoopBackOff with nothing to
+/// diagnose (Anexo A.10). Going through `eprintln!` + an explicit
+/// `stderr().flush()` + `process::exit(1)` guarantees the reason is readable.
+/// `panic = "abort"` used to make this strictly necessary; it was removed from
+/// the release profile in Fase 9.2, but an explicit flushed message on a
+/// startup failure is still the difference between a diagnosable pod and a
+/// silent one.
 fn die(msg: impl AsRef<str>) -> ! {
     eprintln!("FATAL: {}", msg.as_ref());
     let _ = std::io::stderr().flush();
@@ -147,9 +149,18 @@ impl DatabaseService {
     }
 }
 
+/// Holds one MultiplexedConnection, opened at startup, and clones it per
+/// command -- the clone is a cheap handle onto the same socket and the driver
+/// pipelines concurrent commands from every task over it.
+///
+/// Every method used to call `Client::get_async_connection()`, which opens a
+/// brand new TCP connection *per request*. Measured on the actix-web sibling
+/// that shared this pattern, /cache ran at 1,636 rps with a 109 ms p99 against
+/// 186,825 rps for the multiplexed (Lettuce) http4k implementation: the number
+/// described a TCP handshake and the TIME_WAIT pileup behind it, not Redis.
 #[derive(Debug, Clone)]
 pub struct CacheService {
-    client: RedisClient,
+    conn: redis::aio::MultiplexedConnection,
 }
 
 impl CacheService {
@@ -162,11 +173,16 @@ impl CacheService {
         let client = RedisClient::open(redis_url)
             .unwrap_or_else(|e| die(format!("Failed to build Redis client: {e}")));
 
-        Self { client }
+        let conn = client
+            .get_multiplexed_async_connection()
+            .await
+            .unwrap_or_else(|e| die(format!("Failed to open multiplexed Redis connection: {e}")));
+
+        Self { conn }
     }
 
     pub async fn ping(&self) -> Result<()> {
-        let mut conn = self.client.get_async_connection().await?;
+        let mut conn = self.conn.clone();
         redis::cmd("PING")
             .query_async::<_, String>(&mut conn)
             .await?;
@@ -174,7 +190,7 @@ impl CacheService {
     }
 
     pub async fn get_or_set(&self, key: &str, value: &str, ttl_seconds: usize) -> Result<(String, String)> {
-        let mut conn = self.client.get_async_connection().await?;
+        let mut conn = self.conn.clone();
 
         let existing: Option<String> = redis::cmd("GET")
             .arg(key)

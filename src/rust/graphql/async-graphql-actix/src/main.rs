@@ -36,7 +36,6 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let pool = db::create_pool().await?;
-    db::ensure_schema(&pool).await?;
 
     let redis_conn = cache::create_connection().await?;
 

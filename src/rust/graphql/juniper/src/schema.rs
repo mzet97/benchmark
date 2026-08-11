@@ -1,6 +1,6 @@
 use chrono::Utc;
 use deadpool_postgres::Pool;
-use juniper::{EmptyMutation, EmptySubscription, RootNode};
+use juniper::{EmptyMutation, EmptySubscription, FieldResult, RootNode};
 use redis::aio::ConnectionManager;
 use redis::AsyncCommands;
 
@@ -93,50 +93,78 @@ impl QueryRoot {
         })
     }
 
-    async fn complex_orders(ctx: &Context, days: Option<i32>) -> ComplexOrdersResult {
+    async fn complex_orders(ctx: &Context, days: Option<i32>) -> FieldResult<ComplexOrdersResult> {
         let period_days = days.unwrap_or(30);
-        let conn = ctx.pool.get().await.unwrap();
+        let conn = ctx.pool.get().await?;
 
-        let rows = conn
+        // Normative SQL, see contracts/rest/canonical-payloads.md. This query
+        // had drifted from the contract in five separate ways, every one of
+        // which made the resolver fail or return a payload nothing else
+        // produced:
+        //   * it aggregated o.amount; sql/01_schema.sql calls the column
+        //     total_amount, so the query was a plain syntax error against the
+        //     benchmark database;
+        //   * ($1 || ' days')::interval makes Postgres infer $1 as text, and
+        //     `impl ToSql for i32` only accepts INT4, so the bind was rejected
+        //     before the query ever ran;
+        //   * LEFT JOIN kept users with no orders, where the contract is an
+        //     INNER JOIN;
+        //   * no LIMIT, so it returned all 10k users rather than the 100 the
+        //     contract fixes;
+        //   * ORDER BY total_value with no tiebreak, so equal values came back
+        //     in arbitrary order and the payload was not reproducible.
+        //
+        // $1 is bound as f64 deliberately: Postgres has no `interval * int4`
+        // operator, so it infers $1 as float8 and an i32 bind fails the same
+        // way. See the sibling async-graphql implementations.
+        let days_interval = f64::from(period_days);
+        let rows = match conn
             .query(
                 "SELECT
                     u.id AS user_id,
                     u.first_name || ' ' || u.last_name AS user_name,
                     COUNT(o.id) AS total_orders,
-                    COALESCE(SUM(o.amount), 0) AS total_value,
-                    COALESCE(AVG(o.amount), 0) AS average_order_value
+                    COALESCE(SUM(o.total_amount), 0)::float8 AS total_value,
+                    COALESCE(AVG(o.total_amount), 0)::float8 AS average_order_value
                  FROM users u
-                 LEFT JOIN orders o ON o.user_id = u.id
-                    AND o.created_at >= NOW() - ($1 || ' days')::interval
+                 INNER JOIN orders o ON u.id = o.user_id
+                    WHERE o.created_at >= NOW() - INTERVAL '1 day' * $1
                  GROUP BY u.id, u.first_name, u.last_name
-                 ORDER BY total_value DESC",
-                &[&period_days],
+                 ORDER BY total_orders DESC, u.id
+                 LIMIT 100",
+                &[&days_interval],
             )
             .await
-            .unwrap();
+        {
+            Ok(rows) => rows,
+            Err(e) => {
+                // Was .unwrap(). A failing query has to surface as a GraphQL
+                // error, not as a panic in a resolver, and never as an empty
+                // list behind a 200 -- that is how a broken /db/complex ended
+                // up topping the REST ranking at 220 bytes per response.
+                tracing::error!("complexOrders query failed: {e}");
+                return Err(e.into());
+            }
+        };
 
         let data: Vec<UserOrderStats> = rows
             .iter()
             .map(|r| UserOrderStats {
                 user_id: r.get(0),
                 user_name: r.get(1),
-                total_orders: r.get(2),
-                total_value: {
-                    let v: rust_decimal::Decimal = r.get(3);
-                    v.to_string().parse::<f64>().unwrap_or(0.0)
-                },
-                average_order_value: {
-                    let v: rust_decimal::Decimal = r.get(4);
-                    v.to_string().parse::<f64>().unwrap_or(0.0)
-                },
+                // COUNT() is int8. Reading it straight into the i32 that
+                // GraphQL's Int maps to panicked on every row.
+                total_orders: r.get::<_, i64>(2) as i32,
+                total_value: r.get(3),
+                average_order_value: r.get(4),
             })
             .collect();
 
-        ComplexOrdersResult {
+        Ok(ComplexOrdersResult {
             period_days,
             total_users: data.len() as i32,
             data,
-        }
+        })
     }
 
     async fn cache(ctx: &Context, key: String) -> CacheEntry {

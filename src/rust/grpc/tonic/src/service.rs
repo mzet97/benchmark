@@ -31,7 +31,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
         _request: Request<HealthRequest>,
     ) -> Result<Response<HealthResponse>, Status> {
         let db_status = match &self.db {
-            Some(pool) => match pool.client.query_one("SELECT 1", &[]).await {
+            Some(pool) => match pool.health_check().await {
                 Ok(_) => "connected".to_string(),
                 Err(e) => format!("error: {}", e),
             },
@@ -96,11 +96,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
         })?;
 
         let row = db
-            .client
-            .query_one(
-                "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
-                &[&id],
-            )
+            .query_user(id)
             .await
             .map_err(|e| Status::not_found(format!("User not found: {}", e)))?;
 
@@ -129,21 +125,7 @@ impl BenchmarkService for BenchmarkServiceImpl {
         })?;
 
         let rows = db
-            .client
-            .query(
-                "SELECT u.id, u.first_name || ' ' || u.last_name AS user_name, \
-                 COUNT(o.id) AS total_orders, \
-                 COALESCE(SUM(o.total), 0) AS total_value, \
-                 COALESCE(AVG(o.total), 0) AS average_order_value \
-                 FROM users u \
-                 LEFT JOIN orders o ON o.user_id = u.id \
-                   AND o.created_at >= NOW() - ($1 || ' days')::interval \
-                 GROUP BY u.id, user_name \
-                 HAVING COUNT(o.id) > 0 \
-                 ORDER BY total_value DESC \
-                 LIMIT 100",
-                &[&days],
-            )
+            .query_complex(days)
             .await
             .map_err(|e| Status::internal(format!("Query error: {}", e)))?;
 
@@ -152,7 +134,10 @@ impl BenchmarkService for BenchmarkServiceImpl {
             .map(|row| UserOrderStats {
                 user_id: row.get(0),
                 user_name: row.get(1),
-                total_orders: row.get(2),
+                // COUNT() is int8 while UserOrderStats.total_orders is
+                // int32 in contracts/grpc/benchmark.proto. Reading it
+                // straight into i32 panicked on every row.
+                total_orders: row.get::<_, i64>(2) as i32,
                 total_value: row.get::<_, f64>(3),
                 average_order_value: row.get::<_, f64>(4),
             })

@@ -49,16 +49,13 @@ pub async fn healthz() -> Json<Value> {
     Json(serde_json::json!({ "status": "ok" }))
 }
 
-pub async fn json_endpoint(Query(params): Query<HashMap<String, String>>) -> Json<Value> {
+pub async fn json_endpoint(
+    Query(params): Query<HashMap<String, String>>,
+) -> Json<crate::canonical::JsonEnvelope> {
     let n = crate::canonical::item_count(params.get("n").map(String::as_str));
 
-    // The envelope timestamp is the only clock-dependent field and is
-    // excluded from the parity hash.
-    Json(serde_json::json!({
-        "items": crate::canonical::build_items(n),
-        "count": n,
-        "timestamp": chrono::Utc::now().to_rfc3339()
-    }))
+    // canonical::envelope, not json!{...}: see canonical::JsonEnvelope.
+    Json(crate::canonical::envelope(n))
 }
 
 pub async fn db_simple(

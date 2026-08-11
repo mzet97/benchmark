@@ -106,13 +106,11 @@ async fn health_handler(db: Arc<Database>, cache: Arc<Cache>) -> Result<impl Rep
 fn json_handler(params: std::collections::HashMap<String, String>) -> impl Reply {
     let n = canonical::item_count(params.get("n").map(String::as_str));
 
-    // The envelope timestamp is the only clock-dependent field and is
-    // excluded from the parity hash.
-    warp::reply::json(&json!({
-        "items": canonical::build_items(n),
-        "count": n,
-        "timestamp": Utc::now().to_rfc3339()
-    }))
+    // canonical::envelope, not json!{...}: see canonical::JsonEnvelope. Passing
+    // build_items(n) into json! calls serde_json::to_value on the Vec, which
+    // rebuilds every item as a Value tree and throws away the point of
+    // serializing the items from a struct.
+    warp::reply::json(&canonical::envelope(n))
 }
 
 async fn db_simple_handler(query: db::SimpleQuery, db: Arc<Database>) -> Result<impl Reply, Rejection> {

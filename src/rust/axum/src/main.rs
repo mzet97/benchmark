@@ -8,8 +8,6 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::io::Write;
-use tower_http::cors::CorsLayer;
-use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use chrono::Utc;
 
@@ -29,11 +27,20 @@ struct AppState {
 
 #[tokio::main]
 async fn main() {
-    // Initialize tracing
+    // The fallback filter is "error", not "...=debug".
+    //
+    // try_from_default_env() reads RUST_LOG, which the benchmark ConfigMap does
+    // not set -- it only sets LOG_LEVEL, which no Rust crate reads. So this fell
+    // back to tower_http=debug, and TraceLayer's DefaultOnRequest/OnResponse
+    // emit at DEBUG: one span plus two formatted stdout events for every single
+    // request. deploy/k3s/base/configmap.yaml puts the reason plainly --
+    // per-request logging is a 2-3x difference between implementations and is
+    // not what this benchmark measures. The ConfigMap now also sets RUST_LOG,
+    // but the fallback must be quiet on its own.
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "benchmark_axum=debug,tower_http=debug,axum=debug".into()),
+                .unwrap_or_else(|_| "error".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -53,8 +60,14 @@ async fn main() {
         .route("/db/simple", get(db_simple))
         .route("/db/complex", get(db_complex))
         .route("/cache", get(cache_endpoint))
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
+        // No TraceLayer and no CorsLayer here.
+        //
+        // TraceLayer builds a span and emits two events per request; even
+        // filtered out at ERROR the span construction is per-request work that
+        // no other implementation in the matrix carries. CorsLayer::permissive()
+        // added Access-Control-* headers to every response -- also unique to
+        // this implementation, and CORS is not part of any contract in
+        // contracts/rest/. Both are measurement noise, not framework behaviour.
         .with_state(state);
 
     // Parse address

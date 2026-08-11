@@ -65,19 +65,28 @@ impl QueryRoot {
         }
     }
 
-    async fn user(&self, ctx: &Context<'_>, id: i32) -> Option<User> {
-        let pool = ctx.data::<Pool>().unwrap();
-        let conn = pool.get().await.ok()?;
+    /// Returns Result<Option<User>>, which async-graphql maps to the same
+    /// nullable `User` field the schema declares. It used to return a bare
+    /// Option and funnel every driver error through `.ok()?`, so a broken
+    /// database read was indistinguishable from a row that does not exist:
+    /// both answered `null` inside a 200, and the load generator's non_2xx
+    /// counter saw nothing.
+    async fn user(&self, ctx: &Context<'_>, id: i32) -> async_graphql::Result<Option<User>> {
+        let pool = ctx.data::<Pool>()?;
+        let conn = pool.get().await?;
 
-        let row = conn
-            .query_opt(
+        // prepare_cached, not query_opt(&str): tokio_postgres::Client::query*
+        // called with a &str runs Parse+Describe on every call, so each request
+        // paid two round-trips to Postgres where every pooled implementation
+        // pays one.
+        let stmt = conn
+            .prepare_cached(
                 "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = $1",
-                &[&id],
             )
-            .await
-            .ok()?;
+            .await?;
+        let row = conn.query_opt(&stmt, &[&id]).await?;
 
-        row.map(|r| User {
+        Ok(row.map(|r| User {
             id: r.get(0),
             email: r.get(1),
             first_name: r.get(2),
@@ -87,13 +96,17 @@ impl QueryRoot {
                 let ts: chrono::NaiveDateTime = r.get(5);
                 chrono::DateTime::<Utc>::from_naive_utc_and_offset(ts, Utc).to_rfc3339()
             },
-        })
+        }))
     }
 
-    async fn complex_orders(&self, ctx: &Context<'_>, days: Option<i32>) -> ComplexOrdersResult {
+    async fn complex_orders(
+        &self,
+        ctx: &Context<'_>,
+        days: Option<i32>,
+    ) -> async_graphql::Result<ComplexOrdersResult> {
         let period_days = days.unwrap_or(30);
-        let pool = ctx.data::<Pool>().unwrap();
-        let conn = pool.get().await.unwrap();
+        let pool = ctx.data::<Pool>()?;
+        let conn = pool.get().await?;
 
         let rows = conn
             .query(
@@ -114,10 +127,22 @@ impl QueryRoot {
                  GROUP BY u.id, u.first_name, u.last_name
                  ORDER BY total_orders DESC, u.id
                  LIMIT 100",
-                &[&period_days],
+                // $1 is bound as f64, not i32. Postgres has no
+                // `interval * int4` operator, so when tokio-postgres prepares
+                // this statement without declaring parameter types the server
+                // infers $1 as float8 -- and `impl ToSql for i32` only accepts
+                // INT4, so every execution failed with "cannot convert between
+                // the Rust type i32 and the Postgres type float8". The REST
+                // actix-web sibling shared this bug and mapped the error to an
+                // empty Vec behind a 200 OK, which is how /db/complex measured
+                // 32,777 rps at 220 bytes/response while every other
+                // implementation returned ~11 kB at ~860 rps.
+                //
+                // Binding f64 keeps the SQL byte-identical to the normative
+                // text; period_days is still reported as an integer.
+                &[&f64::from(period_days)],
             )
-            .await
-            .unwrap();
+            .await?;
 
         let data: Vec<UserOrderStats> = rows
             .iter()
@@ -134,11 +159,11 @@ impl QueryRoot {
             })
             .collect();
 
-        ComplexOrdersResult {
+        Ok(ComplexOrdersResult {
             period_days,
             total_users: data.len() as i32,
             data,
-        }
+        })
     }
 
     async fn cache(&self, ctx: &Context<'_>, key: String) -> CacheEntry {
