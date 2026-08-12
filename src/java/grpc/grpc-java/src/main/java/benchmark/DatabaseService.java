@@ -1,5 +1,9 @@
 package benchmark;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -13,6 +17,7 @@ public class DatabaseService {
 
     private final String jdbcUrl;
     private final Properties props;
+    private final DataSource dataSource;
 
     public DatabaseService() {
         String host = System.getenv().getOrDefault("DB_HOST", "localhost");
@@ -25,10 +30,55 @@ public class DatabaseService {
         this.props = new Properties();
         this.props.setProperty("user", user);
         this.props.setProperty("password", password);
+
+        HikariConfig cfg = new HikariConfig();
+        cfg.setJdbcUrl(this.jdbcUrl);
+        cfg.setUsername(user);
+        cfg.setPassword(password);
+        cfg.setMaximumPoolSize(dbPoolMax());
+        cfg.setMinimumIdle(dbPoolMax());
+        this.dataSource = new HikariDataSource(cfg);
+    }
+
+
+    /**
+     * Pool size is part of the benchmark contract, not a per-implementation
+     * choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+     * the data access layer stops being a hidden variable in the ranking.
+     */
+    private static int dbPoolMax() {
+        String raw = System.getenv("DB_POOL_MAX");
+        if (raw != null) {
+            try {
+                int n = Integer.parseInt(raw.trim());
+                if (n > 0) {
+                    return n;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall through to the default
+            }
+        }
+        return 32;
+    }
+
+    /**
+     * Borrows a connection from the pooled DataSource built in the constructor.
+     * <p>
+     * The three callers below opened a brand new connection each, via
+     * DriverManager, and all three are per-request paths. A JDBC connection to
+     * PostgreSQL costs a TCP handshake, a startup message, SCRAM-SHA-256 over
+     * several round trips and a forked backend process on the server -- for one
+     * query. Under 100 concurrent connections it also drives the server toward
+     * max_connections, where the failure mode stops being slowness and becomes
+     * refused connections. They already used try-with-resources, so closing now
+     * returns the connection to the pool. See docs/ACTION_PLAN.md, Fase 9.10.1.
+     */
+    private Connection getConnection() throws SQLException {
+        return dataSource.getConnection();
     }
 
     public String checkHealth() {
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, props)) {
+        try (Connection conn = getConnection()) {
             conn.isValid(5);
             return "connected";
         } catch (SQLException e) {
@@ -37,7 +87,7 @@ public class DatabaseService {
     }
 
     public UserRecord getUser(int id) throws SQLException {
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, props);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      "SELECT id, email, first_name, last_name, age, created_at FROM users WHERE id = ?")) {
             stmt.setInt(1, id);
@@ -58,7 +108,7 @@ public class DatabaseService {
     }
 
     public List<UserOrderStatsRecord> getComplexOrders(int days) throws SQLException {
-        try (Connection conn = DriverManager.getConnection(jdbcUrl, props);
+        try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(
                      "SELECT u.id AS user_id, " +
                              "u.first_name || ' ' || u.last_name AS user_name, " +

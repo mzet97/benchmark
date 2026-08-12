@@ -1,5 +1,9 @@
 package benchmark;
 
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import javax.sql.DataSource;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,13 +24,62 @@ public class DatabaseService {
         this.connectionUrl = "jdbc:postgresql://" + host + ":" + port + "/" + dbName;
     }
 
+    /**
+     * Pool size is part of the benchmark contract, not a per-implementation
+     * choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+     * the data access layer stops being a hidden variable in the ranking.
+     */
+    private static int dbPoolMax() {
+        String raw = System.getenv("DB_POOL_MAX");
+        if (raw != null) {
+            try {
+                int n = Integer.parseInt(raw.trim());
+                if (n > 0) {
+                    return n;
+                }
+            } catch (NumberFormatException ignored) {
+                // fall through to the default
+            }
+        }
+        return 32;
+    }
+
+    private volatile DataSource dataSource;
+
+    /**
+     * Borrows a connection from a pooled DataSource.
+     * <p>
+     * This used to return {@code DriverManager.getConnection(...)}, which opens a
+     * brand new connection on every call -- and every caller is a per-request
+     * path. A JDBC connection to PostgreSQL is not cheap: TCP handshake, startup
+     * message, SCRAM-SHA-256 authentication over several round trips, and a forked
+     * backend process on the server, for one query. Under the benchmark's 100
+     * concurrent connections it also drives the server toward max_connections,
+     * where the failure mode stops being slowness and becomes refused connections.
+     * <p>
+     * The call sites did not change: they already wrap the connection in
+     * try-with-resources, which now returns it to the pool instead of closing a
+     * socket. Built lazily so it works whether the credentials come from a
+     * constructor or from field injection. See docs/ACTION_PLAN.md, Fase 9.10.1.
+     */
     private Connection getConnection() throws SQLException {
-        Properties props = new Properties();
-        props.setProperty("user", dbUser);
-        props.setProperty("password", dbPassword);
-        props.setProperty("connectTimeout", "5");
-        props.setProperty("socketTimeout", "10");
-        return DriverManager.getConnection(connectionUrl, props);
+        DataSource ds = dataSource;
+        if (ds == null) {
+            synchronized (this) {
+                ds = dataSource;
+                if (ds == null) {
+                    HikariConfig cfg = new HikariConfig();
+                    cfg.setJdbcUrl(connectionUrl);
+                    cfg.setUsername(dbUser);
+                    cfg.setPassword(dbPassword);
+                    cfg.setMaximumPoolSize(dbPoolMax());
+                    cfg.setMinimumIdle(dbPoolMax());
+                    ds = new HikariDataSource(cfg);
+                    dataSource = ds;
+                }
+            }
+        }
+        return ds.getConnection();
     }
 
     public String healthCheck() {

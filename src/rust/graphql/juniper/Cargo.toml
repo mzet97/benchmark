@@ -36,5 +36,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Rust default, i.e. the least-tuned choice available -- which is the criterion
 # for this phase. See docs/ACTION_PLAN.md, Fase 9.2.
 opt-level = 3
-lto = true
+# "thin" rather than true (fat). Thin LTO captures most of the cross-crate
+# inlining at a fraction of the link time -- fat LTO plus codegen-units=1 measured
+# ~15 minutes for a single crate here, or roughly two hours across the ten, and
+# every re-measurement rebuilds all of them. The criterion for this profile is
+# that it is *identical* across the ten, not that it is maximal; thin satisfies
+# that at a build cost the workflow can absorb.
+lto = "thin"
 codegen-units = 1
