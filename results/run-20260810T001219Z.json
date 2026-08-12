@@ -9393,5 +9393,22 @@
       },
       "status": "measured"
     }
-  }
+  },
+  "complete": false,
+  "missing_implementations": [
+    "graalvm-rest-micronaut",
+    "bun-rest-hono",
+    "rust-rest-axum",
+    "python-rest-django",
+    "java-rest-micronaut",
+    "csharp-rest-controllers",
+    "java-rest-spring",
+    "deno-rest-fresh",
+    "go-rest-gin",
+    "graalvm-rest-gmicronaut",
+    "graalvm-rest-helidon",
+    "bun-rest-elysia",
+    "deno-rest-deno-serve"
+  ],
+  "invalidated": "DO NOT CITE. The run died during the pre-clean of graalvm-rest-micronaut: Cluster.delete sat outside the per-implementation try block and a kubectl timeout there aborted the suite, leaving no record for that entry and no finished_utc. Separately, every sample in this file reports non_2xx = 0 because the parser looked for wrk's wording and the caller substituted zero on no-match, so failures and timeouts were recorded as throughput. Both defects are fixed in scripts/run-benchmark-suite.py; this file predates the fix. See docs/ACTION_PLAN.md, Fase 9.11."
 }
