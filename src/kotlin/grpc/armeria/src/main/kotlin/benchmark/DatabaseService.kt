@@ -2,8 +2,10 @@ package benchmark
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import javax.sql.DataSource
 import java.sql.Connection
-import java.sql.DriverManager
 import java.sql.ResultSet
 import java.util.Properties
 
@@ -33,15 +35,45 @@ class DatabaseService {
 
     private val connectionUrl = "jdbc:postgresql://$host:$port/$dbName"
 
-    private fun getConnection(): Connection {
-        val props = Properties().apply {
-           setProperty("user", dbUser)
-           setProperty("password", dbPassword)
-           setProperty("connectTimeout", "5")
-           setProperty("socketTimeout", "10")
-        }
-        return DriverManager.getConnection(connectionUrl, props)
+    /**
+     * Pool size is part of the benchmark contract, not a per-implementation
+     * choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+     * the data access layer stops being a hidden variable in the ranking.
+     */
+    private fun dbPoolMax(): Int =
+        System.getenv("DB_POOL_MAX")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: 32
+
+    /**
+     * Pooled DataSource, built on first access.
+     *
+     * getConnection() used to return DriverManager.getConnection(...), which opens
+     * a brand new connection on every call -- and every caller is a per-request
+     * path. A JDBC connection to PostgreSQL costs a TCP handshake, a startup
+     * message, SCRAM-SHA-256 authentication over several round trips and a forked
+     * backend process on the server, for one query. Under the benchmark's 100
+     * concurrent connections it also drives the server toward max_connections,
+     * where the failure mode stops being slowness and becomes refused connections.
+     *
+     * `by lazy` rather than an initializer because the credentials arrive by field
+     * injection on the Spring variants, after construction. The call sites did not
+     * change: they already wrap the connection in use()/try-with-resources, which
+     * now returns it to the pool instead of closing a socket.
+     * See docs/ACTION_PLAN.md, Fase 9.10.1.
+     */
+    private val dataSource: DataSource by lazy {
+        HikariDataSource(HikariConfig().apply {
+            jdbcUrl = connectionUrl
+            username = dbUser
+            password = dbPassword
+            maximumPoolSize = dbPoolMax()
+            minimumIdle = dbPoolMax()
+            // Preserved from the DriverManager properties this replaced.
+            addDataSourceProperty("connectTimeout", "5")
+            addDataSourceProperty("socketTimeout", "10")
+        })
     }
+
+    private fun getConnection(): Connection = dataSource.connection
 
     suspend fun healthCheck(): String = withContext(Dispatchers.IO) {
         try {

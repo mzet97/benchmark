@@ -20,6 +20,7 @@ repositories {
 val graphqlKotlinVersion = "7.1.1"
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.expediagroup:graphql-kotlin-spring-server:$graphqlKotlinVersion")

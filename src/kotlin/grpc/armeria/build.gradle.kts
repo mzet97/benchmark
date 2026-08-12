@@ -25,6 +25,7 @@ val grpcKotlinVersion = "1.4.1"
 val protobufVersion = "3.25.2"
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     // Armeria gRPC
     implementation("com.linecorp.armeria:armeria-grpc:$armeriaVersion")
     implementation("com.linecorp.armeria:armeria:$armeriaVersion")

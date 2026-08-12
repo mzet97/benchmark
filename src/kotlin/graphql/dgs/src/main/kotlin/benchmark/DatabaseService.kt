@@ -2,8 +2,10 @@ package benchmark
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
+import javax.sql.DataSource
 import java.sql.Connection
-import java.sql.DriverManager
 import java.util.*
 
 @Service
@@ -13,9 +15,42 @@ class DatabaseService(
     @Value("\${database.password:benchmark}") private val databasePassword: String
 ) {
 
-    private fun getConnection(): Connection {
-        return DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword)
+    /**
+     * Pool size is part of the benchmark contract, not a per-implementation
+     * choice: every implementation reads DB_POOL_MAX from the same ConfigMap so
+     * the data access layer stops being a hidden variable in the ranking.
+     */
+    private fun dbPoolMax(): Int =
+        System.getenv("DB_POOL_MAX")?.trim()?.toIntOrNull()?.takeIf { it > 0 } ?: 32
+
+    /**
+     * Pooled DataSource, built on first access.
+     *
+     * getConnection() used to return DriverManager.getConnection(...), which opens
+     * a brand new connection on every call -- and every caller is a per-request
+     * path. A JDBC connection to PostgreSQL costs a TCP handshake, a startup
+     * message, SCRAM-SHA-256 authentication over several round trips and a forked
+     * backend process on the server, for one query. Under the benchmark's 100
+     * concurrent connections it also drives the server toward max_connections,
+     * where the failure mode stops being slowness and becomes refused connections.
+     *
+     * `by lazy` rather than an initializer because the credentials arrive by field
+     * injection on the Spring variants, after construction. The call sites did not
+     * change: they already wrap the connection in use()/try-with-resources, which
+     * now returns it to the pool instead of closing a socket.
+     * See docs/ACTION_PLAN.md, Fase 9.10.1.
+     */
+    private val dataSource: DataSource by lazy {
+        HikariDataSource(HikariConfig().apply {
+            jdbcUrl = databaseUrl
+            username = databaseUsername
+            password = databasePassword
+            maximumPoolSize = dbPoolMax()
+            minimumIdle = dbPoolMax()
+        })
     }
+
+    private fun getConnection(): Connection = dataSource.connection
 
     fun checkHealth(): Boolean {
         return try {

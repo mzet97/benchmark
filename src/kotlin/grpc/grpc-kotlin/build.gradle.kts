@@ -22,6 +22,7 @@ val protobufVersion = "3.25.2"
 val coroutinesVersion = "1.7.3"
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     // gRPC
     implementation("io.grpc:grpc-kotlin-stub:$grpcKotlinVersion")
     implementation("io.grpc:grpc-netty-shaded:$grpcVersion")

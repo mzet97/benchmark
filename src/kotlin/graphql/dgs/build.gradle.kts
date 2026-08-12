@@ -20,6 +20,7 @@ repositories {
 val dgsVersion = "9.1.1"
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     implementation("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("com.netflix.graphql.dgs:graphql-dgs-spring-graphql-starter:$dgsVersion")
