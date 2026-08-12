@@ -2,10 +2,19 @@ import pg from "pg";
 
 const DATABASE_URL = Deno.env.get("DATABASE_URL") || (() => { throw new Error('DATABASE_URL is required'); })();
 
+// Pool size from the contract, not a literal. index.ts already divides
+// DB_POOL_MAX by the worker count and injects the per-worker share into the child
+// environment, so this reads the value as-is -- dividing again would be wrong, and
+// hardcoding it made that arithmetic dead code. With BENCH_CPUS=40 the old
+// literals meant up to 40 x 25 = 1000 PostgreSQL connections against the
+// contract's 32, and min: 5 held 200 open from startup. See invariante 3 in
+// docs/ACTION_PLAN.md and Fase 9.13.
+const poolMaxRaw = Number.parseInt(Deno.env.get("DB_POOL_MAX") ?? "", 10);
+const poolMax = Number.isInteger(poolMaxRaw) && poolMaxRaw > 0 ? poolMaxRaw : 32;
+
 const pool = new pg.Pool({
   connectionString: DATABASE_URL,
-  max: 25,
-  min: 5,
+  max: poolMax,
 });
 
 export async function checkDatabase(): Promise<boolean> {
