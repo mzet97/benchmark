@@ -45,6 +45,12 @@ class Cache {
         available = ok
     }
 
+    /**
+     * Whether the startup connection succeeded. Reading this is free; healthy()
+     * issues a live PING and must not be called on a per-request path.
+     */
+    val isAvailable: Boolean get() = available
+
     fun get(key: String): String? = try {
         if (available) connection!!.sync().get(key) else null
     } catch (e: Exception) {

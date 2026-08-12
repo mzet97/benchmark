@@ -7,6 +7,7 @@ import org.http4k.core.Response
 import org.http4k.core.Status.Companion.BAD_REQUEST
 import org.http4k.core.Status.Companion.NOT_FOUND
 import org.http4k.core.Status.Companion.OK
+import org.http4k.core.Status.Companion.SERVICE_UNAVAILABLE
 import org.http4k.core.with
 import org.http4k.format.Jackson
 import org.http4k.lens.Header
@@ -104,19 +105,45 @@ fun main() {
         },
 
         "/cache" bind { req: Request ->
-            val key = req.query("key") ?: "test"
-            val hit = cache.get(key)
-            val value = hit ?: "cached-value-$key-${System.currentTimeMillis()}"
-            if (hit == null) cache.set(key, value, CACHE_TTL_SECONDS)
-            json(
-                linkedMapOf(
-                    "key" to key,
-                    "value" to value,
-                    "cached" to (hit != null),
-                    "ttl" to CACHE_TTL_SECONDS.toInt(),
-                    "timestamp" to Instant.now().toString(),
+            // A cache that failed to connect must not answer 200 at full speed.
+            //
+            // Cache's init catches a connection failure, prints a warning and sets
+            // available = false. From then on get() returns null and set() does
+            // nothing, so this endpoint would serve a fabricated miss with zero
+            // I/O -- and it is the fastest endpoint in the whole matrix at 186,825
+            // rps, four times the next implementation. That number is plausible
+            // for Lettuce multiplexing real GETs across 40 cores, and the code
+            // does perform them; but nothing in the response distinguished
+            // "Redis answered in 200us" from "Redis was never reachable", and the
+            // parity gate cannot tell either, because the key set is identical.
+            //
+            // The check is the startup flag, not healthy(): healthy() issues a live
+            // PING, and putting a Redis round trip on every request to detect a dead
+            // Redis would be the same invariante 1 defect this series has been
+            // removing everywhere else.
+            //
+            // 503 makes the difference visible in the load generator's non_2xx
+            // counter -- which, until the harness fix in this same series, was
+            // itself dead. Same reasoning as the ResponseStatusException added to
+            // kotlin/spring's DatabaseController: invariante 8 in
+            // docs/ACTION_PLAN.md, an I/O failure never answers 200.
+            if (!cache.isAvailable) {
+                errorJson(SERVICE_UNAVAILABLE, "cache unavailable")
+            } else {
+                val key = req.query("key") ?: "test"
+                val hit = cache.get(key)
+                val value = hit ?: "cached-value-$key-${System.currentTimeMillis()}"
+                if (hit == null) cache.set(key, value, CACHE_TTL_SECONDS)
+                json(
+                    linkedMapOf(
+                        "key" to key,
+                        "value" to value,
+                        "cached" to (hit != null),
+                        "ttl" to CACHE_TTL_SECONDS.toInt(),
+                        "timestamp" to Instant.now().toString(),
+                    )
                 )
-            )
+            }
         },
     )
 
