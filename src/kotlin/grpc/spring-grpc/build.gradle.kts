@@ -24,6 +24,7 @@ val protobufVersion = "3.25.2"
 val grpcSpringBootStarterVersion = "3.1.0.RELEASE"
 
 dependencies {
+    implementation("com.zaxxer:HikariCP:5.1.0")
     // Spring Boot
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
