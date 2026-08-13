@@ -55,7 +55,7 @@ RUN printf '%s\n' \
     '#!/bin/sh' \
     'unset JAVA_TOOL_OPTIONS' \
     'CPUS="${BENCH_CPUS:-4}"' \
-    'exec java -Xms4g -Xmx4g -XX:ActiveProcessorCount="$CPUS" -XX:+UseG1GC -cp app.jar:lib/* com.benchmark.vertx.Main "$@"' \
+    'exec java -XX:ActiveProcessorCount="$CPUS" -cp app.jar:lib/* com.benchmark.vertx.Main "$@"' \
     > /app/run.sh && chmod +x /app/run.sh
 
 RUN chown -R app:app /app

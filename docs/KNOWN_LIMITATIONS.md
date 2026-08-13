@@ -43,6 +43,60 @@ unequal worker counts, and three conflicting resource profiles. The remediation
 plan (Fases 0–7) is in progress; until Fase 6 completes, no measured numbers in
 this repository should be cited or compared.
 
+### The "GraalVM Native" environment is mostly not native, and mostly not GraalVM
+
+**DO NOT PUBLISH the GraalVM row of any ranking until this is resolved.**
+
+`README.md` advertises GraalVM Native as one of the 11 environments, with 12
+implementations. Of the six REST entries, exactly **one** is a native image:
+
+| Implementation | Runtime base image | Entrypoint | Actually is |
+|---|---|---|---|
+| `graalvm-rest-spring` | `debian:bookworm-slim` | `./app` | native image |
+| `graalvm-rest-vertx` | `eclipse-temurin:21-jre` | `java -cp ...` | HotSpot JVM |
+| `graalvm-rest-helidon` | `eclipse-temurin:21-jre` | `java -cp ...` | HotSpot JVM |
+| `graalvm-rest-micronaut` | `eclipse-temurin:21-jre` | `java -cp ...` | HotSpot JVM |
+| `graalvm-rest-gspring` | `eclipse-temurin:21-jre` | `java -jar ...` | HotSpot JVM |
+| `graalvm-rest-gmicronaut` | `eclipse-temurin:21-jre` | `java -cp ...` | HotSpot JVM |
+
+`eclipse-temurin` is OpenJDK with HotSpot. Those five are not native images, and
+they are not running on a GraalVM JDK either -- so they are not "GraalVM" in either
+sense. They are the same runtime as the `java/*` and `kotlin/*` entries, differing
+only in directory name and framework. Publishing their numbers under a GraalVM
+Native heading would state something the artifacts do not support, and a reader
+comparing "GraalVM Native" against "Java/JVM" would be comparing HotSpot to
+HotSpot.
+
+This is the invariante 6 pattern -- an implementation that does not implement --
+at the level of an entire environment rather than an endpoint.
+
+Fixing it means genuinely building native images for those five: native-image
+tooling per framework, reflection and resource configuration, and AOT setup for
+Spring/Micronaut/Helidon/Vert.x. That is a project, not an edit, and it was not
+attempted here. Until then either the row is withheld or the five are relabelled
+as what they are.
+
+### GraalVM and JVM heap sizing was three different profiles
+
+A native executable does not read `JAVA_TOOL_OPTIONS`, so the
+`-Xms32g -Xmx32g -XX:+UseG1GC -XX:ActiveProcessorCount=40` the ConfigMap gives
+every JVM implementation does not reach a native image. Before this pass:
+
+* `graalvm-rest-spring` (the real native) set `-Xms8g -Xmx8g` on its entrypoint --
+  a quarter of the heap its JVM peers get;
+* `graalvm-rest-vertx` ran `java -Xms4g -Xmx4g`. Command-line flags take precedence
+  over `JAVA_TOOL_OPTIONS`, so it got **4g against every other JVM
+  implementation's 32g**, an eightfold difference. Its own Dockerfile comment
+  asserted the opposite -- that "a plain `java -Xmx4g ...` still ends up at 32g" --
+  which is backwards, and is why the discrepancy survived;
+* the remaining four set no heap flags at all and, being plain JVMs, correctly
+  inherited the ConfigMap's 32g.
+
+Now: vertx's `-Xms/-Xmx` and its private `-XX:+UseG1GC` are removed so the
+ConfigMap governs it like every other JVM, and the native `spring` asks for 32g to
+match. `ActiveProcessorCount` stays on vertx's entrypoint because it is derived
+from the pod's own CPU count there.
+
 ### Invalidated Measurement: rust-rest-actix-web `/db/complex`
 
 Every `/db/complex` sample recorded for `rust-rest-actix-web` up to and

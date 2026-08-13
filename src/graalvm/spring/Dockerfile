@@ -62,4 +62,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 # here. -Xms/-Xmx are documented runtime options for native images; without
 # them this binary sizes its heap from the container's memory on its own,
 # against 8g everywhere else. See docs/ACTION_PLAN.md, Fase 3.1.
-ENTRYPOINT ["./app", "-Xms8g", "-Xmx8g"]
+ENTRYPOINT ["./app", "-Xms32g", "-Xmx32g"]
