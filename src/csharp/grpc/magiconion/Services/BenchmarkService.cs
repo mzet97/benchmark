@@ -17,16 +17,23 @@ public class BenchmarkServiceImpl : ServiceBase<IBenchmarkService>, IBenchmarkSe
         _cache = cache;
     }
 
-    public UnaryResult<HealthResponse> HealthAsync()
+    // Database and Cache were the literals "connected", with no I/O of any kind, so
+    // this RPC reported health it had never checked -- invariante 6 in
+    // docs/ACTION_PLAN.md, an implementation that does not implement. The Rust
+    // tonic sibling pings both for this same RPC.
+    public async UnaryResult<HealthResponse> HealthAsync()
     {
-        return UnaryResult.FromResult(new HealthResponse
+        var dbOk = await _database.PingAsync();
+        var cacheOk = await _cache.PingAsync();
+
+        return new HealthResponse
         {
-            Status = "ok",
+            Status = dbOk && cacheOk ? "ok" : "degraded",
             Version = _version,
             Timestamp = DateTime.UtcNow.ToString("o"),
-            Database = "connected",
-            Cache = "connected"
-        });
+            Database = dbOk ? "connected" : "disconnected",
+            Cache = cacheOk ? "connected" : "disconnected"
+        };
     }
 
     public UnaryResult<JsonItemsResponse> GetJsonItemsAsync(int limit)

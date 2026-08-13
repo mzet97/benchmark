@@ -18,6 +18,26 @@ public class CacheService : IDisposable
         _db = _redis.GetDatabase();
     }
 
+
+    /// <summary>
+    /// Real PING to Redis, for the Health RPC.
+    /// </summary>
+    /// <remarks>
+    /// Health used to hardcode Cache = "connected" without touching Redis at all.
+    /// See invariante 6 in docs/ACTION_PLAN.md.
+    /// </remarks>
+    public async Task<bool> PingAsync()
+    {
+        try
+        {
+            await _db.PingAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
     public async Task<CacheResponse> GetAsync(string key)
     {
         var value = await _db.StringGetAsync(key);

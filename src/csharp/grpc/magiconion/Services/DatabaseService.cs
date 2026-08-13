@@ -61,6 +61,30 @@ public class DatabaseService
         }
     }
 
+
+    /// <summary>
+    /// Real round trip to PostgreSQL, for the Health RPC.
+    /// </summary>
+    /// <remarks>
+    /// Health used to hardcode Database = "connected" without touching the
+    /// database at all -- invariante 6 in docs/ACTION_PLAN.md, an implementation
+    /// that does not implement. SELECT 1 is what the peers' health checks run.
+    /// </remarks>
+    public async Task<bool> PingAsync()
+    {
+        try
+        {
+            await using var connection = new NpgsqlConnection(_connectionString);
+            await connection.OpenAsync();
+            await using var cmd = new NpgsqlCommand("SELECT 1", connection);
+            await cmd.ExecuteScalarAsync();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
     public async Task<UserResponse> GetUserAsync(int id)
     {
         await using var connection = new NpgsqlConnection(_connectionString);
